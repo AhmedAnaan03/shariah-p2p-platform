@@ -1,0 +1,28 @@
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Laravel (web/)
+web/vendor/
+web/node_modules/
+web/public/build/
+web/public/hot
+web/public/storage
+web/storage/*.key
+web/.env
+web/.env.backup
+web/.phpunit.result.cache
+
+# Python (risk-service/)
+risk-service/.venv/
+risk-service/venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+risk-service/.env
+
+# Large data (document the download in risk-service/DATA.md instead)
+risk-service/data/raw/
