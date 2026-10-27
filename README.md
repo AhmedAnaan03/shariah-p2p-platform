@@ -29,4 +29,16 @@ Shariah compliance is rule-based, not a formal certification.
 
 ## Setup
 
-Setup instructions for `web/` and `risk-service/` are added as each part is scaffolded (PB-02, PB-03).
+- **Web app (`web/`)**: needs PHP 8.3+, Composer, Node.js 20.19+ and MySQL 8. Full steps in
+  [web/README.md](web/README.md). Short version, once MySQL and the databases exist:
+
+  ```sh
+  cd web
+  composer install && npm install
+  cp .env.example .env && php artisan key:generate   # set DB_PASSWORD in .env
+  php artisan migrate
+  npm run build && php artisan serve                 # http://localhost:8000
+  php artisan test
+  ```
+
+- **Risk service (`risk-service/`)**: added in PB-03.
