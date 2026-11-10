@@ -16,9 +16,10 @@ through their own migrations, and this file is updated when they do.
 - **Shariah rule:** only `conventional` campaigns can hold an interest rate. A CHECK constraint
   makes it impossible to store one on a Murabahah or Mudarabah campaign. Each contract's terms
   are required for that contract and NULL for the others (two-way CHECKs).
-- **Mudarabah has no predetermined return.** Its instalments leave `return_due` NULL, because
-  the investors' return depends on profit the business reports later (PB-29); a fixed figure
-  would be a guaranteed return.
+- **`return_due` is two-way by contract.** Mudarabah instalments leave it NULL (not even 0),
+  because the investors' return depends on profit the business reports later (PB-29); a fixed
+  figure would be a guaranteed return. Conventional and Murabahah instalments must state it,
+  as zero or more. The `RepaymentSchedule` model enforces this (see below).
 - **Personal identifiers are encrypted.** `national_id_no` uses Laravel's `encrypted` cast, so
   the database only ever holds ciphertext. The column is `text` because the encrypted value
   (about 200 characters) is longer than the ID itself, and it can't be indexed or searched.
@@ -164,7 +165,7 @@ erDiagram
         smallint instalment_no
         date due_date
         decimal capital_due
-        decimal return_due "nullable, NULL for mudarabah (model rule)"
+        decimal return_due "nullable, NULL for mudarabah, required and >= 0 otherwise (model rule)"
         enum status "due | paid | late"
         timestamp paid_at "nullable"
     }
@@ -236,11 +237,13 @@ rules that depend on a related row live in the Eloquent model and are covered by
 
 | Model | Rule | Why |
 |---|---|---|
-| `RepaymentSchedule` | `return_due` must be NULL when the campaign's `contract_type` is `mudarabah`, and NOT NULL for `conventional` and `murabahah`. Checked on every save; a violation throws `ContractRuleViolation`. | A Mudarabah return depends on reported profit (PB-29), so a predetermined figure would be a guaranteed return. Conventional and Murabahah instalments always include interest or markup. |
+| `RepaymentSchedule` | Two-way `return_due` rule, checked on every save (insert and update) through Eloquent; a violation throws `ContractRuleViolation`. **Mudarabah:** `return_due` must be NULL; any value, including 0, is rejected. **Conventional and Murabahah:** `return_due` is required (NULL rejected) and must be zero or more (negative rejected). | A Mudarabah return depends on reported profit (PB-29), so a predetermined figure, even zero, would be a guaranteed return. Conventional and Murabahah instalments always carry an interest or markup share, which can be 0 but never negative. |
 
 Model rules only run when rows are saved through Eloquent. A raw `DB::table()->insert()`, a
 bulk `update()` query, or a seeder using the `WithoutModelEvents` trait (as Laravel's default
-`DatabaseSeeder` does) skips them, so the code never writes these tables that way. A MySQL
+`DatabaseSeeder` does) skips them, so the code never writes these tables that way. The
+`repayment_schedules_return_due_check` CHECK (`return_due` NULL or ≥ 0) still stops a negative
+value even then; only the contract-dependent part needs the model. A MySQL
 trigger could enforce the rule in the database instead; it was not used because it hides
 logic outside the PHP code that is reviewed and tested.
 
