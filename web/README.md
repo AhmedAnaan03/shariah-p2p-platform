@@ -1,13 +1,13 @@
 # web/: Laravel + Inertia + React + Tailwind
 
-The main web application: Laravel 13 on PHP 8.3+, with React 19 pages rendered through
+The main web application: Laravel 13 on PHP 8.4+, with React 19 pages rendered through
 Inertia.js and styled with Tailwind CSS 4. Data is stored in MySQL 8.
 
 ## Requirements
 
 | Tool | Version | macOS install |
 |---|---|---|
-| PHP | 8.3 or newer | `brew install php` |
+| PHP | 8.4 or newer | `brew install php` |
 | Composer | 2.x | `brew install composer` |
 | MySQL | 8.x (not MariaDB) | `brew install mysql@8.4` then `brew services start mysql@8.4` |
 | Node.js | 20.19 or newer | `brew install node` |

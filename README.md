@@ -29,7 +29,7 @@ Shariah compliance is rule-based, not a formal certification.
 
 ## Setup
 
-- **Web app (`web/`)**: needs PHP 8.3+, Composer, Node.js 20.19+ and MySQL 8. Full steps in
+- **Web app (`web/`)**: needs PHP 8.4+, Composer, Node.js 20.19+ and MySQL 8. Full steps in
   [web/README.md](web/README.md). Short version, once MySQL and the databases exist:
 
   ```sh
