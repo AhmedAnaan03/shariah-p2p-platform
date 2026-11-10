@@ -1,5 +1,7 @@
 # Shariah-Compliant P2P Financing & SME Crowdinvesting Platform
 
+[![CI](https://github.com/AhmedAnaan03/shariah-p2p-platform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AhmedAnaan03/shariah-p2p-platform/actions/workflows/ci.yml)
+
 Final Year Project (BSc (Hons) Software Engineering, Asia Pacific University of Technology & Innovation)
 by Ahmed Anaan Najeeb (TP079406, APD3F2605SE).
 
@@ -51,3 +53,14 @@ Shariah compliance is rule-based, not a formal certification.
   flask --app app run --port 5001                    # http://localhost:5001/health
   pytest
   ```
+
+## Continuous integration
+
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and
+pull request, with two jobs in parallel:
+
+- **Laravel tests (web)**: PHP 8.4, `composer install`, `npm run build`, then `php artisan test`
+  against a fresh MySQL 8.4 service container.
+- **pytest (risk-service)**: Python 3.12, `pip install -r requirements-dev.txt`, then `pytest`.
+
+A failing test fails its job and the workflow. The badge above shows the latest result on `main`.
