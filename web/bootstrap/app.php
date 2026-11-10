@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,6 +17,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleInertiaRequests::class,
         ]);
+
+        // Lets routes say ->middleware('role:borrower').
+        $middleware->alias([
+            'role' => EnsureUserHasRole::class,
+        ]);
+
+        // 'auth' sends guests to the sign-in page; 'guest' sends signed-in users to their own
+        // portal (e.g. a signed-in investor opening /login lands on /investor).
+        $middleware->redirectGuestsTo(fn () => route('login'));
+        $middleware->redirectUsersTo(fn (Request $request) => route($request->user()->portalRoute()));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
