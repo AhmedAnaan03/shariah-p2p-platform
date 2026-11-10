@@ -41,4 +41,13 @@ Shariah compliance is rule-based, not a formal certification.
   php artisan test
   ```
 
-- **Risk service (`risk-service/`)**: added in PB-03.
+- **Risk service (`risk-service/`)**: needs Python 3.12 and, on macOS, `brew install libomp`
+  for XGBoost. Full steps in [risk-service/README.md](risk-service/README.md). Short version:
+
+  ```sh
+  cd risk-service
+  python3.12 -m venv .venv && source .venv/bin/activate
+  pip install -r requirements-dev.txt
+  flask --app app run --port 5001                    # http://localhost:5001/health
+  pytest
+  ```

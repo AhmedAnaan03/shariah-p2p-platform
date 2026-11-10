@@ -1,0 +1,9 @@
+# Runtime dependencies, pinned to exact versions so every machine (and CI) trains and
+# scores with the same libraries. Tested on Python 3.12.
+flask==3.1.3
+pandas==3.1.1
+numpy==2.5.4
+scikit-learn==1.9.1
+xgboost==3.4.1
+imbalanced-learn==0.14.2
+shap==0.54.1
