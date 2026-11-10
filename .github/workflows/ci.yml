@@ -1,0 +1,130 @@
+# Continuous integration (PB-04).
+# Runs the Laravel tests (web/) and the pytest suite (risk-service/) on every push to any
+# branch and on every pull request. Each job installs everything from scratch on a clean
+# GitHub-hosted Ubuntu machine, so a pass here means the code works outside the developer's
+# laptop. Any failing test makes its job, and therefore the whole workflow, fail.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# The workflow only needs to read the code; it never writes to the repository.
+permissions:
+  contents: read
+
+# If a branch is pushed again while its previous run is still going, cancel the old run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Laravel tests (web)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web
+
+    # A throwaway MySQL 8.4 server started next to the job and deleted when it ends.
+    # phpunit.xml already sets DB_CONNECTION=mysql and DB_DATABASE=shariah_p2p_testing, so
+    # the container creates that database and a user for it. The password only opens this
+    # temporary database, so it is not a secret and does not need GitHub Secrets.
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: shariah_p2p_testing
+          MYSQL_USER: shariah_p2p
+          MYSQL_PASSWORD: ci-only-password
+        ports:
+          - 3306:3306
+        # Do not start the steps until MySQL accepts connections.
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    # Real environment variables win over .env, so these point Laravel at the container.
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: shariah_p2p
+      DB_PASSWORD: ci-only-password
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@2.40.0
+        with:
+          php-version: "8.4"
+          extensions: mbstring, pdo_mysql
+          coverage: none
+
+      # Keep Composer's download cache between runs; the key changes when composer.lock does.
+      - name: Find the Composer cache folder
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ hashFiles('web/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Create .env from the example
+        run: cp .env.example .env
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # Laravel needs an APP_KEY to encrypt cookies on every web route.
+      - name: Generate the application key
+        run: php artisan key:generate
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      # @vite in app.blade.php needs public/build/manifest.json, and building also proves the
+      # React/Tailwind front end still compiles.
+      - name: Build front-end assets
+        run: npm run build
+
+      - name: Run Laravel tests
+        run: php artisan test
+
+  risk-service:
+    name: pytest (risk-service)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: risk-service
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: risk-service/requirements*.txt
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run pytest
+        run: pytest
