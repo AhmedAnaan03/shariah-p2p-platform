@@ -20,7 +20,7 @@ def test_health_reports_service_name_and_version(client):
 
     assert body["status"] == "ok"
     assert body["service"] == "risk-service"
-    assert body["service_version"] == "9.9.9"
+    assert body["service_version"] == "0.1.0"
 
 
 def test_model_version_is_null_when_no_model_is_configured(monkeypatch):

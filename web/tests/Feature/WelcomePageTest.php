@@ -28,7 +28,7 @@ class WelcomePageTest extends TestCase
 
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Welcome')
-            ->has('roles', 4)
+            ->has('roles', 3)
             ->where('roles.0.name', 'Borrower / SME')
             ->where('roles.1.name', 'Investor')
             ->where('roles.2.name', 'Administrator')
