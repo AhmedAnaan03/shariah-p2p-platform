@@ -1,12 +1,37 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 
 export default function Welcome({ roles }) {
+    const { auth } = usePage().props;
+
     return (
         <>
             <Head title="Welcome" />
 
             <div className="min-h-screen bg-slate-50 text-slate-900">
-                <main className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
+                <nav className="mx-auto flex max-w-4xl justify-end gap-3 px-4 pt-6 text-sm sm:px-6">
+                    {auth.user ? (
+                        <Link
+                            href={`/${auth.user.role}`}
+                            className="rounded-md bg-emerald-700 px-3 py-1.5 font-semibold text-white hover:bg-emerald-800"
+                        >
+                            Go to your portal
+                        </Link>
+                    ) : (
+                        <>
+                            <Link href="/login" className="rounded-md px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-100">
+                                Sign in
+                            </Link>
+                            <Link
+                                href="/register"
+                                className="rounded-md bg-emerald-700 px-3 py-1.5 font-semibold text-white hover:bg-emerald-800"
+                            >
+                                Create an account
+                            </Link>
+                        </>
+                    )}
+                </nav>
+
+                <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
                     <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
                         Maldives · P2P financing &amp; SME crowdinvesting
                     </p>
@@ -26,9 +51,6 @@ export default function Welcome({ roles }) {
                             >
                                 <h2 className="font-semibold">{role.name}</h2>
                                 <p className="mt-2 text-sm text-slate-600">{role.description}</p>
-                                <span className="mt-4 inline-block rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
-                                    Portal coming soon
-                                </span>
                             </div>
                         ))}
                     </section>

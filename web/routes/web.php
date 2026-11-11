@@ -1,6 +1,62 @@
 <?php
 
+use App\Http\Controllers\Auth\ChangePasswordController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\Auth\SessionController;
+use App\Http\Controllers\PortalController;
 use App\Http\Controllers\WelcomeController;
+use App\Models\Role;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', WelcomeController::class)->name('home');
+
+/*
+| Guest-only pages. 'guest' sends a signed-in user to their own portal instead.
+*/
+Route::middleware('guest')->group(function () {
+    Route::get('/register', [RegisterController::class, 'create'])->name('register');
+    Route::post('/register', [RegisterController::class, 'store']);
+
+    Route::get('/login', [SessionController::class, 'create'])->name('login');
+    // Rate limiting for sign-in lives in LoginRequest (per email + IP).
+    Route::post('/login', [SessionController::class, 'store']);
+
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'create'])->name('password.request');
+    // At most 6 reset requests a minute from one client, so the form can't be used to flood
+    // inboxes. (The broker also allows only one email per account per minute.)
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('password.email');
+
+    // 'password.reset' is the name Laravel's ResetPassword email uses to build its link.
+    Route::get('/reset-password/{token}', [ResetPasswordController::class, 'create'])->name('password.reset');
+    Route::post('/reset-password', [ResetPasswordController::class, 'store'])->name('password.store');
+});
+
+/*
+| Any signed-in user, whatever their role.
+*/
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', [SessionController::class, 'destroy'])->name('logout');
+
+    Route::get('/account/password', [ChangePasswordController::class, 'edit'])->name('password.edit');
+    Route::put('/account/password', [ChangePasswordController::class, 'update'])->name('password.update');
+});
+
+/*
+| One portal per role. Every route a later item adds for a role goes inside its group, so it
+| inherits the gate: e.g. a borrower opening /investor/... gets 403 Forbidden.
+*/
+Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('borrower.')->group(function () {
+    Route::get('/', [PortalController::class, 'borrower'])->name('portal');
+});
+
+Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('investor.')->group(function () {
+    Route::get('/', [PortalController::class, 'investor'])->name('portal');
+});
+
+Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [PortalController::class, 'admin'])->name('portal');
+});

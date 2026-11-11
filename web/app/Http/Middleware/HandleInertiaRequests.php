@@ -35,9 +35,28 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
-            //
+
+            // Only the fields the React pages need; never the whole model (no password hash,
+            // remember token or encrypted fields can leak into the page's JSON).
+            'auth' => [
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role->name,
+                    'role_label' => $user->role->label,
+                    'status' => $user->status,
+                ] : null,
+            ],
+
+            // One-off message set with ->with('status', '...') on a redirect.
+            'flash' => [
+                'status' => fn () => $request->session()->get('status'),
+            ],
         ];
     }
 }

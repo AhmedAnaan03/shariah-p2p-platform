@@ -50,6 +50,31 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    /**
+     * Whether the user has the given role, e.g. $user->hasRole(Role::INVESTOR).
+     */
+    public function hasRole(string $role): bool
+    {
+        return $this->role?->name === $role;
+    }
+
+    /**
+     * Whether an administrator still has to verify this account.
+     */
+    public function isPending(): bool
+    {
+        return $this->status === 'pending_verification';
+    }
+
+    /**
+     * The name of the route for this user's portal: borrower.portal, investor.portal or
+     * admin.portal. Every role has exactly one portal.
+     */
+    public function portalRoute(): string
+    {
+        return $this->role->name.'.portal';
+    }
+
     public function borrowerProfile(): HasOne
     {
         return $this->hasOne(BorrowerProfile::class);
