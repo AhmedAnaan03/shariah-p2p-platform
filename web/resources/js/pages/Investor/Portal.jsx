@@ -1,5 +1,5 @@
 import PortalPlaceholder from '../../components/PortalPlaceholder';
-import PortalLayout from '../../layouts/PortalLayout';
+import PortalLayout from '../../components/PortalLayout';
 
 export default function InvestorPortal() {
     return (

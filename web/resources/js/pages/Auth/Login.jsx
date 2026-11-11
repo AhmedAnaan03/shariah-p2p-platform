@@ -1,7 +1,9 @@
-import { Link, useForm } from '@inertiajs/react';
-import Field from '../../components/Field';
-import SubmitButton from '../../components/SubmitButton';
-import AuthLayout from '../../layouts/AuthLayout';
+import { useForm } from '@inertiajs/react';
+import AuthLayout from '../../components/AuthLayout';
+import Button from '../../components/Button';
+import Checkbox from '../../components/Checkbox';
+import Input from '../../components/Input';
+import TextLink from '../../components/TextLink';
 
 /**
  * Sign-in form (PB-07). Wrong details and the rate-limit lock both come back as an error on
@@ -22,9 +24,16 @@ export default function Login() {
     }
 
     return (
-        <AuthLayout title="Sign in">
+        <AuthLayout
+            title="Sign in"
+            footer={
+                <>
+                    New here? <TextLink href="/register">Create an account</TextLink>
+                </>
+            }
+        >
             <form onSubmit={submit} noValidate className="space-y-5">
-                <Field
+                <Input
                     id="email"
                     type="email"
                     label="Email address"
@@ -34,7 +43,7 @@ export default function Login() {
                     error={form.errors.email}
                 />
 
-                <Field
+                <Input
                     id="password"
                     type="password"
                     label="Password"
@@ -45,28 +54,18 @@ export default function Login() {
                 />
 
                 <div className="flex items-center justify-between text-sm">
-                    <label className="flex items-center gap-2 text-slate-700">
-                        <input
-                            type="checkbox"
-                            checked={form.data.remember}
-                            onChange={(e) => form.setData('remember', e.target.checked)}
-                            className="accent-emerald-700"
-                        />
-                        Remember me
-                    </label>
-                    <Link href="/forgot-password" className="font-medium text-emerald-700 hover:underline">
-                        Forgot password?
-                    </Link>
+                    <Checkbox
+                        id="remember"
+                        label="Remember me"
+                        checked={form.data.remember}
+                        onChange={(checked) => form.setData('remember', checked)}
+                    />
+                    <TextLink href="/forgot-password">Forgot password?</TextLink>
                 </div>
 
-                <SubmitButton processing={form.processing}>Sign in</SubmitButton>
-
-                <p className="text-center text-sm text-slate-600">
-                    New here?{' '}
-                    <Link href="/register" className="font-medium text-emerald-700 hover:underline">
-                        Create an account
-                    </Link>
-                </p>
+                <Button type="submit" processing={form.processing} fullWidth>
+                    Sign in
+                </Button>
             </form>
         </AuthLayout>
     );
