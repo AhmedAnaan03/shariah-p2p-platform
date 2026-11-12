@@ -5,6 +5,8 @@ use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Auth\SessionController;
+use App\Http\Controllers\Borrower\ProfileController as BorrowerProfileController;
+use App\Http\Controllers\KycDocumentController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\WelcomeController;
 use App\Models\Role;
@@ -43,6 +45,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/account/password', [ChangePasswordController::class, 'edit'])->name('password.edit');
     Route::put('/account/password', [ChangePasswordController::class, 'update'])->name('password.update');
+
+    // Opens one KYC file. Shared by the owner and admins, so it sits outside the role groups;
+    // KycDocumentPolicy lets only those two through and answers 404 to everyone else.
+    Route::get('/documents/{document}', [KycDocumentController::class, 'show'])->name('documents.show');
 });
 
 /*
@@ -51,6 +57,12 @@ Route::middleware('auth')->group(function () {
 */
 Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('borrower.')->group(function () {
     Route::get('/', [PortalController::class, 'borrower'])->name('portal');
+
+    Route::get('/profile', [BorrowerProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [BorrowerProfileController::class, 'update'])->name('profile.update');
+
+    Route::get('/documents', [KycDocumentController::class, 'index'])->name('documents.index');
+    Route::post('/documents', [KycDocumentController::class, 'store'])->name('documents.store');
 });
 
 Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('investor.')->group(function () {

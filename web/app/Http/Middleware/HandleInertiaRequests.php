@@ -50,6 +50,8 @@ class HandleInertiaRequests extends Middleware
                     'role' => $user->role->name,
                     'role_label' => $user->role->label,
                     'status' => $user->status,
+                    // The admin's reason after a rejection or suspension; shown to the user.
+                    'status_reason' => $user->status_reason,
                 ] : null,
             ],
 

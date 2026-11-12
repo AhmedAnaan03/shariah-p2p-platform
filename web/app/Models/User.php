@@ -67,6 +67,32 @@ class User extends Authenticatable
     }
 
     /**
+     * Whether the user may still change their profile and upload documents. Allowed while the
+     * account waits for review or after a rejection (to fix it). Locked once verified, so what
+     * the administrator checked can't be changed afterwards, and while suspended.
+     */
+    public function canEditVerificationDetails(): bool
+    {
+        return in_array($this->status, ['pending_verification', 'rejected'], true);
+    }
+
+    /**
+     * After a rejection, any change the user makes (new profile details or a new document)
+     * puts the account back in the review queue, and the old reason is cleared.
+     */
+    public function reopenReviewIfRejected(): void
+    {
+        if ($this->status !== 'rejected') {
+            return;
+        }
+
+        // status and status_reason are not mass-assignable, so they are set one by one.
+        $this->status = 'pending_verification';
+        $this->status_reason = null;
+        $this->save();
+    }
+
+    /**
      * The name of the route for this user's portal: borrower.portal, investor.portal or
      * admin.portal. Every role has exactly one portal.
      */

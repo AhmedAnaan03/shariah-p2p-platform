@@ -91,7 +91,7 @@ class RoleAccessTest extends TestCase
 
         $this->actingAs($user)->get('/borrower')->assertInertia(fn (Assert $page) => $page
             ->has('auth.user', fn (Assert $props) => $props
-                ->hasAll(['id', 'name', 'email', 'role', 'role_label', 'status'])
+                ->hasAll(['id', 'name', 'email', 'role', 'role_label', 'status', 'status_reason'])
                 ->missing('password')
                 ->missing('remember_token')
             )
