@@ -1,8 +1,10 @@
-import { Link, useForm } from '@inertiajs/react';
-import Field from '../../components/Field';
+import { useForm } from '@inertiajs/react';
+import AuthLayout from '../../components/AuthLayout';
+import Button from '../../components/Button';
+import Input from '../../components/Input';
 import { PASSWORD_HINT } from '../../components/PasswordHint';
-import SubmitButton from '../../components/SubmitButton';
-import AuthLayout from '../../layouts/AuthLayout';
+import RadioGroup from '../../components/RadioGroup';
+import TextLink from '../../components/TextLink';
 
 const ROLE_DESCRIPTIONS = {
     borrower: 'Raise financing for your business or a personal need.',
@@ -31,45 +33,31 @@ export default function Register({ roles }) {
     }
 
     return (
-        <AuthLayout title="Create an account" intro="Choose how you will use the platform.">
+        <AuthLayout
+            title="Create an account"
+            intro="Choose how you will use the platform."
+            footer={
+                <>
+                    Already registered? <TextLink href="/login">Sign in</TextLink>
+                </>
+            }
+        >
             {/* noValidate: the server's messages are the ones shown, not the browser's. */}
             <form onSubmit={submit} noValidate className="space-y-5">
-                <fieldset>
-                    <legend className="text-sm font-medium text-slate-700">I want to register as</legend>
-                    <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                        {roles.map((role) => (
-                            <label
-                                key={role.name}
-                                className={`flex cursor-pointer gap-3 rounded-md border p-3 text-sm ${
-                                    form.data.role === role.name
-                                        ? 'border-emerald-600 bg-emerald-50'
-                                        : 'border-slate-300 hover:border-slate-400'
-                                }`}
-                            >
-                                <input
-                                    type="radio"
-                                    name="role"
-                                    value={role.name}
-                                    checked={form.data.role === role.name}
-                                    onChange={(e) => form.setData('role', e.target.value)}
-                                    aria-describedby={form.errors.role ? 'role-error' : undefined}
-                                    className="mt-0.5 accent-emerald-700"
-                                />
-                                <span>
-                                    <span className="block font-semibold">{role.label}</span>
-                                    <span className="block text-slate-600">{ROLE_DESCRIPTIONS[role.name]}</span>
-                                </span>
-                            </label>
-                        ))}
-                    </div>
-                    {form.errors.role && (
-                        <p id="role-error" className="mt-1 text-sm text-red-600">
-                            {form.errors.role}
-                        </p>
-                    )}
-                </fieldset>
+                <RadioGroup
+                    name="role"
+                    legend="I want to register as"
+                    options={roles.map((role) => ({
+                        value: role.name,
+                        label: role.label,
+                        description: ROLE_DESCRIPTIONS[role.name],
+                    }))}
+                    value={form.data.role}
+                    onChange={(value) => form.setData('role', value)}
+                    error={form.errors.role}
+                />
 
-                <Field
+                <Input
                     id="name"
                     label="Full name"
                     autoComplete="name"
@@ -78,7 +66,7 @@ export default function Register({ roles }) {
                     error={form.errors.name}
                 />
 
-                <Field
+                <Input
                     id="email"
                     type="email"
                     label="Email address"
@@ -88,7 +76,7 @@ export default function Register({ roles }) {
                     error={form.errors.email}
                 />
 
-                <Field
+                <Input
                     id="password"
                     type="password"
                     label="Password"
@@ -99,7 +87,7 @@ export default function Register({ roles }) {
                     error={form.errors.password}
                 />
 
-                <Field
+                <Input
                     id="password_confirmation"
                     type="password"
                     label="Confirm password"
@@ -109,14 +97,9 @@ export default function Register({ roles }) {
                     error={form.errors.password_confirmation}
                 />
 
-                <SubmitButton processing={form.processing}>Create account</SubmitButton>
-
-                <p className="text-center text-sm text-slate-600">
-                    Already registered?{' '}
-                    <Link href="/login" className="font-medium text-emerald-700 hover:underline">
-                        Sign in
-                    </Link>
-                </p>
+                <Button type="submit" processing={form.processing} fullWidth>
+                    Create account
+                </Button>
             </form>
         </AuthLayout>
     );

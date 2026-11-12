@@ -6,6 +6,8 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -64,6 +66,46 @@ class User extends Authenticatable
     public function isPending(): bool
     {
         return $this->status === 'pending_verification';
+    }
+
+    /**
+     * Whether the user may still change their profile and upload documents. Allowed while the
+     * account waits for review or after a rejection (to fix it). Locked once verified, so what
+     * the administrator checked can't be changed afterwards, and while suspended.
+     */
+    public function canEditVerificationDetails(): bool
+    {
+        return in_array($this->status, ['pending_verification', 'rejected'], true);
+    }
+
+    /**
+     * Borrowers and investors still waiting for verification, with everything the
+     * VerificationChecklist needs loaded. Usage: User::awaitingVerification()->get().
+     */
+    #[Scope]
+    protected function awaitingVerification(Builder $query): void
+    {
+        $query->where('status', 'pending_verification')
+            ->whereHas('role', fn (Builder $roles) => $roles->whereIn('name', [Role::BORROWER, Role::INVESTOR]))
+            ->with(['role', 'borrowerProfile', 'investorProfile', 'kycDocuments'])
+            ->orderBy('created_at')
+            ->orderBy('id');
+    }
+
+    /**
+     * After a rejection, any change the user makes (new profile details or a new document)
+     * puts the account back in the review queue, and the old reason is cleared.
+     */
+    public function reopenReviewIfRejected(): void
+    {
+        if ($this->status !== 'rejected') {
+            return;
+        }
+
+        // status and status_reason are not mass-assignable, so they are set one by one.
+        $this->status = 'pending_verification';
+        $this->status_reason = null;
+        $this->save();
     }
 
     /**

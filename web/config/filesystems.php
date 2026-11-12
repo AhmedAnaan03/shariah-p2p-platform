@@ -33,8 +33,23 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Laravel's default is true, which registers a GET storage/{path} route that serves
+            // this disk's files to anyone holding a signed URL. Nothing in this app needs it, and
+            // KYC documents live under this root, so the route is switched off entirely (PB-09).
+            'serve' => false,
             'throw' => false,
+            'report' => false,
+        ],
+
+        // KYC documents (PB-09). Private: no 'url', not served, outside public/. The only way
+        // to read a file is KycDocumentController@show, which checks KycDocumentPolicy first.
+        // Files are encrypted with APP_KEY before they are written (KycDocumentStore).
+        'kyc' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/kyc'),
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
             'report' => false,
         ],
 

@@ -1,7 +1,8 @@
-import { Link, useForm } from '@inertiajs/react';
-import Field from '../../components/Field';
-import SubmitButton from '../../components/SubmitButton';
-import AuthLayout from '../../layouts/AuthLayout';
+import { useForm } from '@inertiajs/react';
+import AuthLayout from '../../components/AuthLayout';
+import Button from '../../components/Button';
+import Input from '../../components/Input';
+import TextLink from '../../components/TextLink';
 
 /**
  * "Forgot password" form (PB-08). The server answers the same way whether or not the email
@@ -19,9 +20,10 @@ export default function ForgotPassword() {
         <AuthLayout
             title="Forgot your password?"
             intro="Enter your email address and we'll send you a link to choose a new password. The link expires after 60 minutes."
+            footer={<TextLink href="/login">Back to sign in</TextLink>}
         >
             <form onSubmit={submit} noValidate className="space-y-5">
-                <Field
+                <Input
                     id="email"
                     type="email"
                     label="Email address"
@@ -31,13 +33,9 @@ export default function ForgotPassword() {
                     error={form.errors.email}
                 />
 
-                <SubmitButton processing={form.processing}>Email me a reset link</SubmitButton>
-
-                <p className="text-center text-sm text-slate-600">
-                    <Link href="/login" className="font-medium text-emerald-700 hover:underline">
-                        Back to sign in
-                    </Link>
-                </p>
+                <Button type="submit" processing={form.processing} fullWidth>
+                    Email me a reset link
+                </Button>
             </form>
         </AuthLayout>
     );

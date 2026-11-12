@@ -1,8 +1,9 @@
 import { useForm } from '@inertiajs/react';
-import Field from '../../components/Field';
+import Alert from '../../components/Alert';
+import AuthLayout from '../../components/AuthLayout';
+import Button from '../../components/Button';
+import Input from '../../components/Input';
 import { PASSWORD_HINT } from '../../components/PasswordHint';
-import SubmitButton from '../../components/SubmitButton';
-import AuthLayout from '../../layouts/AuthLayout';
 
 /**
  * "Choose a new password" form (PB-08), opened from the emailed link. `token` and `email`
@@ -27,9 +28,13 @@ export default function ResetPassword({ token, email }) {
         <AuthLayout title="Choose a new password">
             <form onSubmit={submit} noValidate className="space-y-5">
                 {/* The token isn't a visible field, so its message is shown above the form. */}
-                {form.errors.token && <p className="text-sm text-red-600">{form.errors.token}</p>}
+                {form.errors.token && (
+                    <Alert variant="error" role="alert">
+                        {form.errors.token}
+                    </Alert>
+                )}
 
-                <Field
+                <Input
                     id="email"
                     type="email"
                     label="Email address"
@@ -39,7 +44,7 @@ export default function ResetPassword({ token, email }) {
                     error={form.errors.email}
                 />
 
-                <Field
+                <Input
                     id="password"
                     type="password"
                     label="New password"
@@ -50,7 +55,7 @@ export default function ResetPassword({ token, email }) {
                     error={form.errors.password}
                 />
 
-                <Field
+                <Input
                     id="password_confirmation"
                     type="password"
                     label="Confirm new password"
@@ -60,7 +65,9 @@ export default function ResetPassword({ token, email }) {
                     error={form.errors.password_confirmation}
                 />
 
-                <SubmitButton processing={form.processing}>Reset password</SubmitButton>
+                <Button type="submit" processing={form.processing} fullWidth>
+                    Reset password
+                </Button>
             </form>
         </AuthLayout>
     );
