@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\VerificationController;
 use App\Http\Controllers\Auth\ChangePasswordController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -83,4 +84,8 @@ Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('i
 
 Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [PortalController::class, 'admin'])->name('portal');
+
+    Route::get('/verifications', [VerificationController::class, 'index'])->name('verifications.index');
+    Route::get('/verifications/{user}', [VerificationController::class, 'show'])->name('verifications.show');
+    Route::post('/verifications/{user}/decision', [VerificationController::class, 'decide'])->name('verifications.decide');
 });

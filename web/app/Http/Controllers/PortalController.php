@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Support\VerificationChecklist;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -37,6 +38,13 @@ class PortalController extends Controller
 
     public function admin(): Response
     {
-        return Inertia::render('Admin/Portal');
+        $readyForReview = User::awaitingVerification()
+            ->get()
+            ->filter(fn (User $user) => VerificationChecklist::for($user)->isComplete())
+            ->count();
+
+        return Inertia::render('Admin/Portal', [
+            'readyForReview' => $readyForReview,
+        ]);
     }
 }

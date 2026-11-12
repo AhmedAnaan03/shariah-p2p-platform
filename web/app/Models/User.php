@@ -6,6 +6,8 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -74,6 +76,20 @@ class User extends Authenticatable
     public function canEditVerificationDetails(): bool
     {
         return in_array($this->status, ['pending_verification', 'rejected'], true);
+    }
+
+    /**
+     * Borrowers and investors still waiting for verification, with everything the
+     * VerificationChecklist needs loaded. Usage: User::awaitingVerification()->get().
+     */
+    #[Scope]
+    protected function awaitingVerification(Builder $query): void
+    {
+        $query->where('status', 'pending_verification')
+            ->whereHas('role', fn (Builder $roles) => $roles->whereIn('name', [Role::BORROWER, Role::INVESTOR]))
+            ->with(['role', 'borrowerProfile', 'investorProfile', 'kycDocuments'])
+            ->orderBy('created_at')
+            ->orderBy('id');
     }
 
     /**
