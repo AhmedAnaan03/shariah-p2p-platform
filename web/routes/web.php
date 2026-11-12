@@ -6,6 +6,8 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\Borrower\ProfileController as BorrowerProfileController;
+use App\Http\Controllers\Investor\ProfileController as InvestorProfileController;
+use App\Http\Controllers\Investor\RiskAcknowledgementController;
 use App\Http\Controllers\KycDocumentController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\WelcomeController;
@@ -67,6 +69,16 @@ Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('b
 
 Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('investor.')->group(function () {
     Route::get('/', [PortalController::class, 'investor'])->name('portal');
+
+    Route::get('/profile', [InvestorProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [InvestorProfileController::class, 'update'])->name('profile.update');
+
+    // Same controller as the borrower's documents; it uses the signed-in user's role.
+    Route::get('/documents', [KycDocumentController::class, 'index'])->name('documents.index');
+    Route::post('/documents', [KycDocumentController::class, 'store'])->name('documents.store');
+
+    Route::get('/acknowledgement', [RiskAcknowledgementController::class, 'show'])->name('acknowledgement.show');
+    Route::post('/acknowledgement', [RiskAcknowledgementController::class, 'store'])->name('acknowledgement.store');
 });
 
 Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin')->name('admin.')->group(function () {

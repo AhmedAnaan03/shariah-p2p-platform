@@ -21,6 +21,34 @@ class AuditLog extends Model
     }
 
     /**
+     * Write one audit entry: who (the signed-in user unless $actor is given), did what
+     * ($action, e.g. 'user.verified'), to which record ($subject), with any details, and from
+     * which IP address. PB-41 builds the audit screens on these rows.
+     *
+     *   AuditLog::record('user.rejected', $user, ['reason' => '...']);
+     *
+     * @param  array<string, mixed>  $details
+     */
+    public static function record(string $action, ?Model $subject = null, array $details = [], ?User $actor = null): self
+    {
+        $entry = new self([
+            'actor_id' => ($actor ?? auth()->user())?->id,
+            'action' => $action,
+            'details' => $details === [] ? null : $details,
+            'ip_address' => request()?->ip(),
+        ]);
+
+        if ($subject !== null) {
+            // Fills subject_type (the model's class) and subject_id.
+            $entry->subject()->associate($subject);
+        }
+
+        $entry->save();
+
+        return $entry;
+    }
+
+    /**
      * The user who acted; null when a scheduled job acted.
      */
     public function actor(): BelongsTo

@@ -1,3 +1,4 @@
+import BulletList from './BulletList';
 import Card from './Card';
 
 /**
@@ -6,11 +7,7 @@ import Card from './Card';
 export default function PortalPlaceholder({ heading, comingSoon }) {
     return (
         <Card title={heading} titleAs="h1" description="This portal is a placeholder. Coming in later sprints:">
-            <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
-                {comingSoon.map((item) => (
-                    <li key={item}>{item}</li>
-                ))}
-            </ul>
+            <BulletList items={comingSoon} />
         </Card>
     );
 }
