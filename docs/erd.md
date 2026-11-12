@@ -247,6 +247,18 @@ value even then; only the contract-dependent part needs the model. A MySQL
 trigger could enforce the rule in the database instead; it was not used because it hides
 logic outside the PHP code that is reviewed and tested.
 
+## Allowed values kept in code (PB-09 to PB-11)
+
+These columns are `varchar` or `text` in the database, and the form requests restrict them to fixed
+values listed in the models. They are not ENUMs because the lists may grow without a migration.
+
+| Column | Allowed values | Where |
+|---|---|---|
+| `borrower_profiles.sector` | `agriculture`, `construction`, `education`, `fisheries`, `food_and_beverage`, `health`, `manufacturing`, `retail`, `technology`, `tourism`, `transport`, `other_services` (NULL for individuals) | `BorrowerProfile::SECTORS` |
+| `borrower_profiles.phone`, `investor_profiles.phone` | Stored as `+960 NNNNNNN` | `ValidatesPersonalDetails` |
+| `kyc_documents.document_type` | Borrowers: `national_id`, `business_registration`, `financial_statement`, `proof_of_address`. Investors: `national_id`, `proof_of_address`. (`other` is not offered yet.) | `KycDocument::TYPES_BY_ROLE` |
+| `kyc_documents.storage_path` | `{user_id}/{40 random characters}.{pdf,png,jpg}` on the private `kyc` disk; the file is encrypted with APP_KEY | `KycDocumentStore` |
+
 ## How money moves (for reading the wallet tables)
 
 Every movement is one or two `wallet_transactions` rows, written in one database transaction

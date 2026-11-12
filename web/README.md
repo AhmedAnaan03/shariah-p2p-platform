@@ -43,6 +43,22 @@ export PATH="/opt/homebrew/opt/mysql@8.4/bin:$PATH"
    php artisan migrate
    ```
 
+3. Raise PHP's upload limits (one time). KYC documents may be up to **5 MB**, but PHP's
+   defaults (`upload_max_filesize = 2M`, `post_max_size = 8M`) would refuse a larger file
+   before Laravel sees it, and the user would get a vague "could not be uploaded" error instead
+   of "Files must be 5 MB or smaller". Find the loaded `php.ini` with `php --ini` (Homebrew:
+   `/opt/homebrew/etc/php/<version>/php.ini`) and set:
+
+   ```ini
+   upload_max_filesize = 10M
+   post_max_size = 12M
+   ```
+
+   Both are deliberately above 5 MB, so a 5–10 MB file reaches Laravel and gets the app's own
+   message. Check with `php -i | grep -E "upload_max_filesize|post_max_size"`, and restart
+   `php artisan serve` after changing them. The 5 MB rule itself is
+   `KycDocument::MAX_KILOBYTES`; the tests don't depend on `php.ini`.
+
 ## Running locally
 
 ```sh
@@ -72,5 +88,23 @@ is never touched by tests.
 | `resources/views/app.blade.php` | The single HTML shell every page is mounted into |
 | `resources/js/app.jsx` | Boots React and maps page names to files in `resources/js/pages/` |
 | `resources/js/pages/` | One React component per page (e.g. `Welcome.jsx`) |
+| `resources/js/components/` | Shared UI components; pages build their forms and panels from these (see below) |
 | `resources/css/app.css` | Tailwind entry point |
 | `tests/Feature/` | HTTP-level tests run by `php artisan test` |
+| `storage/app/private/kyc/` | Uploaded KYC documents, encrypted, never served directly (PB-09) |
+
+## UI components
+
+Every page is built from the components in `resources/js/components/`, so forms, messages and
+panels look and behave the same everywhere. In a page, Tailwind classes are only for layout
+(flex/grid, spacing, widths); colours, borders and control styling live in a component. If a
+page needs something no component offers, add or extend a component.
+
+| Component | Use |
+|---|---|
+| `Input`, `Select`, `Textarea`, `FileUpload` | Labelled form controls with a hint and the server's error (built on `FormField`) |
+| `Checkbox`, `RadioGroup` | A single tick box; a set of options drawn as cards |
+| `Button`, `TextLink` | Buttons (also as Inertia links, e.g. sign-out with `method="post"`); in-text links |
+| `Alert`, `Badge` / `StatusBadge`, `StatusMessage` | Messages; small status labels; the flashed `status` message |
+| `Card`, `PageHeading`, `DetailList`, `BulletList`, `Table`, `StepList`, `DocumentList` | Panels and read-only content |
+| `AuthLayout`, `PortalLayout` | Page frames: the sign-in card, and the portal header, per-role navigation and account-status notice |
