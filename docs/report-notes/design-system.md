@@ -182,7 +182,9 @@ stepper's states are written out for screen readers.
 
 `docs/report-notes/screenshots/design-system/`, named `<page>-<width>-<mode>.png`, for 18 pages
 at 1440, 820 and 390 px in conventional and Shariah mode, plus `focus-input.png` and
-`focus-button.png`. Good ones for the report:
+`focus-button.png`. Only the two focus shots are committed; the rest (about 12 MB) are kept
+out of git and regenerated with `npm run screenshots` (see `web/README.md`), which writes them
+to the same folder. Good ones for the report:
 
 | Figure | File |
 |---|---|

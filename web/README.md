@@ -104,7 +104,8 @@ DB_DATABASE=shariah_p2p_screenshots php artisan serve --port=8010    # terminal 
 npm run build && npm run screenshots                                  # terminal 2
 ```
 
-It needs Google Chrome installed (`CHROME_PATH` to point elsewhere).
+It needs Google Chrome installed (`CHROME_PATH` to point elsewhere). The screenshots are
+git-ignored except `focus-input.png` and `focus-button.png`, which the report notes reference.
 
 ## Where things live
 
