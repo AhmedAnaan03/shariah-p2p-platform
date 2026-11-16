@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Role;
+use App\Support\PlatformMode;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -59,6 +61,17 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
             ],
+
+            // The platform-wide palette (PB-51). Not lazy: app.blade.php also reads it to put
+            // data-mode on <html>, so the first paint is already in the right colours.
+            'mode' => PlatformMode::for($user),
+
+            // The top bar's Shariah-only switch, for investors only. The preference is stored on
+            // the investor profile, so it can only be changed once that profile exists.
+            'modeSwitch' => $user?->hasRole(Role::INVESTOR) ? [
+                'available' => $user->investorProfile !== null,
+                'url' => route('investor.preferences.shariah-only'),
+            ] : null,
         ];
     }
 }

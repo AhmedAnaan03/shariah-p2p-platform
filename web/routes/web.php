@@ -9,11 +9,13 @@ use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\Borrower\ProfileController as BorrowerProfileController;
 use App\Http\Controllers\Investor\ProfileController as InvestorProfileController;
 use App\Http\Controllers\Investor\RiskAcknowledgementController;
+use App\Http\Controllers\Investor\ShariahPreferenceController;
 use App\Http\Controllers\KycDocumentController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\WelcomeController;
 use App\Models\Role;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::get('/', WelcomeController::class)->name('home');
 
@@ -80,6 +82,10 @@ Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('i
 
     Route::get('/acknowledgement', [RiskAcknowledgementController::class, 'show'])->name('acknowledgement.show');
     Route::post('/acknowledgement', [RiskAcknowledgementController::class, 'store'])->name('acknowledgement.store');
+
+    // The top bar's Shariah-only switch (PB-51). No user id in the URL: it always changes the
+    // signed-in investor's own profile.
+    Route::patch('/preferences/shariah-only', ShariahPreferenceController::class)->name('preferences.shariah-only');
 });
 
 Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin')->name('admin.')->group(function () {
@@ -89,3 +95,12 @@ Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin')->name('admin.'
     Route::get('/verifications/{user}', [VerificationController::class, 'show'])->name('verifications.show');
     Route::post('/verifications/{user}/decision', [VerificationController::class, 'decide'])->name('verifications.decide');
 });
+
+/*
+| Design preview (PB-51): every shared component in every state, in both modes, for checking
+| the UI and taking report screenshots. Registered on a developer's machine only, never in
+| production or in tests (APP_ENV=testing), so it can't leak into the live app.
+*/
+if (app()->environment('local')) {
+    Route::get('/dev/design', fn () => Inertia::render('Dev/Design'))->name('dev.design');
+}
