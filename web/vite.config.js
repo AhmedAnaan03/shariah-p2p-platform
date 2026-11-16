@@ -13,10 +13,6 @@ export default defineConfig({
         react(),
         tailwindcss(),
     ],
-    // Vitest: unit tests for the plain JS helpers in resources/js/lib (npm test).
-    test: {
-        include: ['resources/js/**/*.test.js'],
-    },
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],
