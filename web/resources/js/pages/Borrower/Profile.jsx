@@ -3,10 +3,11 @@ import Alert from '../../components/Alert';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
 import Input from '../../components/Input';
-import PortalLayout from '../../components/PortalLayout';
-import RadioGroup from '../../components/RadioGroup';
+import RadioCards from '../../components/RadioCards';
 import Select from '../../components/Select';
 import Textarea from '../../components/Textarea';
+
+const TYPE_ICONS = { individual: 'user', sme: 'storefront' };
 
 /**
  * Borrower / SME profile form (PB-09). `profile` is null until it is first saved. The
@@ -42,60 +43,73 @@ export default function BorrowerProfile({ profile, borrowerTypes, sectors, locke
     });
 
     return (
-        <PortalLayout title="Your profile">
-            <Card
-                title="Your profile"
-                titleAs="h1"
-                description="An administrator checks these details against your documents before you can raise financing."
-            >
-                {locked && (
-                    <Alert variant="info" role="note" className="mb-5">
-                        Your account has been verified, so your profile can no longer be changed.
-                    </Alert>
-                )}
+        <form onSubmit={submit} noValidate className="space-y-6">
+            {locked && (
+                <Alert tone="info" role="note">
+                    Your account has been verified, so your profile can no longer be changed.
+                </Alert>
+            )}
 
-                <form onSubmit={submit} noValidate className="space-y-6">
-                    <RadioGroup
+            <Card title="About you">
+                <div className="space-y-5">
+                    <RadioCards
                         name="borrower_type"
                         legend="I am borrowing as"
-                        options={borrowerTypes}
+                        options={borrowerTypes.map((type) => ({ ...type, icon: TYPE_ICONS[type.value] }))}
                         value={form.data.borrower_type}
-                        onChange={(value) => !locked && form.setData('borrower_type', value)}
+                        onChange={(value) => form.setData('borrower_type', value)}
+                        disabled={locked}
                         error={form.errors.borrower_type}
                     />
 
-                    <fieldset className="grid gap-5 sm:grid-cols-2">
+                    <fieldset className="grid gap-5 @bp-sm/shell:grid-cols-2">
                         <legend className="sr-only">Personal details</legend>
                         <Input {...field('phone')} type="tel" label="Phone number" autoComplete="tel" hint="For example 7771234 or +960 7771234." />
                         <Input {...field('national_id_no')} label="National ID card number" hint="The letter A and 6 digits, like A123456." />
-                        <Textarea {...field('address')} label="Address" className="sm:col-span-2" />
+                        <Textarea {...field('address')} label="Address" className="@bp-sm/shell:col-span-2" />
                     </fieldset>
-
-                    {isSme && (
-                        <fieldset className="grid gap-5 sm:grid-cols-2">
-                            <legend className="sr-only">Business details</legend>
-                            <Input {...field('business_name')} label="Business name" autoComplete="organization" />
-                            <Input {...field('business_registration_no')} label="Business registration number" />
-                            <Select {...field('sector')} label="Sector" placeholder="Choose a sector" options={sectors} />
-                            <Input {...field('years_operating')} type="number" min="0" max="100" label="Years operating" />
-                        </fieldset>
-                    )}
-
-                    <Input
-                        {...field('declared_annual_income')}
-                        inputMode="decimal"
-                        label={isSme ? 'Declared annual revenue (MVR)' : 'Declared annual income (MVR)'}
-                        hint="Your own figure before tax. It is used in the risk assessment."
-                        className="sm:max-w-xs"
-                    />
-
-                    {!locked && (
-                        <Button type="submit" processing={form.processing}>
-                            Save profile
-                        </Button>
-                    )}
-                </form>
+                </div>
             </Card>
-        </PortalLayout>
+
+            {isSme && (
+                <Card title="Your business">
+                    <fieldset className="grid gap-5 @bp-sm/shell:grid-cols-2">
+                        <legend className="sr-only">Business details</legend>
+                        <Input {...field('business_name')} label="Business name" autoComplete="organization" />
+                        <Input {...field('business_registration_no')} label="Business registration number" hint="As on your registration certificate, like C-0412/2021." />
+                        <Select
+                            {...field('sector')}
+                            onChange={(value) => form.setData('sector', value)}
+                            label="Sector"
+                            placeholder="Choose a sector"
+                            options={sectors}
+                        />
+                        <Input {...field('years_operating')} type="number" min="0" max="100" label="Years operating" />
+                    </fieldset>
+                </Card>
+            )}
+
+            <Card title={isSme ? 'Revenue' : 'Income'}>
+                <Input
+                    {...field('declared_annual_income')}
+                    inputMode="decimal"
+                    prefix="MVR"
+                    label={isSme ? 'Declared annual revenue' : 'Declared annual income'}
+                    hint="Your own figure before tax. It is used in the risk assessment."
+                    className="max-w-sm"
+                />
+            </Card>
+
+            {!locked && (
+                <Button type="submit" loading={form.processing}>
+                    Save profile
+                </Button>
+            )}
+        </form>
     );
 }
+
+BorrowerProfile.layout = {
+    title: 'Your profile',
+    description: 'An administrator checks these details against your documents before you can raise financing.',
+};

@@ -1,12 +1,13 @@
 import { usePage } from '@inertiajs/react';
 import Alert from '../../components/Alert';
 import Card from '../../components/Card';
-import PortalLayout from '../../components/PortalLayout';
-import StepList from '../../components/StepList';
+import ModePanel from '../../components/ModePanel';
+import OnboardingStepper from '../../components/OnboardingStepper';
 
 /**
- * Investor portal home: the steps to start investing (PB-10, PB-11). `pledge` is the answer
- * of the server's 'pledge' gate, with its reason when pledging is still locked.
+ * Investor portal home: the steps to start investing (PB-10, PB-11) and the Shariah-only mode
+ * panel (PB-51). `pledge` is the answer of the server's 'pledge' gate, with its reason when
+ * pledging is still locked.
  */
 export default function InvestorPortal({ checklist, riskAcknowledged, pledge }) {
     const { auth } = usePage().props;
@@ -28,36 +29,40 @@ export default function InvestorPortal({ checklist, riskAcknowledged, pledge }) 
         },
         {
             title: 'Accept the risk acknowledgement',
-            description: 'A short, plain-language explanation that your capital is at risk.',
+            description: 'A short, plain-language explanation that you could lose some or all of your money.',
             done: riskAcknowledged,
             href: '/investor/acknowledgement',
             actionLabel: 'Read and accept',
         },
         {
             title: 'Verification by an administrator',
-            description: checklist.complete && auth.user.status === 'pending_verification'
-                ? 'Your account is in the review queue.'
-                : 'Starts once your profile and documents are complete.',
+            description:
+                checklist.complete && auth.user.status === 'pending_verification'
+                    ? 'Your account is in the review queue.'
+                    : 'Starts once your profile and documents are complete.',
             done: auth.user.status === 'verified',
         },
     ];
 
     return (
-        <PortalLayout title="Investor portal">
-            <Card title="Investor portal" titleAs="h1" description="Complete these steps to start investing.">
-                <div className="space-y-5">
-                    {pledge.allowed ? (
-                        <Alert variant="success" title="Pledging is unlocked">
-                            You can pledge to campaigns once the marketplace opens in the next sprint.
-                        </Alert>
-                    ) : (
-                        <Alert variant="warning" role="note" title="Pledging is locked">
-                            {pledge.reason}
-                        </Alert>
-                    )}
-                    <StepList steps={steps} />
-                </div>
+        <>
+            {pledge.allowed ? (
+                <Alert tone="success" title="Pledging is unlocked">
+                    You can pledge to campaigns once the marketplace opens in the next sprint.
+                </Alert>
+            ) : (
+                <Alert tone="warning" role="note" title="Pledging is locked">
+                    {pledge.reason}
+                </Alert>
+            )}
+
+            <Card title="Start investing" description="Complete these steps to start investing.">
+                <OnboardingStepper steps={steps} />
             </Card>
-        </PortalLayout>
+
+            <ModePanel />
+        </>
     );
 }
+
+InvestorPortal.layout = { title: 'Overview' };

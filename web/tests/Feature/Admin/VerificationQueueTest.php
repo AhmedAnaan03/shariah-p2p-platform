@@ -61,6 +61,7 @@ class VerificationQueueTest extends TestCase
                 ->component('Admin/Verifications/Index')
                 ->has('applicants', 2)
                 ->where('applicants.0.name', 'Older Investor')
+                ->where('applicants.0.role', 'investor')
                 ->where('applicants.0.role_label', 'Investor')
                 ->where('applicants.0.documents_count', 1)
                 ->where('applicants.0.url', route('admin.verifications.show', $older))

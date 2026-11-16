@@ -4,8 +4,7 @@ import Alert from '../../components/Alert';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
 import DocumentList from '../../components/DocumentList';
-import FileUpload from '../../components/FileUpload';
-import PortalLayout from '../../components/PortalLayout';
+import FileDropzone from '../../components/FileDropzone';
 import Select from '../../components/Select';
 
 /**
@@ -34,60 +33,62 @@ export default function DocumentsIndex({ documents, documentTypes, checklist, lo
     const missing = checklist.required_documents.filter((document) => !document.provided);
 
     return (
-        <PortalLayout title="Documents">
-            <Card
-                title="Identity and business documents"
-                titleAs="h1"
-                description="Documents are stored privately and encrypted. Only you and the platform's administrators can open them."
-            >
-                {missing.length > 0 ? (
-                    <Alert variant="info" title="Still needed for verification">
-                        {missing.map((document) => document.label).join(', ')}
-                    </Alert>
-                ) : (
-                    <Alert variant="success">You have uploaded every document needed for verification.</Alert>
-                )}
-            </Card>
+        <>
+            {missing.length > 0 ? (
+                <Alert tone="info" title="Still needed for verification">
+                    {missing.map((document) => document.label).join(', ')}
+                </Alert>
+            ) : (
+                <Alert tone="success">You have uploaded every document needed for verification.</Alert>
+            )}
 
-            <Card title="Upload a document">
-                {locked ? (
-                    <Alert variant="info" role="note">
-                        Your account has been verified, so your documents can no longer be changed.
-                    </Alert>
-                ) : (
-                    <form onSubmit={submit} noValidate className="space-y-5">
-                        <Select
-                            id="document_type"
-                            label="Document type"
-                            placeholder="Choose a document type"
-                            options={documentTypes}
-                            value={form.data.document_type}
-                            onChange={(e) => form.setData('document_type', e.target.value)}
-                            error={form.errors.document_type}
-                        />
+            <div className="grid gap-6 @bp-lg/shell:grid-cols-12">
+                <Card title="Upload a document" className="@bp-lg/shell:col-span-5">
+                    {locked ? (
+                        <Alert tone="info" role="note">
+                            Your account has been verified, so your documents can no longer be changed.
+                        </Alert>
+                    ) : (
+                        <form onSubmit={submit} noValidate className="space-y-5">
+                            <Select
+                                id="document_type"
+                                label="Document type"
+                                placeholder="Choose a document type"
+                                options={documentTypes}
+                                value={form.data.document_type}
+                                onChange={(value) => form.setData('document_type', value)}
+                                error={form.errors.document_type}
+                            />
 
-                        <FileUpload
-                            key={fileInputKey}
-                            id="file"
-                            label="File"
-                            hint="PDF, JPG or PNG. Files must be 5 MB or smaller."
-                            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                            maxBytes={maxBytes}
-                            tooLargeMessage={tooLargeMessage}
-                            onChange={(file) => form.setData('file', file)}
-                            error={form.errors.file}
-                        />
+                            <FileDropzone
+                                key={fileInputKey}
+                                id="file"
+                                label="File"
+                                hint="PDF, JPG or PNG. Files must be 5 MB or smaller."
+                                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                                maxBytes={maxBytes}
+                                tooLargeMessage={tooLargeMessage}
+                                progress={form.progress?.percentage}
+                                onChange={(file) => form.setData('file', file)}
+                                error={form.errors.file}
+                            />
 
-                        <Button type="submit" processing={form.processing}>
-                            Upload document
-                        </Button>
-                    </form>
-                )}
-            </Card>
+                            <Button type="submit" iconLeft="upload-simple" loading={form.processing}>
+                                Upload document
+                            </Button>
+                        </form>
+                    )}
+                </Card>
 
-            <Card title="Your documents">
-                <DocumentList documents={documents} />
-            </Card>
-        </PortalLayout>
+                <Card title="Your documents" className="@bp-lg/shell:col-span-7">
+                    <DocumentList documents={documents} emptyMessage="Documents you upload appear here with their review status." />
+                </Card>
+            </div>
+        </>
     );
 }
+
+DocumentsIndex.layout = {
+    title: 'Documents',
+    description: 'Documents are stored privately and encrypted. Only you and the platform’s administrators can open them.',
+};
