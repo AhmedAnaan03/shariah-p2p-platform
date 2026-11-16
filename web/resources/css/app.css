@@ -1,9 +1,278 @@
 @import 'tailwindcss';
+/* The Amanah design system (docs/design-system/). Every colour, type size, radius, shadow,
+   easing and breakpoint the app may use, plus the Shariah and dark overrides and the @property
+   rules that cross-fade the palette. Copied unchanged from the design system: edit it there. */
+@import './tailwind-theme.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/* App additions the exported theme doesn't have. Container sizes let the app shell respond to
+   its own width (README, "Layout across devices"): `@container/shell` on the shell, then
+   `@bp-lg/shell:` etc. They mirror the bp-* breakpoints. `table-stack` is where a table turns
+   into stacked cards (720 px, the design system's minimum); `table-wide` (960 px) is for tables
+   with too many columns to fit at 720. */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --container-bp-sm: 640px;
+    --container-bp-md: 768px;
+    --container-bp-lg: 1024px;
+    --container-table-stack: 720px;
+    --container-table-wide: 960px;
+    /* The overlay behind dialogs and the drawer (README, "Shape, borders and elevation"). */
+    --blur-overlay: 2px;
+}
+
+/* Text-like controls (TextInput, Textarea, the Select trigger): a visible control border at rest;
+   on focus a focus-ring border, thickened to --border-width-focus, plus a 3 px primary-muted halo.
+   The border itself is the 3:1 focus indicator; the halo is decoration. While invalid the
+   resting border is danger, but focus still shows the focus ring. */
+@utility control {
+    border: var(--border-width) solid var(--control-border, var(--color-border-control));
+    border-radius: var(--radius-md);
+    background-color: var(--control-bg, var(--color-surface));
+    box-shadow: var(--control-shadow, var(--shadow-xs));
+    opacity: var(--control-opacity, 1);
+    transition:
+        border-color var(--duration-fast) var(--ease-standard),
+        box-shadow var(--duration-fast) var(--ease-standard);
+
+    &:focus-within {
+        border-color: var(--color-focus-ring);
+        box-shadow:
+            inset 0 0 0 calc(var(--border-width-focus) - var(--border-width)) var(--color-focus-ring),
+            0 0 0 3px var(--color-primary-muted);
+    }
+}
+
+/* State modifiers only set variables, so they work whatever order the utilities come out in. */
+@utility control-invalid {
+    --control-border: var(--color-danger);
+}
+
+@utility control-disabled {
+    --control-bg: var(--color-surface-subtle);
+    --control-shadow: none;
+    --control-opacity: var(--opacity-disabled);
+    cursor: not-allowed;
+}
+
+@layer base {
+    html {
+        background-color: var(--color-bg);
+    }
+
+    body {
+        @apply bg-bg font-sans text-body text-text antialiased;
+    }
+
+    /* The type tokens set size, line height, tracking and weight but not the family. */
+    h1,
+    h2,
+    h3,
+    :where(.text-display, .text-h1, .text-h2, .text-h3) {
+        font-family: var(--font-display);
+        text-wrap: balance;
+    }
+
+    h4 {
+        text-wrap: balance;
+    }
+
+    :where(.text-figure, .text-figure-lg, .text-figure-xl, .text-code) {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Touch targets: components add `pointer-coarse:min-h-(--touch-target)` where needed. */
+}
+
+/* BackgroundPattern (README, "Background pattern"). Both tiles are always rendered; a mode
+   change cross-fades them with a 4% scale and a 6° turn, in step with the colour tokens.
+   Plain selectors rather than variants so the order of the rules is exact. */
+@layer components {
+    :root {
+        --pattern-strength: var(--opacity-pattern);
+    }
+    [data-theme='dark'] {
+        --pattern-strength: var(--opacity-pattern-dark);
+    }
+
+    .pattern-layer {
+        transition:
+            opacity var(--duration-mode) var(--ease-mode),
+            scale var(--duration-mode) var(--ease-mode),
+            rotate var(--duration-mode) var(--ease-mode);
+    }
+    .pattern-wave {
+        opacity: var(--pattern-strength);
+    }
+    .pattern-khatam {
+        opacity: 0;
+        scale: 1.04;
+        rotate: 6deg;
+    }
+    [data-mode='shariah'] .pattern-wave {
+        opacity: 0;
+        scale: 1.04;
+        rotate: -6deg;
+    }
+    [data-mode='shariah'] .pattern-khatam {
+        opacity: var(--pattern-strength);
+        scale: 1;
+        rotate: 0deg;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .pattern-layer,
+        [data-mode='shariah'] .pattern-layer {
+            scale: 1;
+            rotate: 0deg;
+            transition: opacity var(--duration-instant) linear;
+        }
+    }
+}
+
+/* Skeleton shimmer (README, "Motion"): every 1.4 s, never with reduced motion. */
+@keyframes skeleton-shimmer {
+    from {
+        background-position: 150% 0;
+    }
+    to {
+        background-position: -50% 0;
+    }
+}
+
+/* Radix exposes the open/close state as data-state; these drive overlay entrances and exits.
+   Values are the motion tokens. Reduced motion keeps only a short fade. */
+@keyframes overlay-in {
+    from {
+        opacity: 0;
+    }
+}
+@keyframes overlay-out {
+    to {
+        opacity: 0;
+    }
+}
+@keyframes pop-in {
+    from {
+        opacity: 0;
+        scale: var(--pop-from, 0.97);
+    }
+}
+@keyframes pop-out {
+    to {
+        opacity: 0;
+        scale: var(--pop-from, 0.97);
+    }
+}
+@keyframes slide-in-left {
+    from {
+        translate: -100% 0;
+    }
+}
+@keyframes slide-out-left {
+    to {
+        translate: -100% 0;
+    }
+}
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        translate: 16px 0;
+    }
+}
+@keyframes toast-out {
+    to {
+        opacity: 0;
+        translate: 16px 0;
+    }
+}
+@keyframes error-in {
+    from {
+        opacity: 0;
+        translate: 0 -4px;
+    }
+}
+
+@utility animate-overlay {
+    &[data-state='open'] {
+        animation: overlay-in var(--duration-moderate) var(--ease-enter);
+    }
+    &[data-state='closed'] {
+        animation: overlay-out var(--duration-fast) var(--ease-exit);
+    }
+}
+
+@utility animate-pop {
+    &[data-state='open'],
+    &[data-state='delayed-open'],
+    &[data-state='instant-open'] {
+        animation: pop-in var(--duration-base) var(--ease-enter);
+    }
+    &[data-state='closed'] {
+        animation: pop-out var(--duration-fast) var(--ease-exit);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        --pop-from: 1;
+    }
+}
+
+@utility animate-drawer {
+    &[data-state='open'] {
+        animation: slide-in-left var(--duration-moderate) var(--ease-enter);
+    }
+    &[data-state='closed'] {
+        animation: slide-out-left var(--duration-fast) var(--ease-exit);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        &[data-state='open'] {
+            animation: overlay-in var(--duration-instant) linear;
+        }
+        &[data-state='closed'] {
+            animation: overlay-out var(--duration-instant) linear;
+        }
+    }
+}
+
+@utility animate-toast {
+    &[data-state='open'] {
+        animation: toast-in var(--duration-base) var(--ease-enter);
+    }
+    &[data-state='closed'] {
+        animation: toast-out var(--duration-fast) var(--ease-exit);
+    }
+    &[data-swipe='move'] {
+        translate: var(--radix-toast-swipe-move-x) 0;
+    }
+    &[data-swipe='end'] {
+        animation: toast-out var(--duration-fast) var(--ease-exit);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        &[data-state='open'] {
+            animation: overlay-in var(--duration-instant) linear;
+        }
+        &[data-state='closed'],
+        &[data-swipe='end'] {
+            animation: overlay-out var(--duration-instant) linear;
+        }
+    }
+}
+
+@utility animate-error {
+    animation: error-in var(--duration-fast) var(--ease-enter);
+    @media (prefers-reduced-motion: reduce) {
+        animation: overlay-in var(--duration-instant) linear;
+    }
+}
+
+@utility animate-shimmer {
+    background-image: linear-gradient(90deg, transparent 0%, var(--color-skeleton-shine) 50%, transparent 100%);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: skeleton-shimmer 1.4s var(--ease-standard) infinite;
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+        background-image: none;
+    }
 }
