@@ -1,0 +1,505 @@
+/* Amanah P2P for Tailwind CSS v4. Import after tailwindcss:
+   @import "tailwindcss";
+   @import "./tailwind-theme.css";
+   Utilities: bg-primary, text-text-muted, border-border, bg-navy-700, bg-risk-b, text-h1, font-mono, rounded-lg, shadow-md, ease-standard, p-4 (16px), gap-6 (24px).
+   Modes: set data-mode="shariah" and/or data-theme="dark" on <html> or any subtree; the overrides below re-point the same variables. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@custom-variant shariah (&:where([data-mode="shariah"], [data-mode="shariah"] *));
+/* The palette cross-fade (@property registrations) is appended at the end of this file. */
+
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --shadow-*: initial;
+  --radius-*: initial;
+  --ease-*: initial;
+  --breakpoint-*: initial;
+  --color-navy-50: #eef9fc;
+  --color-navy-100: #ddf1f6;
+  --color-navy-200: #bce1e9;
+  --color-navy-300: #91c9d4;
+  --color-navy-400: #63abba;
+  --color-navy-500: #3a8a99;
+  --color-navy-600: #1d6f7d;
+  --color-navy-700: #0a5763;
+  --color-navy-800: #00414b;
+  --color-navy-900: #002f37;
+  --color-navy-950: #092328;
+  --color-green-50: #f0faf3;
+  --color-green-100: #e2f4e8;
+  --color-green-200: #cee9d8;
+  --color-green-300: #b1d5bf;
+  --color-green-400: #8db69d;
+  --color-green-500: #69957b;
+  --color-green-600: #4b775e;
+  --color-green-700: #3b624c;
+  --color-green-800: #2d4d3b;
+  --color-green-900: #20392b;
+  --color-green-950: #15261c;
+  --color-slate-0: #ffffff;
+  --color-slate-25: #f5f9fa;
+  --color-slate-50: #eef4f5;
+  --color-slate-100: #e5edee;
+  --color-slate-200: #d9e1e4;
+  --color-slate-300: #becacc;
+  --color-slate-400: #9aa7ab;
+  --color-slate-500: #7a898d;
+  --color-slate-600: #5f6f73;
+  --color-slate-700: #48595d;
+  --color-slate-800: #314348;
+  --color-slate-900: #203135;
+  --color-slate-950: #102125;
+  --color-moss-0: #ffffff;
+  --color-moss-25: #f6f9f7;
+  --color-moss-50: #eff4f1;
+  --color-moss-100: #e7ede9;
+  --color-moss-200: #dae2dd;
+  --color-moss-300: #c1cac4;
+  --color-moss-400: #9da8a1;
+  --color-moss-500: #7e8a82;
+  --color-moss-600: #636f67;
+  --color-moss-700: #4b5951;
+  --color-moss-800: #35443b;
+  --color-moss-900: #243229;
+  --color-moss-950: #14221a;
+  --color-brand-deep-navy: #092328;
+  --color-brand-teal-green: #12544f;
+  --color-brand-islamic-green: #2a835f;
+  --color-brand-sage: #8bbb92;
+  --color-bg: var(--color-slate-25);
+  --color-surface: var(--color-slate-0);
+  --color-surface-raised: var(--color-slate-0);
+  --color-surface-subtle: var(--color-slate-50);
+  --color-band: #ecf7f9;
+  --color-border: var(--color-slate-200);
+  --color-border-subtle: var(--color-slate-100);
+  --color-border-strong: var(--color-slate-300);
+  --color-border-control: var(--color-slate-500);
+  --color-text: var(--color-slate-900);
+  --color-text-secondary: var(--color-slate-700);
+  --color-text-muted: var(--color-slate-600);
+  --color-text-placeholder: var(--color-slate-500);
+  --color-icon: var(--color-slate-500);
+  --color-primary: var(--color-navy-600);
+  --color-primary-hover: var(--color-navy-700);
+  --color-primary-pressed: var(--color-navy-800);
+  --color-primary-fg: var(--color-slate-0);
+  --color-primary-subtle: var(--color-navy-50);
+  --color-primary-muted: var(--color-navy-100);
+  --color-primary-ink: var(--color-navy-800);
+  --color-accent-soft: var(--color-navy-300);
+  --color-focus-ring: var(--color-navy-600);
+  --color-link: var(--color-navy-700);
+  --color-nav-active: var(--color-slate-0);
+  --color-nav-active-ink: var(--color-navy-800);
+  --color-band-hover: #1d6f7d14;
+  --color-pattern: var(--color-navy-600);
+  --color-overlay: #20313566;
+  --color-skeleton-shine: var(--color-slate-25);
+  --color-success: #607827;
+  --color-success-bg: #f0f7e5;
+  --color-success-border: #d4e1bd;
+  --color-warning: #a0600b;
+  --color-warning-bg: #fff0e2;
+  --color-warning-border: #f3d5b9;
+  --color-danger: #bb4840;
+  --color-danger-bg: #ffeeea;
+  --color-danger-border: #facfc9;
+  --color-info: #3e7598;
+  --color-info-bg: #e5f6ff;
+  --color-info-border: #bde0f8;
+  --color-neutral: var(--color-slate-600);
+  --color-neutral-bg: var(--color-slate-50);
+  --color-neutral-border: var(--color-slate-200);
+  --color-risk-a: #5c9acd;
+  --color-risk-a-ink: #3472a3;
+  --color-risk-a-soft: #e3f2ff;
+  --color-risk-b: #49a1ab;
+  --color-risk-b-ink: #147882;
+  --color-risk-b-soft: #def5f8;
+  --color-risk-c: #bd8b31;
+  --color-risk-c-ink: #946400;
+  --color-risk-c-soft: #faefde;
+  --color-risk-d: #de7949;
+  --color-risk-d-ink: #b0501c;
+  --color-risk-d-soft: #ffebe3;
+  --color-risk-e: #dc758a;
+  --color-risk-e-ink: #af4c63;
+  --color-risk-e-soft: #ffeaed;
+  --color-chart-1: var(--color-navy-600);
+  --color-chart-2: var(--color-navy-300);
+  --color-chart-3: #d09945;
+  --color-chart-4: #8b78c1;
+  --color-chart-5: #dc744f;
+  --color-chart-6: var(--color-slate-400);
+  --color-chart-grid: var(--color-slate-100);
+  --color-chart-axis: var(--color-slate-600);
+  --color-chart-raise: #cb6440;
+  --color-chart-lower: var(--color-primary);
+  --color-chart-received: var(--color-primary);
+  --color-chart-expected: var(--color-accent-soft);
+  --color-chart-late: var(--color-danger);
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-display: "Bricolage Grotesque Variable", "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Figtree Variable", Figtree, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-display: 48px;
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 700;
+  --text-h1: 36px;
+  --text-h1--line-height: 1.1;
+  --text-h1--letter-spacing: -0.015em;
+  --text-h1--font-weight: 700;
+  --text-h2: 28px;
+  --text-h2--line-height: 1.2;
+  --text-h2--letter-spacing: -0.01em;
+  --text-h2--font-weight: 600;
+  --text-h3: 22px;
+  --text-h3--line-height: 1.25;
+  --text-h3--letter-spacing: -0.005em;
+  --text-h3--font-weight: 600;
+  --text-h4: 18px;
+  --text-h4--line-height: 1.35;
+  --text-h4--letter-spacing: 0;
+  --text-h4--font-weight: 600;
+  --text-body-lg: 17px;
+  --text-body-lg--line-height: 1.6;
+  --text-body-lg--letter-spacing: 0;
+  --text-body-lg--font-weight: 400;
+  --text-body: 15px;
+  --text-body--line-height: 1.55;
+  --text-body--letter-spacing: 0;
+  --text-body--font-weight: 400;
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 1.5;
+  --text-body-sm--letter-spacing: 0;
+  --text-body-sm--font-weight: 400;
+  --text-label: 13px;
+  --text-label--line-height: 1.3;
+  --text-label--letter-spacing: 0.01em;
+  --text-label--font-weight: 500;
+  --text-overline: 11px;
+  --text-overline--line-height: 1.3;
+  --text-overline--letter-spacing: 0.08em;
+  --text-overline--font-weight: 600;
+  --text-figure-xl: 40px;
+  --text-figure-xl--line-height: 1.0;
+  --text-figure-xl--letter-spacing: -0.02em;
+  --text-figure-xl--font-weight: 500;
+  --text-figure-lg: 24px;
+  --text-figure-lg--line-height: 1.15;
+  --text-figure-lg--letter-spacing: -0.01em;
+  --text-figure-lg--font-weight: 500;
+  --text-figure: 15px;
+  --text-figure--line-height: 1.4;
+  --text-figure--letter-spacing: 0;
+  --text-figure--font-weight: 400;
+  --text-code: 13px;
+  --text-code--line-height: 1.4;
+  --text-code--letter-spacing: 0;
+  --text-code--font-weight: 400;
+
+  --spacing: 4px; /* p-1 = 4px, p-0.5 = 2px, p-6 = 24px: matches space-* */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow-xs: 0 1px 2px rgba(32,49,53,0.05);
+  --shadow-sm: 0 2px 8px rgba(32,49,53,0.07);
+  --shadow-md: 0 8px 24px rgba(32,49,53,0.10);
+  --shadow-lg: 0 16px 48px rgba(32,49,53,0.14);
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-mode: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-moderate: 250ms;
+  --duration-mode: 500ms;
+  --duration-slow: 400ms;
+  --duration-count: 800ms;
+}
+
+/* Plain variables Tailwind has no namespace for: use as duration-(--duration-fast), z-(--z-modal), opacity-(--opacity-disabled), w-(--sidebar). */
+:root {
+  --control-sm: 32px;
+  --control-md: 40px;
+  --control-lg: 48px;
+  --touch-target: 44px;
+  --row: 52px;
+  --row-compact: 40px;
+  --sidebar: 264px;
+  --sidebar-collapsed: 72px;
+  --topbar: 64px;
+  --content-max: 1200px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --border-width: 1px;
+  --border-width-focus: 1.5px;
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --nav-indicator: 3px;
+  --pattern-tile: 48px;
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-dropdown: 20;
+  --z-drawer: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+  --z-tooltip: 60;
+  --opacity-disabled: 0.45;
+  --opacity-icon-muted: 0.7;
+  --opacity-pattern: 0.07;
+  --opacity-pattern-dark: 0.09;
+}
+
+@layer base {
+  [data-mode="shariah"] {
+    --color-bg: var(--color-moss-25);
+    --color-surface: var(--color-moss-0);
+    --color-surface-raised: var(--color-moss-0);
+    --color-surface-subtle: var(--color-moss-50);
+    --color-band: #eef7f1;
+    --color-border: var(--color-moss-200);
+    --color-border-subtle: var(--color-moss-100);
+    --color-border-strong: var(--color-moss-300);
+    --color-border-control: var(--color-moss-500);
+    --color-text: var(--color-moss-900);
+    --color-text-secondary: var(--color-moss-700);
+    --color-text-muted: var(--color-moss-600);
+    --color-text-placeholder: var(--color-moss-500);
+    --color-icon: var(--color-moss-500);
+    --color-primary: var(--color-green-600);
+    --color-primary-hover: var(--color-green-700);
+    --color-primary-pressed: var(--color-green-800);
+    --color-primary-fg: var(--color-moss-0);
+    --color-primary-subtle: var(--color-green-50);
+    --color-primary-muted: var(--color-green-100);
+    --color-primary-ink: var(--color-green-800);
+    --color-accent-soft: var(--color-green-300);
+    --color-focus-ring: var(--color-green-600);
+    --color-link: var(--color-green-700);
+    --color-nav-active: var(--color-moss-0);
+    --color-nav-active-ink: var(--color-green-800);
+    --color-band-hover: #4b775e14;
+    --color-pattern: var(--color-green-700);
+    --color-overlay: #24322966;
+    --color-skeleton-shine: var(--color-moss-25);
+    --color-neutral: var(--color-moss-600);
+    --color-neutral-bg: var(--color-moss-50);
+    --color-neutral-border: var(--color-moss-200);
+    --color-chart-1: var(--color-green-600);
+    --color-chart-2: var(--color-green-300);
+    --color-chart-6: var(--color-moss-400);
+    --color-chart-grid: var(--color-moss-100);
+    --color-chart-axis: var(--color-moss-600);
+  }
+  [data-theme="dark"], [data-theme="dark"] [data-mode="conventional"] {
+    --color-bg: #0b181c;
+    --color-surface: #152326;
+    --color-surface-raised: #1f2d30;
+    --color-surface-subtle: #0f1d20;
+    --color-band: #0f1d20;
+    --color-border: #2c3b3e;
+    --color-border-subtle: #223134;
+    --color-border-strong: #3c4b4e;
+    --color-border-control: #6d7e82;
+    --color-text: #e6f1f3;
+    --color-text-secondary: #c0cdd0;
+    --color-text-muted: #a0b1b6;
+    --color-text-placeholder: #798a8e;
+    --color-icon: #85969a;
+    --color-primary: var(--color-navy-400);
+    --color-primary-hover: var(--color-navy-300);
+    --color-primary-pressed: var(--color-navy-200);
+    --color-primary-fg: var(--color-slate-950);
+    --color-primary-subtle: #173239;
+    --color-primary-muted: #1d3d45;
+    --color-primary-ink: var(--color-navy-200);
+    --color-accent-soft: var(--color-navy-500);
+    --color-focus-ring: var(--color-navy-400);
+    --color-link: var(--color-navy-300);
+    --color-nav-active: #ffffff14;
+    --color-nav-active-ink: var(--color-navy-200);
+    --color-band-hover: #ffffff0f;
+    --color-pattern: var(--color-navy-300);
+    --color-overlay: #02090b99;
+    --color-skeleton-shine: #1d2c2f;
+    --color-success: #b0c980;
+    --color-success-bg: #2a311a;
+    --color-success-border: #46532d;
+    --color-warning: #ebb077;
+    --color-warning-bg: #3c2a18;
+    --color-warning-border: #644628;
+    --color-danger: #f8a59b;
+    --color-danger-bg: #402623;
+    --color-danger-border: #6a403b;
+    --color-info: #7dc7f7;
+    --color-info-bg: #193140;
+    --color-info-border: #2b526a;
+    --color-neutral: #a0b1b6;
+    --color-neutral-bg: #223134;
+    --color-neutral-border: #3c4b4e;
+    --color-risk-a: #6dabdf;
+    --color-risk-a-ink: #98caf5;
+    --color-risk-a-soft: #213546;
+    --color-risk-b: #5db4be;
+    --color-risk-b-ink: #8fd1d9;
+    --color-risk-b-soft: #1c383b;
+    --color-risk-c: #ce9a43;
+    --color-risk-c-ink: #e7bd7b;
+    --color-risk-c-soft: #403014;
+    --color-risk-d: #eb8656;
+    --color-risk-d-ink: #ffad87;
+    --color-risk-d-soft: #4a291a;
+    --color-risk-e: #e98095;
+    --color-risk-e-ink: #ffa8b7;
+    --color-risk-e-soft: #49272e;
+    --color-chart-1: var(--color-navy-400);
+    --color-chart-2: var(--color-navy-200);
+    --color-chart-3: #e4ac59;
+    --color-chart-4: #a998dd;
+    --color-chart-5: #eb9070;
+    --color-chart-6: #85969a;
+    --color-chart-grid: #223134;
+    --color-chart-axis: #a0b1b6;
+    --color-chart-raise: #eb9070;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.35);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.4);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.45);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,0.55);
+  }
+  [data-theme="dark"][data-mode="shariah"], [data-theme="dark"] [data-mode="shariah"] {
+    --color-bg: #0e1913;
+    --color-surface: #18231d;
+    --color-surface-raised: #222d26;
+    --color-surface-subtle: #131d17;
+    --color-band: #131d17;
+    --color-border: #303b34;
+    --color-border-subtle: #26312a;
+    --color-border-strong: #3f4b44;
+    --color-border-control: #717e76;
+    --color-text: #e8f1eb;
+    --color-text-secondary: #c3cec7;
+    --color-text-muted: #a4b2a9;
+    --color-text-placeholder: #7d8a82;
+    --color-icon: #89968e;
+    --color-primary: var(--color-green-400);
+    --color-primary-hover: var(--color-green-300);
+    --color-primary-pressed: var(--color-green-200);
+    --color-primary-fg: var(--color-moss-950);
+    --color-primary-subtle: #213328;
+    --color-primary-muted: #283e31;
+    --color-primary-ink: var(--color-green-200);
+    --color-accent-soft: var(--color-green-500);
+    --color-focus-ring: var(--color-green-400);
+    --color-link: var(--color-green-300);
+    --color-nav-active-ink: var(--color-green-200);
+    --color-pattern: var(--color-green-300);
+    --color-overlay: #02090599;
+    --color-skeleton-shine: #212c25;
+    --color-neutral: #a4b2a9;
+    --color-neutral-bg: #26312a;
+    --color-neutral-border: #3f4b44;
+    --color-chart-1: var(--color-green-400);
+    --color-chart-2: var(--color-green-200);
+    --color-chart-6: #89968e;
+    --color-chart-grid: #26312a;
+    --color-chart-axis: #a4b2a9;
+  }
+  .text-overline { text-transform: uppercase; }
+  :where(.font-mono) { font-variant-numeric: tabular-nums; }
+  :focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+}
+
+/* Palette cross-fade: registering each mode-dependent colour as a typed @property lets
+   a change of data-mode or data-theme animate every colour together. Generated from the tokens above. */
+@property --color-bg { syntax: '<color>'; inherits: true; initial-value: #f5f9fa; }
+@property --color-surface { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+@property --color-surface-raised { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+@property --color-surface-subtle { syntax: '<color>'; inherits: true; initial-value: #eef4f5; }
+@property --color-band { syntax: '<color>'; inherits: true; initial-value: #ecf7f9; }
+@property --color-border { syntax: '<color>'; inherits: true; initial-value: #d9e1e4; }
+@property --color-border-subtle { syntax: '<color>'; inherits: true; initial-value: #e5edee; }
+@property --color-border-strong { syntax: '<color>'; inherits: true; initial-value: #becacc; }
+@property --color-border-control { syntax: '<color>'; inherits: true; initial-value: #7a898d; }
+@property --color-text { syntax: '<color>'; inherits: true; initial-value: #203135; }
+@property --color-text-secondary { syntax: '<color>'; inherits: true; initial-value: #48595d; }
+@property --color-text-muted { syntax: '<color>'; inherits: true; initial-value: #5f6f73; }
+@property --color-text-placeholder { syntax: '<color>'; inherits: true; initial-value: #7a898d; }
+@property --color-icon { syntax: '<color>'; inherits: true; initial-value: #7a898d; }
+@property --color-primary { syntax: '<color>'; inherits: true; initial-value: #1d6f7d; }
+@property --color-primary-hover { syntax: '<color>'; inherits: true; initial-value: #0a5763; }
+@property --color-primary-pressed { syntax: '<color>'; inherits: true; initial-value: #00414b; }
+@property --color-primary-fg { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+@property --color-primary-subtle { syntax: '<color>'; inherits: true; initial-value: #eef9fc; }
+@property --color-primary-muted { syntax: '<color>'; inherits: true; initial-value: #ddf1f6; }
+@property --color-primary-ink { syntax: '<color>'; inherits: true; initial-value: #00414b; }
+@property --color-accent-soft { syntax: '<color>'; inherits: true; initial-value: #91c9d4; }
+@property --color-focus-ring { syntax: '<color>'; inherits: true; initial-value: #1d6f7d; }
+@property --color-link { syntax: '<color>'; inherits: true; initial-value: #0a5763; }
+@property --color-nav-active { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+@property --color-nav-active-ink { syntax: '<color>'; inherits: true; initial-value: #00414b; }
+@property --color-band-hover { syntax: '<color>'; inherits: true; initial-value: #1d6f7d14; }
+@property --color-pattern { syntax: '<color>'; inherits: true; initial-value: #1d6f7d; }
+@property --color-overlay { syntax: '<color>'; inherits: true; initial-value: #20313566; }
+@property --color-skeleton-shine { syntax: '<color>'; inherits: true; initial-value: #f5f9fa; }
+@property --color-neutral { syntax: '<color>'; inherits: true; initial-value: #5f6f73; }
+@property --color-neutral-bg { syntax: '<color>'; inherits: true; initial-value: #eef4f5; }
+@property --color-neutral-border { syntax: '<color>'; inherits: true; initial-value: #d9e1e4; }
+@property --color-chart-1 { syntax: '<color>'; inherits: true; initial-value: #1d6f7d; }
+@property --color-chart-2 { syntax: '<color>'; inherits: true; initial-value: #91c9d4; }
+@property --color-chart-6 { syntax: '<color>'; inherits: true; initial-value: #9aa7ab; }
+@property --color-chart-grid { syntax: '<color>'; inherits: true; initial-value: #e5edee; }
+@property --color-chart-axis { syntax: '<color>'; inherits: true; initial-value: #5f6f73; }
+@property --color-success { syntax: '<color>'; inherits: true; initial-value: #607827; }
+@property --color-success-bg { syntax: '<color>'; inherits: true; initial-value: #f0f7e5; }
+@property --color-success-border { syntax: '<color>'; inherits: true; initial-value: #d4e1bd; }
+@property --color-warning { syntax: '<color>'; inherits: true; initial-value: #a0600b; }
+@property --color-warning-bg { syntax: '<color>'; inherits: true; initial-value: #fff0e2; }
+@property --color-warning-border { syntax: '<color>'; inherits: true; initial-value: #f3d5b9; }
+@property --color-danger { syntax: '<color>'; inherits: true; initial-value: #bb4840; }
+@property --color-danger-bg { syntax: '<color>'; inherits: true; initial-value: #ffeeea; }
+@property --color-danger-border { syntax: '<color>'; inherits: true; initial-value: #facfc9; }
+@property --color-info { syntax: '<color>'; inherits: true; initial-value: #3e7598; }
+@property --color-info-bg { syntax: '<color>'; inherits: true; initial-value: #e5f6ff; }
+@property --color-info-border { syntax: '<color>'; inherits: true; initial-value: #bde0f8; }
+@property --color-risk-a { syntax: '<color>'; inherits: true; initial-value: #5c9acd; }
+@property --color-risk-a-ink { syntax: '<color>'; inherits: true; initial-value: #3472a3; }
+@property --color-risk-a-soft { syntax: '<color>'; inherits: true; initial-value: #e3f2ff; }
+@property --color-risk-b { syntax: '<color>'; inherits: true; initial-value: #49a1ab; }
+@property --color-risk-b-ink { syntax: '<color>'; inherits: true; initial-value: #147882; }
+@property --color-risk-b-soft { syntax: '<color>'; inherits: true; initial-value: #def5f8; }
+@property --color-risk-c { syntax: '<color>'; inherits: true; initial-value: #bd8b31; }
+@property --color-risk-c-ink { syntax: '<color>'; inherits: true; initial-value: #946400; }
+@property --color-risk-c-soft { syntax: '<color>'; inherits: true; initial-value: #faefde; }
+@property --color-risk-d { syntax: '<color>'; inherits: true; initial-value: #de7949; }
+@property --color-risk-d-ink { syntax: '<color>'; inherits: true; initial-value: #b0501c; }
+@property --color-risk-d-soft { syntax: '<color>'; inherits: true; initial-value: #ffebe3; }
+@property --color-risk-e { syntax: '<color>'; inherits: true; initial-value: #dc758a; }
+@property --color-risk-e-ink { syntax: '<color>'; inherits: true; initial-value: #af4c63; }
+@property --color-risk-e-soft { syntax: '<color>'; inherits: true; initial-value: #ffeaed; }
+@property --color-chart-3 { syntax: '<color>'; inherits: true; initial-value: #d09945; }
+@property --color-chart-4 { syntax: '<color>'; inherits: true; initial-value: #8b78c1; }
+@property --color-chart-5 { syntax: '<color>'; inherits: true; initial-value: #dc744f; }
+@property --color-chart-raise { syntax: '<color>'; inherits: true; initial-value: #cb6440; }
+[data-mode], [data-theme] {
+  transition-property: --color-bg, --color-surface, --color-surface-raised, --color-surface-subtle, --color-band, --color-border, --color-border-subtle, --color-border-strong, --color-border-control, --color-text, --color-text-secondary, --color-text-muted, --color-text-placeholder, --color-icon, --color-primary, --color-primary-hover, --color-primary-pressed, --color-primary-fg, --color-primary-subtle, --color-primary-muted, --color-primary-ink, --color-accent-soft, --color-focus-ring, --color-link, --color-nav-active, --color-nav-active-ink, --color-band-hover, --color-pattern, --color-overlay, --color-skeleton-shine, --color-neutral, --color-neutral-bg, --color-neutral-border, --color-chart-1, --color-chart-2, --color-chart-6, --color-chart-grid, --color-chart-axis, --color-success, --color-success-bg, --color-success-border, --color-warning, --color-warning-bg, --color-warning-border, --color-danger, --color-danger-bg, --color-danger-border, --color-info, --color-info-bg, --color-info-border, --color-risk-a, --color-risk-a-ink, --color-risk-a-soft, --color-risk-b, --color-risk-b-ink, --color-risk-b-soft, --color-risk-c, --color-risk-c-ink, --color-risk-c-soft, --color-risk-d, --color-risk-d-ink, --color-risk-d-soft, --color-risk-e, --color-risk-e-ink, --color-risk-e-soft, --color-chart-3, --color-chart-4, --color-chart-5, --color-chart-raise;
+  transition-duration: var(--duration-mode);
+  transition-timing-function: var(--ease-mode);
+}
+@media (prefers-reduced-motion: reduce) { [data-mode], [data-theme] { transition-duration: 1ms; } }

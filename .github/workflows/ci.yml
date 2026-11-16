@@ -102,6 +102,14 @@ jobs:
       - name: Build front-end assets
         run: npm run build
 
+      # PB-51: unit tests for the JS helpers (formatting, mode, motion tokens).
+      - name: Run JavaScript unit tests
+        run: npm test
+
+      # PB-51: every text, control and focus-ring colour pair in all four themes meets WCAG AA.
+      - name: Check design-token contrast
+        run: npm run check:contrast
+
       - name: Run Laravel tests
         run: php artisan test
 

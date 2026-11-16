@@ -34,6 +34,7 @@ class VerificationController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'role' => $user->role->name,
                 'role_label' => $user->role->label,
                 'registered_at' => $user->created_at->toIso8601String(),
                 'documents_count' => $user->kycDocuments->where('status', 'pending')->count(),

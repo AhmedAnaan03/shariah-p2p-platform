@@ -1,78 +1,101 @@
 import { useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import Alert from '../../../components/Alert';
-import { StatusBadge } from '../../../components/Badge';
 import Button from '../../../components/Button';
 import Card from '../../../components/Card';
-import DetailList from '../../../components/DetailList';
+import ConfirmDialog from '../../../components/ConfirmDialog';
+import DescriptionList from '../../../components/DescriptionList';
 import DocumentList from '../../../components/DocumentList';
-import PortalLayout from '../../../components/PortalLayout';
-import RadioGroup from '../../../components/RadioGroup';
+import RadioCards from '../../../components/RadioCards';
+import StatusBadge from '../../../components/StatusBadge';
 import Textarea from '../../../components/Textarea';
 import TextLink from '../../../components/TextLink';
+import { formatDate } from '../../../lib/format';
 
 const DECISIONS = [
-    { value: 'approve', label: 'Approve', description: 'The details match the documents. Verify this account.' },
-    { value: 'reject', label: 'Reject', description: 'Something is wrong or missing. The user sees your reason.' },
+    { value: 'approve', label: 'Approve', icon: 'check-circle', description: 'The details match the documents. Verify this account.' },
+    { value: 'reject', label: 'Reject', icon: 'x-circle', description: 'Something is wrong or missing. The user sees your reason.' },
 ];
+
+// Shown in mono so IDs and numbers line up.
+const MONO_FIELDS = ['Phone', 'National ID card number', 'Business registration number', 'Years operating', 'Declared annual income', 'Declared annual revenue'];
 
 /**
  * Review one account (PB-11): profile, documents (opened through the protected document route)
- * and the approve / reject decision.
+ * and the approve / reject decision. Rejecting is a Danger action, so it asks for confirmation
+ * first (PB-51).
  */
 export default function VerificationShow({ applicant, profile, documents, missingDocuments, canDecide, canApprove, decideUrl }) {
     const form = useForm({ decision: '', reason: '' });
+    const [confirming, setConfirming] = useState(false);
+    const rejecting = form.data.decision === 'reject';
+
+    function send() {
+        form.post(decideUrl, {
+            preserveScroll: true,
+            // On a validation error, close the dialog so the message under the field is visible.
+            onError: () => setConfirming(false),
+        });
+    }
 
     function submit(event) {
         event.preventDefault();
-        form.post(decideUrl, { preserveScroll: true });
+        if (rejecting) {
+            setConfirming(true);
+        } else {
+            send();
+        }
     }
 
-    const rejecting = form.data.decision === 'reject';
-
     return (
-        <PortalLayout title={`Review ${applicant.name}`}>
-            <p className="text-sm">
-                <TextLink href="/admin/verifications">← Back to the queue</TextLink>
-            </p>
+        <>
+            <TextLink href="/admin/verifications" icon="arrow-left">
+                Back to the queue
+            </TextLink>
 
             <Card
                 title={applicant.name}
-                titleAs="h1"
-                description={`${applicant.role_label} · ${applicant.email} · registered ${new Date(applicant.registered_at).toLocaleDateString('en-GB')}`}
+                description={`${applicant.role_label} · ${applicant.email} · registered ${formatDate(applicant.registered_at)}`}
                 actions={<StatusBadge status={applicant.status} />}
             >
                 {applicant.status_reason && (
-                    <Alert variant="error" role="note">
+                    <Alert tone="danger" role="note">
                         Reason given: {applicant.status_reason}
                     </Alert>
                 )}
             </Card>
 
-            <Card title="Profile">
-                {profile ? <DetailList items={profile} /> : <Alert variant="warning">This user has not completed a profile.</Alert>}
-            </Card>
-
-            <Card title="Documents" description="Each document opens in a new tab. Compare it with the profile above.">
-                <div className="space-y-4">
-                    {missingDocuments.length > 0 && (
-                        <Alert variant="warning" title="Missing required documents">
-                            {missingDocuments.join(', ')}
-                        </Alert>
+            <div className="grid gap-6 @bp-lg/shell:grid-cols-2">
+                <Card title="Profile">
+                    {profile ? (
+                        <DescriptionList items={profile.map((item) => [item.label, item.value, MONO_FIELDS.includes(item.label)])} />
+                    ) : (
+                        <Alert tone="warning">This user has not completed a profile.</Alert>
                     )}
-                    <DocumentList documents={documents} />
-                </div>
-            </Card>
+                </Card>
+
+                <Card title="Documents" description="Each document opens in a new tab. Compare it with the profile.">
+                    <div className="space-y-4">
+                        {missingDocuments.length > 0 && (
+                            <Alert tone="warning" title="Missing required documents">
+                                {missingDocuments.join(', ')}
+                            </Alert>
+                        )}
+                        <DocumentList documents={documents} />
+                    </div>
+                </Card>
+            </div>
 
             {canDecide && (
-                <Card title="Decision">
+                <Card title="Decision" className="max-w-3xl">
                     <form onSubmit={submit} noValidate className="space-y-5">
                         {form.errors.decision && (
-                            <Alert variant="error" role="alert">
+                            <Alert tone="danger" role="alert">
                                 {form.errors.decision}
                             </Alert>
                         )}
 
-                        <RadioGroup
+                        <RadioCards
                             name="decision"
                             legend="Your decision"
                             options={canApprove ? DECISIONS : DECISIONS.filter((option) => option.value === 'reject')}
@@ -85,18 +108,33 @@ export default function VerificationShow({ applicant, profile, documents, missin
                                 id="reason"
                                 label="Reason for rejecting"
                                 hint="10 to 255 characters. Say what the user needs to fix, e.g. “The ID card photo is too blurred to read.”"
+                                maxLength={255}
                                 value={form.data.reason}
                                 onChange={(e) => form.setData('reason', e.target.value)}
                                 error={form.errors.reason}
                             />
                         )}
 
-                        <Button type="submit" variant={rejecting ? 'danger' : 'primary'} processing={form.processing}>
+                        <Button type="submit" variant={rejecting ? 'danger' : 'primary'} loading={form.processing && !confirming}>
                             {rejecting ? 'Reject and notify user' : 'Approve and notify user'}
                         </Button>
                     </form>
+
+                    <ConfirmDialog
+                        open={confirming}
+                        onClose={() => setConfirming(false)}
+                        onConfirm={send}
+                        tone="danger"
+                        title={`Reject ${applicant.name}?`}
+                        consequence={`${applicant.name} will be told the account was not approved, with your reason. They can then update their profile or upload new documents.`}
+                        rows={[['Reason', form.data.reason]]}
+                        confirmLabel="Reject and notify user"
+                        loading={form.processing}
+                    />
                 </Card>
             )}
-        </PortalLayout>
+        </>
     );
 }
+
+VerificationShow.layout = (props) => ({ title: `Review ${props.applicant.name}` });

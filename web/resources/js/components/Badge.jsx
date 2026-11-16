@@ -1,39 +1,32 @@
-const VARIANTS = {
-    neutral: 'bg-slate-100 text-slate-700',
-    success: 'bg-emerald-100 text-emerald-800',
-    warning: 'bg-amber-100 text-amber-900',
-    danger: 'bg-red-100 text-red-800',
-    info: 'bg-sky-100 text-sky-800',
+import cx from '../lib/cx';
+import Icon from './Icon';
+
+const TONES = {
+    neutral: 'border-neutral-border bg-neutral-bg text-neutral',
+    success: 'border-success-border bg-success-bg text-success',
+    warning: 'border-warning-border bg-warning-bg text-warning',
+    danger: 'border-danger-border bg-danger-bg text-danger',
+    info: 'border-info-border bg-info-bg text-info',
+    // Tinted with the mode's primary: the Shariah and role badges.
+    primary: 'border-primary-muted bg-primary-subtle text-primary-ink',
+};
+
+const SIZES = {
+    sm: 'h-5 gap-1 px-1.5 text-body-sm',
+    md: 'h-6 gap-1.5 px-2 text-label',
 };
 
 /**
- * A small coloured label, e.g. a role or a document's status.
+ * A small label (component-api.d.ts, Badge). Status colours are shared by both modes; pair a
+ * tone with an icon and a word, never colour alone. For statuses use StatusBadge.
+ *
+ *   <Badge tone="info" icon="clock">Closes in 3 days</Badge>
  */
-export default function Badge({ variant = 'neutral', children }) {
+export default function Badge({ tone = 'neutral', icon, size = 'md', className = '', children }) {
     return (
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${VARIANTS[variant]}`}>
+        <span className={cx('inline-flex shrink-0 items-center rounded-sm border font-medium whitespace-nowrap', TONES[tone] ?? TONES.neutral, SIZES[size], className)}>
+            {icon && <Icon name={icon} size={size === 'sm' ? 12 : 16} />}
             {children}
         </span>
     );
-}
-
-// Every status the users and kyc_documents tables can hold, with its colour and wording.
-const STATUSES = {
-    pending_verification: ['warning', 'Pending verification'],
-    verified: ['success', 'Verified'],
-    rejected: ['danger', 'Rejected'],
-    suspended: ['danger', 'Suspended'],
-    pending: ['warning', 'Awaiting review'],
-    approved: ['success', 'Approved'],
-};
-
-/**
- * A Badge for an account or document status, so the same status always looks the same.
- *
- *   <StatusBadge status="pending" />  →  amber "Awaiting review"
- */
-export function StatusBadge({ status }) {
-    const [variant, label] = STATUSES[status] ?? ['neutral', status];
-
-    return <Badge variant={variant}>{label}</Badge>;
 }

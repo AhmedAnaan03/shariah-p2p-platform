@@ -1,125 +1,171 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+import cx from '../lib/cx';
 import Alert from './Alert';
-import Button from './Button';
-import StatusMessage from './StatusMessage';
+import MobileNav from './MobileNav';
+import ModeSwitch, { useShariahSwitch } from './ModeSwitch';
+import { navigationFor } from './navigation';
+import PageTransition from './PageTransition';
+import Sidebar from './Sidebar';
+import { useToasts } from './Toast';
+import TopBar from './TopBar';
 
-// The pages each role's navigation links to. Every link stays inside that role's portal, so
-// the role gate on the routes and the links here always agree.
-const NAVIGATION = {
-    borrower: [
-        { href: '/borrower', label: 'Overview' },
-        { href: '/borrower/profile', label: 'Profile' },
-        { href: '/borrower/documents', label: 'Documents' },
-    ],
-    investor: [
-        { href: '/investor', label: 'Overview' },
-        { href: '/investor/profile', label: 'Profile' },
-        { href: '/investor/documents', label: 'Documents' },
-        { href: '/investor/acknowledgement', label: 'Risk acknowledgement' },
-    ],
-    admin: [
-        { href: '/admin', label: 'Overview' },
-        { href: '/admin/verifications', label: 'Verifications' },
-    ],
-};
+const COLLAPSED_KEY = 'amanah.sidebar.collapsed';
 
 /**
- * Frame for every portal page: header with the user's name, role and navigation, links to
- * change password and sign out, the flash message, and a notice while the account is not yet
- * verified (pending, rejected with the admin's reason, or suspended).
+ * The app shell for every portal page, one per role through the role's navigation: sidebar,
+ * top bar, and the page content (README, "Layout across devices").
+ *
+ * Set for portal pages in app.jsx, so Inertia keeps it mounted between pages: the sidebar and
+ * top bar never re-render from scratch or animate, only the content inside PageTransition does.
+ * A page gives it its title (and an optional `description` under the top bar) through
+ * `Page.layout = { title: '...' }`, or a function of the page props for a dynamic title.
+ *
+ * The shell is a container (`@container/shell`): it responds to its own width, so it works in
+ * a phone browser, a tablet, a desktop window or a split view.
+ *   - 1024 px and up: 264 px sidebar (collapsible to 72), 32 px page padding, content up to 1200 px.
+ *   - Below 1024 px: the sidebar becomes the MobileNav drawer behind the menu button.
+ *   - Below 640 px: 16 px padding.
  */
-export default function PortalLayout({ title, children }) {
-    const { auth } = usePage().props;
-    const user = auth.user;
+export default function PortalLayout({ title, description, children }) {
+    const page = usePage();
+    const user = page.props.auth?.user;
+    const navigation = navigationFor(user?.role, page.url);
+    const shariahSwitch = useShariahSwitch();
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [collapsed, setCollapsed] = useCollapsedSidebar();
+
+    useFlashToasts();
+
+    // Close the drawer whenever a visit starts (a nav link, a form redirect, the back button).
+    useEffect(() => router.on('start', () => setMenuOpen(false)), []);
 
     return (
         <>
             <Head title={title} />
+            <a
+                href="#main"
+                className="sr-only rounded-md bg-surface px-4 py-2 text-label text-text shadow-md focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-(--z-tooltip)"
+            >
+                Skip to content
+            </a>
 
-            <div className="min-h-screen bg-slate-50 text-slate-900">
-                <header className="border-b border-slate-200 bg-white">
-                    <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
-                        <div>
-                            <p className="text-sm font-semibold text-emerald-700">{user.role_label} portal</p>
-                            <p className="text-xs text-slate-500">Signed in as {user.name}</p>
+            <div className="@container/shell min-h-dvh bg-bg">
+                <div className="flex min-h-dvh">
+                    {/* The column is page-height with the band colour; the panel inside sticks to the viewport. */}
+                    <aside
+                        className={cx(
+                            'hidden shrink-0 border-r border-border bg-band transition-[width] duration-(--duration-moderate) ease-standard motion-reduce:transition-none @bp-lg/shell:block',
+                            collapsed ? 'w-(--sidebar-collapsed)' : 'w-(--sidebar)',
+                        )}
+                    >
+                        <div className="sticky top-0 h-dvh">
+                            <Sidebar
+                                portal={navigation.portal}
+                                groups={navigation.groups}
+                                collapsed={collapsed}
+                                onToggleCollapse={() => setCollapsed(!collapsed)}
+                            />
                         </div>
-                        <div className="flex items-center gap-4 text-sm">
-                            <Link href="/account/password" className="text-slate-600 hover:text-slate-900 hover:underline">
-                                Change password
-                            </Link>
-                            {/* Sign-out is a POST (with the CSRF token), never a plain link. */}
-                            <Button href="/logout" method="post" variant="secondary" size="sm">
-                                Sign out
-                            </Button>
-                        </div>
+                    </aside>
+
+                    <div className="flex min-w-0 flex-1 flex-col">
+                        <TopBar title={title} modeSwitch={shariahSwitch} user={user} onMenu={() => setMenuOpen(true)} />
+
+                        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-(--content-max) flex-1 px-4 py-6 outline-none @bp-sm/shell:px-6 @bp-lg/shell:px-8 @bp-lg/shell:py-8">
+                            <PageTransition>
+                                <div className="space-y-6">
+                                    {description && <p className="max-w-prose text-body-lg text-text-secondary">{description}</p>}
+                                    <AccountStatusNotice user={user} />
+                                    {children}
+                                </div>
+                            </PageTransition>
+                        </main>
                     </div>
-                    <PortalNavigation links={NAVIGATION[user.role] ?? []} />
-                </header>
-
-                <main className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
-                    <StatusMessage />
-                    <AccountStatusNotice user={user} />
-                    {children}
-                </main>
+                </div>
             </div>
+
+            <MobileNav
+                open={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                portal={navigation.portal}
+                groups={navigation.groups}
+                footer={
+                    shariahSwitch && (
+                        <ModeSwitch
+                            mode={shariahSwitch.mode}
+                            onChange={shariahSwitch.change}
+                            disabledReason={shariahSwitch.disabledReason}
+                            compactLabel={false}
+                        />
+                    )
+                }
+            />
         </>
     );
 }
 
-function PortalNavigation({ links }) {
-    const { url } = usePage();
-    // The longest matching link is the current one, so /borrower/profile highlights "Profile",
-    // not "Overview".
-    const current = links
-        .filter((link) => url === link.href || url.startsWith(`${link.href}/`) || url.startsWith(`${link.href}?`))
-        .sort((a, b) => b.href.length - a.href.length)[0];
+/** The sidebar's collapsed state, remembered in this browser (a per-viewer convenience). */
+function useCollapsedSidebar() {
+    const [collapsed, setCollapsed] = useState(() => {
+        try {
+            return window.localStorage.getItem(COLLAPSED_KEY) === '1';
+        } catch {
+            return false;
+        }
+    });
 
-    return (
-        <nav aria-label="Portal" className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 sm:px-6">
-            {links.map((link) => {
-                const active = link === current;
+    function update(next) {
+        setCollapsed(next);
+        try {
+            window.localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0');
+        } catch {
+            // Private mode or blocked storage: it just won't be remembered.
+        }
+    }
 
-                return (
-                    <Link
-                        key={link.href}
-                        href={link.href}
-                        aria-current={active ? 'page' : undefined}
-                        className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
-                            active ? 'border-emerald-700 text-emerald-800' : 'border-transparent text-slate-600 hover:text-slate-900'
-                        }`}
-                    >
-                        {link.label}
-                    </Link>
-                );
-            })}
-        </nav>
-    );
+    return [collapsed, update];
 }
 
+/**
+ * Shows the message the server flashed with ->with('status', '...') as a success toast, once per
+ * response. The flash object is new on every full response and kept as-is on a partial reload,
+ * so a background poll never shows an old message again.
+ */
+function useFlashToasts() {
+    const { flash } = usePage().props;
+    const { push } = useToasts();
+
+    useEffect(() => {
+        if (flash?.status) {
+            push({ tone: 'success', title: flash.status });
+        }
+    }, [flash, push]);
+}
+
+/** A standing notice while the account is not yet verified. */
 function AccountStatusNotice({ user }) {
-    if (user.status === 'pending_verification') {
+    if (user?.status === 'pending_verification') {
         return (
-            <Alert variant="warning" role="note" title="Your account is pending verification">
-                An administrator will review your account once your profile and documents are complete. Until it is
-                verified you can sign in and update your details, but you can't raise financing or invest.
+            <Alert tone="warning" role="note" title="Your account is pending verification">
+                An administrator will review your account once your profile and documents are complete. Until it is verified
+                you can sign in and update your details, but you can't raise financing or invest.
             </Alert>
         );
     }
 
-    if (user.status === 'rejected') {
+    if (user?.status === 'rejected') {
         return (
-            <Alert variant="error" role="note" title="Your verification was not approved">
+            <Alert tone="danger" role="note" title="Your verification was not approved">
                 <p>Reason: {user.status_reason}</p>
-                <p className="mt-1">
-                    Update your profile or upload a new document and your account will go back into the review queue.
-                </p>
+                <p>Update your profile or upload a new document and your account will go back into the review queue.</p>
             </Alert>
         );
     }
 
-    if (user.status === 'suspended') {
+    if (user?.status === 'suspended') {
         return (
-            <Alert variant="error" role="note" title="Your account is suspended">
+            <Alert tone="danger" role="note" title="Your account is suspended">
                 {user.status_reason}
             </Alert>
         );

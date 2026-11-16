@@ -1,7 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import Card from '../../components/Card';
-import PortalLayout from '../../components/PortalLayout';
-import StepList from '../../components/StepList';
+import OnboardingStepper from '../../components/OnboardingStepper';
 
 /**
  * Borrower portal home: the verification checklist (PB-09, PB-11). `checklist` comes from
@@ -28,22 +27,22 @@ export default function BorrowerPortal({ checklist }) {
         },
         {
             title: 'Verification by an administrator',
-            description: checklist.complete && auth.user.status === 'pending_verification'
-                ? 'Your account is in the review queue.'
-                : 'Starts once your profile and documents are complete.',
+            description:
+                checklist.complete && auth.user.status === 'pending_verification'
+                    ? 'Your account is in the review queue.'
+                    : 'Starts once your profile and documents are complete.',
             done: auth.user.status === 'verified',
         },
     ];
 
     return (
-        <PortalLayout title="Borrower portal">
-            <Card
-                title="Borrower / SME portal"
-                titleAs="h1"
-                description="Get verified to raise financing. Creating a financing request arrives in the next sprint."
-            >
-                <StepList steps={steps} />
-            </Card>
-        </PortalLayout>
+        <Card title="Get verified" description="Three steps before you can raise financing.">
+            <OnboardingStepper steps={steps} />
+        </Card>
     );
 }
+
+BorrowerPortal.layout = {
+    title: 'Overview',
+    description: 'Get verified to raise financing. Creating a financing request arrives in the next sprint.',
+};

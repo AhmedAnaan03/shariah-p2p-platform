@@ -1,45 +1,79 @@
-import { FieldError } from './FormField';
+import * as RadixRadio from '@radix-ui/react-radio-group';
+import { useId } from 'react';
+import cx from '../lib/cx';
+import { FieldError } from './Field';
 
 /**
- * A set of radio buttons drawn as selectable cards, e.g. the role on the registration form or
- * individual / SME on the borrower profile. `options` is a list of { value, label, description }.
- * onChange receives the chosen value.
+ * A plain list of radio buttons (component-api.d.ts, RadioGroup), built on Radix RadioGroup:
+ * arrow keys move between options, Tab leaves the group. For options shown as selectable
+ * cards (role, borrower type, a decision) use RadioCards.
+ *
+ *   <RadioGroup name="frequency" legend="Repayment frequency" options={[{ value: 'monthly', label: 'Monthly' }]}
+ *               value={...} onChange={(value) => ...} error={form.errors.frequency} />
  */
-export default function RadioGroup({ name, legend, options, value, onChange, error, className = '' }) {
-    const errorId = error ? `${name}-error` : undefined;
+export default function RadioGroup({
+    name,
+    legend,
+    options,
+    value,
+    defaultValue,
+    onChange,
+    orientation = 'vertical',
+    disabled = false,
+    error,
+    className = '',
+    'aria-label': ariaLabel,
+}) {
+    const legendId = useId();
 
     return (
         <fieldset className={className}>
-            <legend className="text-sm font-medium text-slate-700">{legend}</legend>
-            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            {legend && (
+                <legend id={legendId} className="mb-2 text-label text-text">
+                    {legend}
+                </legend>
+            )}
+            <RadixRadio.Root
+                name={name}
+                value={value}
+                defaultValue={defaultValue}
+                onValueChange={onChange}
+                orientation={orientation}
+                disabled={disabled}
+                aria-labelledby={legend ? legendId : undefined}
+                aria-label={ariaLabel}
+                aria-describedby={error ? `${name}-error` : undefined}
+                className={cx('flex gap-3', orientation === 'vertical' ? 'flex-col' : 'flex-wrap gap-x-6')}
+            >
                 {options.map((option) => {
-                    const selected = value === option.value;
-
+                    const id = `${name}-${option.value}`;
                     return (
-                        <label
-                            key={option.value}
-                            className={`flex cursor-pointer gap-3 rounded-md border p-3 text-sm ${
-                                selected ? 'border-emerald-600 bg-emerald-50' : 'border-slate-300 bg-white hover:border-slate-400'
-                            }`}
-                        >
-                            <input
-                                type="radio"
-                                name={name}
+                        <div key={option.value} className="flex items-start gap-3 pointer-coarse:min-h-(--touch-target)">
+                            <RadixRadio.Item
+                                id={id}
                                 value={option.value}
-                                checked={selected}
-                                onChange={() => onChange(option.value)}
-                                aria-describedby={errorId}
-                                className="mt-0.5 accent-emerald-700"
-                            />
-                            <span>
-                                <span className="block font-semibold">{option.label}</span>
-                                {option.description && <span className="block text-slate-600">{option.description}</span>}
-                            </span>
-                        </label>
+                                disabled={option.disabled}
+                                className={cx(
+                                    'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border bg-surface',
+                                    'data-[state=checked]:border-primary disabled:cursor-not-allowed disabled:opacity-(--opacity-disabled)',
+                                    error ? 'border-danger' : 'border-border-control',
+                                )}
+                            >
+                                <RadixRadio.Indicator className="size-2 rounded-full bg-primary" />
+                            </RadixRadio.Item>
+                            <label htmlFor={id} className="cursor-pointer text-body">
+                                <span className="font-medium text-text">{option.label}</span>
+                                {option.description && <span className="block text-body-sm text-text-muted">{option.description}</span>}
+                            </label>
+                        </div>
                     );
                 })}
-            </div>
-            <FieldError id={name} error={error} />
+            </RadixRadio.Root>
+            {error && (
+                <div className="mt-2">
+                    <FieldError id={name} error={error} />
+                </div>
+            )}
         </fieldset>
     );
 }

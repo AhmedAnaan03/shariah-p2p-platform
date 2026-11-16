@@ -1,15 +1,16 @@
 import { useForm } from '@inertiajs/react';
-import AuthLayout from '../../components/AuthLayout';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { PASSWORD_HINT } from '../../components/PasswordHint';
-import RadioGroup from '../../components/RadioGroup';
+import RadioCards from '../../components/RadioCards';
 import TextLink from '../../components/TextLink';
 
 const ROLE_DESCRIPTIONS = {
     borrower: 'Raise financing for your business or a personal need.',
     investor: 'Fund campaigns and track your returns.',
 };
+
+const ROLE_ICONS = { borrower: 'briefcase', investor: 'hand-coins' };
 
 /**
  * Registration form (PB-06). `roles` comes from RegisterController: borrower and investor only.
@@ -33,24 +34,17 @@ export default function Register({ roles }) {
     }
 
     return (
-        <AuthLayout
-            title="Create an account"
-            intro="Choose how you will use the platform."
-            footer={
-                <>
-                    Already registered? <TextLink href="/login">Sign in</TextLink>
-                </>
-            }
-        >
+        <>
             {/* noValidate: the server's messages are the ones shown, not the browser's. */}
             <form onSubmit={submit} noValidate className="space-y-5">
-                <RadioGroup
+                <RadioCards
                     name="role"
                     legend="I want to register as"
                     options={roles.map((role) => ({
                         value: role.name,
                         label: role.label,
                         description: ROLE_DESCRIPTIONS[role.name],
+                        icon: ROLE_ICONS[role.name],
                     }))}
                     value={form.data.role}
                     onChange={(value) => form.setData('role', value)}
@@ -97,10 +91,20 @@ export default function Register({ roles }) {
                     error={form.errors.password_confirmation}
                 />
 
-                <Button type="submit" processing={form.processing} fullWidth>
+                <Button type="submit" loading={form.processing} fullWidth>
                     Create account
                 </Button>
             </form>
-        </AuthLayout>
+        </>
     );
 }
+
+Register.layout = {
+    title: 'Create an account',
+    intro: 'Choose how you will use the platform.',
+    footer: (
+        <>
+            Already registered? <TextLink href="/login">Sign in</TextLink>
+        </>
+    ),
+};
