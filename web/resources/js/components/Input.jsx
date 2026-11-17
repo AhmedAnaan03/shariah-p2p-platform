@@ -7,12 +7,14 @@ import TextInput from './TextInput';
  *
  *   <Input id="email" type="email" label="Email address" value={...} onChange={...} error={form.errors.email} />
  *
- * Also takes TextInput's size, prefix, suffix and icon, and `optional` for the "(optional)" tag.
+ * Also takes TextInput's size, prefix, suffix and icon, `optional` for the "(optional)" tag, and
+ * `controlClassName` to size the box itself (e.g. a narrow box for a count) while the label and
+ * hint keep the field's full width.
  */
-export default function Input({ id, label, hint, error, optional, className = '', ...inputProps }) {
+export default function Input({ id, label, hint, error, optional, className = '', controlClassName, ...inputProps }) {
     return (
         <Field htmlFor={id} label={label} helper={hint} error={error} optional={optional} className={className}>
-            <TextInput id={id} name={id} invalid={Boolean(error)} {...describedBy(id, { hint, error })} {...inputProps} />
+            <TextInput id={id} name={id} invalid={Boolean(error)} className={controlClassName} {...describedBy(id, { hint, error })} {...inputProps} />
         </Field>
     );
 }

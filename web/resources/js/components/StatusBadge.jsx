@@ -3,7 +3,7 @@ import Badge from './Badge';
 // Every status with its tone, icon and words (README, "Colour"): pending → warning;
 // verified, paid, funded → success; rejected, failed, late, defaulted → danger; live → info;
 // draft → neutral. The first group is the design system's; the second is the statuses the
-// users and kyc_documents tables hold today.
+// users, kyc_documents and campaigns tables hold that the first group doesn't name.
 const STATUSES = {
     draft: ['neutral', 'pencil-simple', 'Draft'],
     pending: ['warning', 'hourglass', 'Awaiting review'],
@@ -19,6 +19,7 @@ const STATUSES = {
     defaulted: ['danger', 'prohibit', 'Defaulted'],
 
     pending_verification: ['warning', 'hourglass', 'Pending verification'],
+    submitted: ['warning', 'hourglass', 'Awaiting review'],
     suspended: ['danger', 'prohibit', 'Suspended'],
     approved: ['success', 'check-circle', 'Approved'],
 };

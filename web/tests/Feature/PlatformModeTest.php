@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Campaign;
 use App\Models\InvestorProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -68,5 +69,38 @@ class PlatformModeTest extends TestCase
                     ->where('modeSwitch', null)
                 );
         }
+    }
+
+    public function test_a_borrower_is_conventional_until_they_make_a_shariah_request(): void
+    {
+        $borrower = User::factory()->borrower()->verified()->create();
+
+        $this->actingAs($borrower)->get('/borrower')
+            ->assertSee('data-mode="conventional"', false)
+            ->assertInertia(fn (Assert $page) => $page->where('mode', 'conventional'));
+
+        Campaign::factory()->murabahah()->for($borrower, 'borrower')->create();
+
+        $this->actingAs($borrower)->get('/borrower')
+            ->assertSee('data-mode="shariah"', false)
+            ->assertInertia(fn (Assert $page) => $page->where('mode', 'shariah'));
+    }
+
+    public function test_a_borrowers_mode_follows_their_most_recent_request(): void
+    {
+        $borrower = User::factory()->borrower()->verified()->create();
+        Campaign::factory()->mudarabah()->for($borrower, 'borrower')->create();
+        Campaign::factory()->conventional()->for($borrower, 'borrower')->create();
+
+        $this->actingAs($borrower)->get('/borrower')
+            ->assertInertia(fn (Assert $page) => $page->where('mode', 'conventional'));
+    }
+
+    public function test_an_administrator_stays_conventional_while_reviewing_a_shariah_campaign(): void
+    {
+        $campaign = Campaign::factory()->murabahah()->submitted()->create();
+
+        $this->actingAs(User::factory()->admin()->create())->get("/admin/campaigns/{$campaign->id}")
+            ->assertInertia(fn (Assert $page) => $page->where('mode', 'conventional'));
     }
 }

@@ -48,6 +48,20 @@ export function formatAmount(value, { decimals = 2, sign = false } = {}) {
     return sign && rounded > 0 ? `+${figure}` : figure;
 }
 
+/**
+ * What the user has typed into an amount or percentage box, cleaned up as they type: digits and
+ * one decimal point, at most `decimals` decimal places; commas, spaces and anything else
+ * dropped. "120,000.505" -> "120000.50". Returns a string so a half-typed "120." survives.
+ */
+export function cleanNumberInput(text, { decimals = 2 } = {}) {
+    const kept = String(text ?? '').replace(/[^\d.]/g, '');
+    const [whole, ...rest] = kept.split('.');
+    if (rest.length === 0 || decimals === 0) {
+        return whole;
+    }
+    return `${whole}.${rest.join('').slice(0, decimals)}`;
+}
+
 /** "MVR 12,500.00". For button labels use decimals: 0, e.g. "Pledge MVR 5,000". */
 export function formatMoney(value, { code = 'MVR', ...options } = {}) {
     const amount = formatAmount(value, options);
@@ -136,4 +150,24 @@ export function initials(name) {
     }
     const letters = words.length === 1 ? words[0][0] : words[0][0] + words[words.length - 1][0];
     return letters.toUpperCase();
+}
+
+/**
+ * How long is left until a deadline, counted in whole days: "Closes today" on its last day,
+ * "1 day left", "12 days left". A passed or unusable deadline gives "Closed" or a dash.
+ */
+export function daysLeftLabel(deadline, now = new Date()) {
+    const end = toDate(deadline);
+    if (end === null) {
+        return EMPTY;
+    }
+    const ms = end.getTime() - now.getTime();
+    if (ms < 0) {
+        return 'Closed';
+    }
+    const days = Math.ceil(ms / 86_400_000) - 1;
+    if (days <= 0) {
+        return 'Closes today';
+    }
+    return days === 1 ? '1 day left' : `${days} days left`;
 }

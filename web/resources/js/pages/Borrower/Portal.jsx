@@ -1,12 +1,13 @@
 import { usePage } from '@inertiajs/react';
+import Button from '../../components/Button';
 import Card from '../../components/Card';
 import OnboardingStepper from '../../components/OnboardingStepper';
 
 /**
- * Borrower portal home: the verification checklist (PB-09, PB-11). `checklist` comes from
- * VerificationChecklist on the server.
+ * Borrower portal home: the verification checklist (PB-09, PB-11) and, once verified, the way
+ * into financing requests (PB-13). `checklist` comes from VerificationChecklist on the server.
  */
-export default function BorrowerPortal({ checklist }) {
+export default function BorrowerPortal({ checklist, requestCount }) {
     const { auth } = usePage().props;
     const missing = checklist.required_documents.filter((document) => !document.provided);
 
@@ -35,6 +36,31 @@ export default function BorrowerPortal({ checklist }) {
         },
     ];
 
+    if (auth.user.status === 'verified') {
+        return (
+            <Card
+                title="Raise financing"
+                description={
+                    requestCount === 0
+                        ? 'Your account is verified. Submit a financing request and an administrator will review it.'
+                        : `You have ${requestCount === 1 ? '1 financing request' : `${requestCount} financing requests`}.`
+                }
+                actions={
+                    <>
+                        {requestCount > 0 && (
+                            <Button href="/borrower/campaigns" variant="secondary">
+                                View your requests
+                            </Button>
+                        )}
+                        <Button href="/borrower/campaigns/create" iconLeft="plus">
+                            New request
+                        </Button>
+                    </>
+                }
+            />
+        );
+    }
+
     return (
         <Card title="Get verified" description="Three steps before you can raise financing.">
             <OnboardingStepper steps={steps} />
@@ -44,5 +70,5 @@ export default function BorrowerPortal({ checklist }) {
 
 BorrowerPortal.layout = {
     title: 'Overview',
-    description: 'Get verified to raise financing. Creating a financing request arrives in the next sprint.',
+    description: 'Get verified, then raise financing from investors.',
 };

@@ -24,7 +24,7 @@ export default function DescriptionList({ items, columns = 2 }) {
                 {items.map(([label, value, mono], index) => (
                     <div key={index} className="min-w-0">
                         <dt className="text-label text-text-muted">{label}</dt>
-                        <dd className={cx('mt-1 break-words text-text', mono ? 'font-mono text-figure' : 'text-body')}>
+                        <dd className={cx('mt-1 break-words whitespace-pre-line text-text', mono ? 'font-mono text-figure' : 'text-body')}>
                             {value === null || value === undefined || value === '' ? EMPTY : value}
                         </dd>
                     </div>

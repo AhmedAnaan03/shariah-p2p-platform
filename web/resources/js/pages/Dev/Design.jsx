@@ -8,6 +8,8 @@ import Button from '../../components/Button';
 import Card from '../../components/Card';
 import Checkbox from '../../components/Checkbox';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import ContractBadge from '../../components/ContractBadge';
+import ContractTypePicker from '../../components/ContractTypePicker';
 import DescriptionList from '../../components/DescriptionList';
 import Dialog from '../../components/Dialog';
 import DocumentRow from '../../components/DocumentRow';
@@ -19,9 +21,11 @@ import Input from '../../components/Input';
 import KhatamIcon from '../../components/KhatamIcon';
 import ModeSwitch from '../../components/ModeSwitch';
 import Money from '../../components/Money';
+import MoneyInput from '../../components/MoneyInput';
 import OnboardingStepper from '../../components/OnboardingStepper';
 import PageBand from '../../components/PageBand';
 import PageHeading from '../../components/PageHeading';
+import PercentInput from '../../components/PercentInput';
 import Popover from '../../components/Popover';
 import RadioCards from '../../components/RadioCards';
 import RadioGroup from '../../components/RadioGroup';
@@ -232,6 +236,15 @@ function Forms() {
                 <FileDropzone id="d-file" label="File" hint="PDF, JPG or PNG. Files must be 5 MB or smaller." maxBytes={5 * 1024 * 1024} />
                 <FileDropzone id="d-file-error" label="File (error)" hint="PDF, JPG or PNG." error="This file is 7.2 MB. Files must be 5 MB or smaller." />
             </div>
+
+            <div className="grid gap-5 @bp-md/shell:grid-cols-2">
+                <MoneyInput id="d-money" label="Amount needed" hint="Thousands separators appear when the box loses focus." defaultValue={120000} />
+                <MoneyInput id="d-money-error" label="Amount (error)" error="The amount must be at least MVR 10,000." defaultValue={500} />
+                <PercentInput id="d-percent" label="Investors’ share of the profit" hint="From 1% to 99%." value="60" />
+                <PercentInput id="d-percent-error" label="Share (error)" value="100" error="The investors' share must be between 1% and 99%, so both sides share the profit." />
+            </div>
+            <ContractTypePicker name="d-contract" defaultValue="murabahah" />
+            <ContractTypePicker name="d-contract-error" legend="Contract type (error)" error="Choose a contract type." />
         </Section>
     );
 }
@@ -285,7 +298,7 @@ function Feedback() {
 }
 
 function DataDisplay() {
-    const statuses = ['draft', 'pending', 'under-review', 'verified', 'live', 'funded', 'paid', 'due', 'late', 'rejected', 'failed', 'defaulted', 'pending_verification', 'suspended', 'approved'];
+    const statuses = ['draft', 'pending', 'under-review', 'verified', 'live', 'funded', 'paid', 'due', 'late', 'rejected', 'failed', 'defaulted', 'pending_verification', 'suspended', 'approved', 'submitted'];
     const rows = [
         { id: 1, name: 'Aishath Rasheed', role: 'investor', registered: '12 Nov 2026', documents: 1 },
         { id: 2, name: 'Coral Cove Trading', role: 'borrower', registered: '13 Nov 2026', documents: 3 },
@@ -306,6 +319,11 @@ function DataDisplay() {
                 {statuses.map((status) => (
                     <StatusBadge key={status} status={status} />
                 ))}
+            </Row>
+            <Row>
+                <ContractBadge type="conventional" />
+                <ContractBadge type="murabahah" />
+                <ContractBadge type="mudarabah" size="sm" />
             </Row>
             <Row>
                 <RoleBadge role="investor" />
