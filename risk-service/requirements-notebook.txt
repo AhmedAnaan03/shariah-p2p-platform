@@ -1,0 +1,9 @@
+# Tools for downloading the dataset and running the exploration notebook (PB-12).
+# Not needed by the Flask service or by CI. Install with:
+#   pip install -r requirements-notebook.txt
+-r requirements.txt
+kaggle==2.2.5
+jupyterlab==4.6.6
+ipykernel==7.4.0
+nbconvert==7.17.2
+matplotlib==3.11.2
