@@ -30,6 +30,7 @@ const ACCOUNTS = {
     borrower: 'borrower@example.com',
     investor: 'investor@example.com',
     newInvestor: 'new-investor@example.com',
+    verifiedBorrower: 'verified-borrower@example.com',
     admin: 'admin@example.com',
 };
 
@@ -51,8 +52,22 @@ const PAGES = [
     ['admin', 'admin-portal', '/admin'],
     ['admin', 'admin-queue', '/admin/verifications'],
     ['admin', 'admin-review', null], // the first queue row's review page, found at run time
+    ['borrower', 'borrower-campaign-create-unverified', '/borrower/campaigns/create'],
+    ['verifiedBorrower', 'borrower-campaigns', '/borrower/campaigns'],
+    ['verifiedBorrower', 'borrower-campaign-create', '/borrower/campaigns/create'],
+    ['verifiedBorrower', 'borrower-campaign-show', null],
+    ['investor', 'marketplace', '/investor/campaigns'],
+    ['admin', 'admin-campaigns', '/admin/campaigns'],
+    ['admin', 'admin-campaign-review', null],
     ['guest', 'design-preview', '/dev/design'],
 ];
+
+// Pages whose URL is the first matching link on another page, found at run time.
+const FIRST_LINK = {
+    'admin-review': ['/admin/verifications', 'a[href*="/admin/verifications/"]'],
+    'admin-campaign-review': ['/admin/campaigns', 'a[href*="/admin/campaigns/"]'],
+    'borrower-campaign-show': ['/borrower/campaigns', 'a[href*="/borrower/campaigns/"]:not([href$="/create"])'],
+};
 
 const failures = [];
 const fail = (where, message) => {
@@ -175,9 +190,10 @@ try {
         if (ONLY.length && !ONLY.includes(name)) continue;
         let url = path;
         if (!url) {
-            const page = await contexts.admin.newPage();
-            await page.goto(`${BASE}/admin/verifications`, { waitUntil: 'networkidle0' });
-            url = new URL(await page.$eval('a[href*="/admin/verifications/"]', (a) => a.href)).pathname;
+            const [from, selector] = FIRST_LINK[name];
+            const page = await contexts[account].newPage();
+            await page.goto(`${BASE}${from}`, { waitUntil: 'networkidle0' });
+            url = new URL(await page.$eval(selector, (a) => a.href)).pathname;
             await page.close();
         }
         console.log(name);

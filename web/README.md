@@ -83,7 +83,7 @@ which is wiped and re-migrated by tests that use `RefreshDatabase`. The developm
 is never touched by tests.
 
 ```sh
-npm test                 # Vitest: the JS helpers in resources/js/lib (formatting, mode, motion tokens)
+npm test                 # Vitest: the JS helpers in resources/js/lib (formatting, mode, motion tokens, contract wording)
 npm run check:contrast   # every text, control and focus-ring colour pair, all four themes, WCAG AA
 ```
 
@@ -120,9 +120,11 @@ git-ignored except `focus-input.png` and `focus-button.png`, which the report no
 | `resources/js/components/` | Shared UI components; pages build their forms and panels from these (see below) |
 | `resources/css/app.css` | Tailwind entry point: imports the theme, base layer, control and animation utilities |
 | `resources/css/tailwind-theme.css` | The design-system tokens (copied from `docs/design-system/`; edit it there) |
-| `resources/js/lib/` | Plain JS helpers: formatting (`format.js`), platform mode (`mode.js`), motion tokens (`motion.js`) |
+| `resources/js/lib/` | Plain JS helpers: formatting (`format.js`), platform mode (`mode.js`), motion tokens (`motion.js`), contract types and their wording (`contracts.js`) |
 | `tests/Feature/` | HTTP-level tests run by `php artisan test` |
-| `storage/app/private/kyc/` | Uploaded KYC documents, encrypted, never served directly (PB-09) |
+| `storage/app/private/kyc/` | Uploaded KYC documents and MMA credit reports, encrypted, never served directly (PB-09, PB-14) |
+| `app/Support/RiskFeatures.php` | A stored request → the risk model's features; checked against `risk-service/tests/fixtures/feature_parity.json` (PB-14) |
+| `app/Services/Campaign*Service.php` | Submitting a request (PB-13, PB-14) and an administrator's approve / reject / suspend decision (PB-15) |
 
 ## UI components
 
@@ -140,10 +142,12 @@ Layouts are persistent (set per page name in `app.jsx`): a page passes its title
 | Component | Use |
 |---|---|
 | `Input`, `Select`, `Textarea`, `FileDropzone` | Labelled form controls with a hint and the server's error (built on `Field`, `TextInput`) |
+| `MoneyInput`, `PercentInput` | Amounts in MVR (formatted when the box loses focus) and percentages, in Plex Mono (PB-13) |
+| `ContractTypePicker` | Conventional / Murabahah / Mudarabah as cards; the Shariah ones carry the `ShariahBadge` (PB-13) |
 | `Checkbox`, `RadioGroup`, `RadioCards`, `Switch` | Tick box; plain radio list; options drawn as cards; on/off switch |
 | `Button`, `TextLink` | Buttons (also as Inertia links, e.g. sign-out with `method="post"`); in-text links |
 | `Alert`, `Toast` / `useToasts`, `StatusMessage`, `Spinner`, `Skeleton`, `EmptyState` | Feedback, loading and empty lists |
-| `Badge`, `StatusBadge`, `RoleBadge`, `ShariahBadge` | Small labels, always with an icon and words |
+| `Badge`, `StatusBadge`, `RoleBadge`, `ShariahBadge`, `ContractBadge` | Small labels, always with an icon and words |
 | `Card`, `StatCard`, `PageBand`, `PageHeading`, `DescriptionList`, `BulletList`, `Table`, `OnboardingStepper`, `DocumentList` / `DocumentRow`, `Money`, `Avatar` | Panels and read-only content |
 | `Dialog`, `ConfirmDialog`, `Tooltip`, `Term`, `Popover`, `DropdownMenu`, `Tabs` | Overlays and navigation (Radix primitives) |
 | `Icon`, `KhatamIcon`, `BackgroundPattern`, `Wordmark` | Phosphor icons by name (`icons.js`), the khatam, the mode's texture, the brand |
