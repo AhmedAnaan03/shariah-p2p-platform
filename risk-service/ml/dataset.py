@@ -193,7 +193,7 @@ class Feature:
     available: str  # short form of `maldives`, for the feature table
 
 
-SELF_DECLARED = "self-declared, verifiable via MIS report"
+SELF_DECLARED = "self-declared, verifiable via CIS report"
 
 FEATURES = (
     # --- Deployable: our PB-13 and PB-14 form can collect every one of these ----------

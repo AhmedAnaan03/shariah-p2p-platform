@@ -280,7 +280,7 @@ def test_there_are_exactly_three_nested_feature_sets():
 
 def test_self_declared_set_adds_exactly_the_three_checkable_history_answers():
     added = set(d.SELF_DECLARED_FEATURES) - set(d.DEPLOYABLE_FEATURES)
-    marked = {f.name for f in d.FEATURES if f.available == "self-declared, verifiable via MIS report"}
+    marked = {f.name for f in d.FEATURES if f.available == "self-declared, verifiable via CIS report"}
 
     assert added == {"open_acc", "delinq_2yrs", "pub_rec"}
     assert marked == added

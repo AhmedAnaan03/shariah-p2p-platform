@@ -108,9 +108,9 @@ in `docs/decisions.md`.)
 | `dti` | repayment capacity | all three | `dti` | Yes (existing monthly repayments ÷ monthly income) |
 | `emp_length_years` | stability | all three | `emp_length` | Yes (years in job or business) |
 | `home_ownership` | stability | all three | `home_ownership` | Yes; "family home" maps to OTHER |
-| `open_acc` | credit history | self_declared, full | `open_acc` | **Self-declared, verifiable via MIS report** (open loans, facilities and cards) |
-| `delinq_2yrs` | credit history | self_declared, full | `delinq_2yrs` | **Self-declared, verifiable via MIS report** (repayments 30+ days late, past 2 years) |
-| `pub_rec` | credit history | self_declared, full | `pub_rec` | **Self-declared, verifiable via MIS report** (judgments, bankruptcy, written-off debts; approximate match to US public records) |
+| `open_acc` | credit history | self_declared, full | `open_acc` | **Self-declared, verifiable via CIS report** (open loans, facilities and cards) |
+| `delinq_2yrs` | credit history | self_declared, full | `delinq_2yrs` | **Self-declared, verifiable via CIS report** (repayments 30+ days late, past 2 years) |
+| `pub_rec` | credit history | self_declared, full | `pub_rec` | **Self-declared, verifiable via CIS report** (judgments, bankruptcy, written-off debts; approximate match to US public records) |
 | `fico_score` | credit history | full | `fico_range_low/high` | No: no Maldivian equivalent |
 | `credit_history_months` | credit history | full | `earliest_cr_line`, `issue_d` | Partial: MMA CIS self-inquiry report |
 | `inq_last_6mths` | credit history | full | `inq_last_6mths` | Partial at best (enquiries not confirmed on CIS reports) |
