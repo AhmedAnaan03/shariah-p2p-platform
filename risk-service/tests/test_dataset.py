@@ -259,15 +259,39 @@ def test_no_feature_uses_leaky_lender_or_protected_columns(role):
     assert not used & banned
 
 
-def test_feature_sets_cover_all_four_ir_groups():
-    assert {f.group for f in d.FEATURES} == set(d.GROUPS)
-    assert {f.group for f in d.FEATURES if f.feature_set == "deployable"} >= {"application", "repayment capacity", "stability"}
+def groups_of(feature_set):
+    by_name = {f.name: f for f in d.FEATURES}
+    return {by_name[name].group for name in d.FEATURE_SETS[feature_set]}
 
 
-def test_deployable_set_is_inside_full_set_and_has_no_bureau_fields():
-    assert set(d.DEPLOYABLE_FEATURES) < set(d.FULL_FEATURES)
-    assert all(f.available == "yes" for f in d.FEATURES if f.feature_set == "deployable")
-    assert all(f.group == "credit history" for f in d.FEATURES if f.feature_set == "full")
+def test_ir_groups_per_feature_set():
+    assert groups_of("deployable") == {"application", "repayment capacity", "stability"}
+    assert groups_of("self_declared") == set(d.GROUPS)  # self-declared history fills the 4th group
+    assert groups_of("full") == set(d.GROUPS)
+
+
+def test_there_are_exactly_three_nested_feature_sets():
+    deployable, self_declared, full = (set(d.FEATURE_SETS[k]) for k in ["deployable", "self_declared", "full"])
+
+    assert list(d.FEATURE_SETS) == ["deployable", "self_declared", "full"]
+    assert deployable < self_declared < full
+    assert (len(deployable), len(self_declared), len(full)) == (7, 10, 15)
+
+
+def test_self_declared_set_adds_exactly_the_three_checkable_history_answers():
+    added = set(d.SELF_DECLARED_FEATURES) - set(d.DEPLOYABLE_FEATURES)
+    marked = {f.name for f in d.FEATURES if f.available == "self-declared, verifiable via MIS report"}
+
+    assert added == {"open_acc", "delinq_2yrs", "pub_rec"}
+    assert marked == added
+
+
+def test_deployable_features_are_all_on_the_form_and_bureau_features_only_in_full():
+    assert all(f.available == "yes" for f in d.FEATURES if f.tier == "deployable")
+    bureau = {f.name for f in d.FEATURES if f.tier == "bureau"}
+    assert bureau == {"fico_score", "credit_history_months", "inq_last_6mths", "total_acc", "revol_util"}
+    assert not bureau & set(d.SELF_DECLARED_FEATURES)
+    assert all(f.group == "credit history" for f in d.FEATURES if f.tier != "deployable")
 
 
 def test_no_feature_is_an_interest_rate():

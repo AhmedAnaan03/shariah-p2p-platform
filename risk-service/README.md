@@ -70,7 +70,7 @@ pytest
 | `app/__init__.py` | `create_app()` factory: config, routes, JSON error handler |
 | `app/health.py` | `GET /health` blueprint |
 | `tests/` | pytest tests; `conftest.py` gives each test a fresh app and test client |
-| `ml/dataset.py` | Dataset rules: default label, modelling population, the deployable and full feature sets, and the role of every raw column |
+| `ml/dataset.py` | Dataset rules: default label, modelling population, the three feature sets (deployable, self-declared, full), and the role of every raw column |
 | `ml/prepare.py` | `python -m ml.prepare`: raw CSV to Parquet, once |
 | `notebooks/PB-12-eda.ipynb` | Exploration notebook (charts saved to `docs/report-notes/PB-12-*.png`) |
 | `notebooks/plot_style.py` | Chart colours and layout taken from the design system |

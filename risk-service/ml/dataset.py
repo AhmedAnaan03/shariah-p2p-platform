@@ -4,9 +4,10 @@ One place for every decision about the training data:
 
 - which loans are in the modelling population and what counts as a default (the label),
 - how raw columns become model features, grouped by the IR's four groups,
-- the two feature sets: "deployable" (fields our PB-14 form can collect; the production
-  model must use only these) and "full" (adds credit-bureau fields; PB-21 trains it as a
-  benchmark to measure what the Maldives-deployable model gives up),
+- the three feature sets PB-21 trains and compares: "deployable" (fields our PB-13/PB-14
+  form collects), "self_declared" (adds three credit-history answers an admin can check
+  against the borrower's MMA credit report) and "full" (adds bureau-only fields such as
+  FICO; a benchmark, since Maldivian borrowers cannot supply them),
 - why every one of the other raw columns is left out.
 
 The exploration notebook (notebooks/PB-12-eda.ipynb) and the training pipeline (PB-21)
@@ -185,12 +186,14 @@ GROUPS = ("application", "repayment capacity", "credit history", "stability")
 class Feature:
     name: str
     group: str  # one of GROUPS
-    feature_set: str  # "deployable" (on our form) or "full" (credit bureau; benchmark only)
+    tier: str  # "deployable", "self_declared" or "bureau" (see FEATURE_SETS)
     sources: tuple  # raw columns it is built from
     meaning: str
     maldives: str  # can a Maldivian borrower realistically provide it on our form?
-    available: str  # "yes" / "partial" / "no", the short form of `maldives`
+    available: str  # short form of `maldives`, for the feature table
 
+
+SELF_DECLARED = "self-declared, verifiable via MIS report"
 
 FEATURES = (
     # --- Deployable: our PB-13 and PB-14 form can collect every one of these ----------
@@ -244,16 +247,42 @@ FEATURES = (
         "few training loans, so it scores near average.",
         "yes",
     ),
-    # --- Full only: credit-bureau fields (benchmark for PB-21, not used in production) -
+    # --- Self-declared history: the borrower answers on the PB-14 form; an admin checks the
+    # answers against the MMA Credit Information System report they upload ------------
     Feature(
-        "fico_score", "credit history", "full", ("fico_range_low", "fico_range_high"),
+        "open_acc", "credit history", "self_declared", ("open_acc",),
+        "Open credit lines.",
+        "Self-declared: number of open loans, financing facilities and credit cards. An "
+        "admin checks it against the active facilities on the borrower's uploaded MMA "
+        "Credit Information System report.",
+        SELF_DECLARED,
+    ),
+    Feature(
+        "delinq_2yrs", "credit history", "self_declared", ("delinq_2yrs",),
+        "Payments 30+ days late in the past 2 years.",
+        "Self-declared: times a repayment was 30 or more days late in the past 2 years, "
+        "checked against the repayment history on the uploaded MMA report.",
+        SELF_DECLARED,
+    ),
+    Feature(
+        "pub_rec", "credit history", "self_declared", ("pub_rec",),
+        "Derogatory public records (bankruptcies, judgments, tax liens).",
+        "Self-declared: court judgments, bankruptcy or debts written off. The closest "
+        "local equivalent of LendingClub's US public records, so the meaning is "
+        "approximate; written-off facilities are checked on the uploaded MMA report.",
+        SELF_DECLARED,
+    ),
+    # --- Bureau only: needs a credit bureau the Maldives does not have in this form
+    # (full benchmark set only) ----------------------------------------------------------
+    Feature(
+        "fico_score", "credit history", "bureau", ("fico_range_low", "fico_range_high"),
         "Middle of the FICO range at application.",
         "No: there is no FICO-style score in the Maldives. The MMA Credit Information "
         "System self-inquiry report lists facilities and repayments, not a score.",
         "no",
     ),
     Feature(
-        "credit_history_months", "credit history", "full", ("earliest_cr_line", "issue_d"),
+        "credit_history_months", "credit history", "bureau", ("earliest_cr_line", "issue_d"),
         "Months since the first credit line was opened. Partly tracks age; check it in "
         "the PB-23 SHAP review.",
         "Partial: date of the first facility on a CIS self-inquiry report, typed in by "
@@ -261,52 +290,46 @@ FEATURES = (
         "partial",
     ),
     Feature(
-        "delinq_2yrs", "credit history", "full", ("delinq_2yrs",),
-        "Payments 30+ days late in the past 2 years.",
-        "Partial: late repayments on a CIS self-inquiry report.",
-        "partial",
-    ),
-    Feature(
-        "inq_last_6mths", "credit history", "full", ("inq_last_6mths",),
+        "inq_last_6mths", "credit history", "bureau", ("inq_last_6mths",),
         "Credit enquiries by lenders in the past 6 months.",
         "Partial at best: only if the CIS report lists lender enquiries (not confirmed).",
         "partial",
     ),
     Feature(
-        "open_acc", "credit history", "full", ("open_acc",),
-        "Open credit lines.",
-        "Partial: active facilities on a CIS self-inquiry report.",
-        "partial",
-    ),
-    Feature(
-        "total_acc", "credit history", "full", ("total_acc",),
+        "total_acc", "credit history", "bureau", ("total_acc",),
         "Credit lines ever opened.",
         "Partial: all facilities on a CIS self-inquiry report.",
         "partial",
     ),
     Feature(
-        "revol_util", "credit history", "full", ("revol_util",),
+        "revol_util", "credit history", "bureau", ("revol_util",),
         "Credit-card balances as a % of card limits.",
         "Partial: needs card balances and limits, if the CIS report shows them.",
         "partial",
     ),
-    Feature(
-        "pub_rec", "credit history", "full", ("pub_rec",),
-        "Derogatory public records (bankruptcies, judgments, tax liens).",
-        "No: these US public records have no direct Maldivian equivalent.",
-        "no",
-    ),
 )
 
-DEPLOYABLE_FEATURES = tuple(f.name for f in FEATURES if f.feature_set == "deployable")
-FULL_FEATURES = tuple(f.name for f in FEATURES)  # deployable + credit bureau
+# The three sets PB-21 trains. Each one adds a tier to the one before it.
+#   deployable     what our PB-13/PB-14 form collects as plain facts
+#   self_declared  deployable + credit-history answers the borrower gives on the form and
+#                  an admin checks against their uploaded MMA credit report
+#   full           self_declared + bureau-only fields (FICO and the like); a benchmark only,
+#                  because a Maldivian borrower cannot supply these
+FEATURE_SETS = {
+    "deployable": tuple(f.name for f in FEATURES if f.tier == "deployable"),
+    "self_declared": tuple(f.name for f in FEATURES if f.tier in {"deployable", "self_declared"}),
+    "full": tuple(f.name for f in FEATURES),
+}
+DEPLOYABLE_FEATURES = FEATURE_SETS["deployable"]
+SELF_DECLARED_FEATURES = FEATURE_SETS["self_declared"]
+FULL_FEATURES = FEATURE_SETS["full"]
 CATEGORICAL_FEATURES = ("purpose_group", "home_ownership")
 
 
 def build_features(df):
     """Turn raw LendingClub columns into every candidate feature (the full set).
 
-    Select `DEPLOYABLE_FEATURES` from the result for the production model."""
+    Select one of `FEATURE_SETS` from the result to train on it."""
     issue = parse_month(df["issue_d"].to_numpy())
     term = term_months(df["term"].to_numpy())
     annual_income = pd.Series(df["annual_inc"].to_numpy(), dtype="float64")
@@ -458,7 +481,7 @@ def feature_table():
             {
                 "feature": f.name,
                 "IR group": f.group,
-                "set": "deployable + full" if f.feature_set == "deployable" else "full only",
+                "in sets": ", ".join(name for name, members in FEATURE_SETS.items() if f.name in members),
                 "built from": ", ".join(f.sources),
                 "meaning": f.meaning,
                 "on our form?": f.available,

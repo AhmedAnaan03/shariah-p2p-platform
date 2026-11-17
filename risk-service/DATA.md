@@ -89,32 +89,42 @@ It runs top to bottom in under a minute and rewrites the charts in
 
 ## Feature sets
 
-Mapped to the IR's four groups. The **deployable** set uses only fields our PB-13 request and
-PB-14 form can collect, and **the production model must use only this set**. The **full** set
-adds credit-bureau fields; PB-21 trains it as a benchmark to measure the accuracy the
-deployable model gives up. It is never served. (Decision recorded in `docs/decisions.md`.)
+Three nested sets (`FEATURE_SETS` in `ml/dataset.py`), mapped to the IR's four groups.
+**PB-21 trains all three and picks the production set from the results.** (Decision recorded
+in `docs/decisions.md`.)
 
-| Feature | IR group | Set | Built from | On our form? |
+| Set | Features | IR groups | Role |
+|---|---|---|---|
+| **deployable** | 7 | application, repayment capacity, stability | Production candidate: fields our PB-13/PB-14 form collects as plain facts |
+| **self_declared** (deployable + self-declared history) | 10 | all four | Production candidate: adds `open_acc`, `delinq_2yrs`, `pub_rec`, answered by the borrower and checked by an admin against their uploaded MMA Credit Information System report |
+| **full** | 15 | all four | Benchmark: adds bureau-only fields such as FICO that a Maldivian borrower cannot supply |
+
+| Feature | IR group | In sets | Built from | On our form? |
 |---|---|---|---|---|
-| `term_months` | application | deployable | `term` | Yes (PB-13 tenure) |
-| `purpose_group` | application | deployable | `purpose` | Yes (PB-13; start-up and growth → business) |
-| `loan_to_income` | repayment capacity | deployable | `loan_amnt`, `annual_inc` | Yes (amount ÷ declared income) |
-| `repayment_burden` | repayment capacity | deployable | `loan_amnt`, `term`, `annual_inc` | Yes (worked out; no interest or profit in it) |
-| `dti` | repayment capacity | deployable | `dti` | Yes (existing monthly repayments ÷ monthly income) |
-| `emp_length_years` | stability | deployable | `emp_length` | Yes (years in job or business) |
-| `home_ownership` | stability | deployable | `home_ownership` | Yes; "family home" maps to OTHER |
-| `fico_score` | credit history | full only | `fico_range_low/high` | No: no Maldivian equivalent |
-| `credit_history_months` | credit history | full only | `earliest_cr_line`, `issue_d` | Partial: MMA CIS self-inquiry report |
-| `delinq_2yrs` | credit history | full only | `delinq_2yrs` | Partial: CIS report |
-| `inq_last_6mths` | credit history | full only | `inq_last_6mths` | Partial at best (enquiries not confirmed on CIS reports) |
-| `open_acc` | credit history | full only | `open_acc` | Partial: CIS report |
-| `total_acc` | credit history | full only | `total_acc` | Partial: CIS report |
-| `revol_util` | credit history | full only | `revol_util` | Partial: needs card limits |
-| `pub_rec` | credit history | full only | `pub_rec` | No: US public records |
+| `term_months` | application | all three | `term` | Yes (PB-13 tenure) |
+| `purpose_group` | application | all three | `purpose` | Yes (PB-13; start-up and growth → business) |
+| `loan_to_income` | repayment capacity | all three | `loan_amnt`, `annual_inc` | Yes (amount ÷ declared income) |
+| `repayment_burden` | repayment capacity | all three | `loan_amnt`, `term`, `annual_inc` | Yes (worked out; no interest or profit in it) |
+| `dti` | repayment capacity | all three | `dti` | Yes (existing monthly repayments ÷ monthly income) |
+| `emp_length_years` | stability | all three | `emp_length` | Yes (years in job or business) |
+| `home_ownership` | stability | all three | `home_ownership` | Yes; "family home" maps to OTHER |
+| `open_acc` | credit history | self_declared, full | `open_acc` | **Self-declared, verifiable via MIS report** (open loans, facilities and cards) |
+| `delinq_2yrs` | credit history | self_declared, full | `delinq_2yrs` | **Self-declared, verifiable via MIS report** (repayments 30+ days late, past 2 years) |
+| `pub_rec` | credit history | self_declared, full | `pub_rec` | **Self-declared, verifiable via MIS report** (judgments, bankruptcy, written-off debts; approximate match to US public records) |
+| `fico_score` | credit history | full | `fico_range_low/high` | No: no Maldivian equivalent |
+| `credit_history_months` | credit history | full | `earliest_cr_line`, `issue_d` | Partial: MMA CIS self-inquiry report |
+| `inq_last_6mths` | credit history | full | `inq_last_6mths` | Partial at best (enquiries not confirmed on CIS reports) |
+| `total_acc` | credit history | full | `total_acc` | Partial: CIS report |
+| `revol_util` | credit history | full | `revol_util` | Partial: needs card limits |
 
 Raw `loan_amnt` and `annual_inc` are used only inside ratios, because absolute US-dollar
-amounts do not carry over to MVR or Maldivian incomes. The deployable set has **no credit
-history features**; PB-49 plans how the platform's own repayment records can fill that gap.
+amounts do not carry over to MVR or Maldivian incomes.
+
+**Self-declared answers are not bureau records.** In the training data these three values
+came from a credit bureau; on our platform they come from the borrower, so their accuracy
+depends on the admin's check against the uploaded report (PB-52 plans to pre-fill them from
+the report). On their own they are weak (single-feature AUC 0.507 to 0.513); PB-21 measures
+what they add together.
 
 ## Excluded columns
 
@@ -142,3 +152,6 @@ missed. Summary:
   what the model has seen.
 - Only 423 education loans and 9,925 business loans, so the model learns little that is
   specific to those purposes.
+- The deployable set has no credit-history features; the self-declared set adds three, but
+  they are the borrower's own answers. PB-49 plans how the platform's own repayment records
+  can fill the gap over time.

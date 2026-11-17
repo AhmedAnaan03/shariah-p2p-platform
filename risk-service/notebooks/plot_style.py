@@ -16,6 +16,7 @@ FIGURE_DIR = Path(__file__).resolve().parents[2] / "docs" / "report-notes"
 PAID = "#3472a3"  # risk-a-ink: lowest-risk grade colour
 DEFAULTED = "#cb6440"  # chart-raise: "raises risk" in the risk explanation
 TERM_60 = "#bd8b31"  # risk-c: ochre, second series beside PAID
+SELF_DECLARED = "#af4c63"  # risk-e-ink: rose, third series (self-declared history)
 EXCLUDED = "#9aa7ab"  # slate-400: de-emphasised (excluded) marks
 INK = "#203135"  # slate-900
 INK_SECONDARY = "#48595d"  # text-secondary
