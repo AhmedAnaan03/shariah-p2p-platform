@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 // Review fields (status, reviewed_by, reviewed_at, rejection_reason) are set by admin code,
-// not mass-assigned from an upload form. storage_path is only ever set by KycDocumentStore.
+// not mass-assigned from an upload form. storage_path is only ever set by KycDocumentStore,
+// and so is campaign_id (set for a credit report attached to a financing request, PB-14).
 #[Fillable(['document_type', 'original_name', 'storage_path', 'mime_type', 'size_bytes'])]
 // The path on the private disk never leaves the server: React gets the controller URL instead.
 #[Hidden(['storage_path'])]
@@ -20,8 +21,16 @@ class KycDocument extends Model
     use HasFactory;
 
     /**
+     * The MMA Credit Information System report a borrower can attach to a financing request
+     * (PB-14). It always belongs to a request (kyc_documents.campaign_id; a CHECK constraint
+     * enforces it), is uploaded on the request form rather than the documents page, and is
+     * decided with the request, not with the account.
+     */
+    public const TYPE_CREDIT_REPORT = 'credit_report';
+
+    /**
      * Plain-language names for the document_type enum. ('other' exists in the schema but is
-     * not offered in this item.)
+     * not offered yet.)
      */
     public const TYPE_LABELS = [
         'national_id' => 'National ID card',
@@ -29,10 +38,12 @@ class KycDocument extends Model
         'financial_statement' => 'Financial statement',
         'proof_of_address' => 'Proof of address',
         'other' => 'Other document',
+        self::TYPE_CREDIT_REPORT => 'MMA credit report',
     ];
 
     /**
-     * Which document types each role may upload.
+     * Which identity document types each role may upload on the documents page. The credit
+     * report is not here: it comes with a financing request.
      */
     public const TYPES_BY_ROLE = [
         Role::BORROWER => ['national_id', 'business_registration', 'financial_statement', 'proof_of_address'],
@@ -104,6 +115,14 @@ class KycDocument extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The financing request a credit report belongs to; null for identity documents.
+     */
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
     }
 
     public function reviewer(): BelongsTo

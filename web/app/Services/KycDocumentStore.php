@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Campaign;
 use App\Models\KycDocument;
 use App\Models\User;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -14,15 +15,17 @@ use Throwable;
 /**
  * Writes and reads KYC files on the private 'kyc' disk (PB-09). The only class that touches
  * the files themselves, so every file is encrypted on the way in and decrypted on the way out.
+ * Credit reports attached to a financing request (PB-14) are stored the same way.
  */
 class KycDocumentStore
 {
     public const DISK = 'kyc';
 
     /**
-     * Save an uploaded (already validated) file for its owner and record it.
+     * Save an uploaded (already validated) file for its owner and record it. $campaign is the
+     * financing request a credit report belongs to; identity documents have none.
      */
-    public function store(User $owner, UploadedFile $file, string $documentType): KycDocument
+    public function store(User $owner, UploadedFile $file, string $documentType, ?Campaign $campaign = null): KycDocument
     {
         // The name on disk is random, never the uploader's file name: it can't be guessed,
         // can't contain "../" and can't overwrite another file. guessExtension() and
@@ -34,13 +37,18 @@ class KycDocumentStore
         $this->disk()->put($path, Crypt::encryptString($file->get()));
 
         try {
-            return $owner->kycDocuments()->create([
+            $document = new KycDocument([
                 'document_type' => $documentType,
                 'original_name' => self::displayName($file->getClientOriginalName()),
                 'storage_path' => $path,
                 'mime_type' => $file->getMimeType(),
                 'size_bytes' => $file->getSize(),
             ]);
+            $document->user()->associate($owner);
+            $document->campaign()->associate($campaign);
+            $document->save();
+
+            return $document;
         } catch (Throwable $e) {
             // No row means no way to reach the file, so don't leave it behind.
             $this->disk()->delete($path);
@@ -55,6 +63,15 @@ class KycDocumentStore
     public function contents(KycDocument $document): string
     {
         return Crypt::decryptString($this->disk()->get($document->storage_path));
+    }
+
+    /**
+     * Delete a document's file, for a submission that was rolled back after the file was
+     * written (CampaignSubmissionService). The row is already gone with the transaction.
+     */
+    public function discard(KycDocument $document): void
+    {
+        $this->disk()->delete($document->storage_path);
     }
 
     public function exists(KycDocument $document): bool

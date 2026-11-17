@@ -44,7 +44,7 @@ class SchemaMatchesErdTest extends TestCase
             'created_at' => true, 'updated_at' => true,
         ],
         'kyc_documents' => [
-            'id' => false, 'user_id' => false, 'document_type' => false, 'original_name' => false,
+            'id' => false, 'user_id' => false, 'campaign_id' => true, 'document_type' => false, 'original_name' => false,
             'storage_path' => false, 'mime_type' => false, 'size_bytes' => false, 'status' => false,
             'reviewed_by' => true, 'reviewed_at' => true, 'rejection_reason' => true,
             'created_at' => true, 'updated_at' => true,
@@ -57,6 +57,12 @@ class SchemaMatchesErdTest extends TestCase
             'investor_profit_share_percent' => true, 'status' => false, 'status_reason' => true,
             'funding_deadline' => true, 'submitted_at' => true, 'approved_at' => true,
             'funded_at' => true, 'created_at' => true, 'updated_at' => true,
+        ],
+        'campaign_financials' => [
+            'id' => false, 'campaign_id' => false, 'annual_income' => false,
+            'monthly_debt_repayments' => false, 'employment_years' => false, 'housing' => false,
+            'open_credit_lines' => false, 'late_payments_2y' => false, 'public_records' => false,
+            'created_at' => true, 'updated_at' => true,
         ],
         'pledges' => [
             'id' => false, 'campaign_id' => false, 'investor_id' => false, 'amount' => false,
@@ -142,8 +148,10 @@ class SchemaMatchesErdTest extends TestCase
         $expected = [
             'audit_logs.actor_id' => 'users.id',
             'borrower_profiles.user_id' => 'users.id',
+            'campaign_financials.campaign_id' => 'campaigns.id',
             'campaigns.borrower_id' => 'users.id',
             'investor_profiles.user_id' => 'users.id',
+            'kyc_documents.campaign_id' => 'campaigns.id',
             'kyc_documents.reviewed_by' => 'users.id',
             'kyc_documents.user_id' => 'users.id',
             'pledges.campaign_id' => 'campaigns.id',
@@ -173,11 +181,15 @@ class SchemaMatchesErdTest extends TestCase
             ->all();
 
         $this->assertSame([
+            'campaign_financials_annual_income_check',
+            'campaign_financials_employment_years_check',
+            'campaign_financials_monthly_debt_check',
             'campaigns_amount_requested_check',
             'campaigns_conventional_terms_check',
             'campaigns_mudarabah_terms_check',
             'campaigns_murabahah_terms_check',
             'campaigns_tenure_months_check',
+            'kyc_documents_campaign_link_check',
             'pledges_amount_check',
             'repayment_schedules_capital_due_check',
             'repayment_schedules_return_due_check',

@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Campaign;
+use App\Models\CampaignFinancials;
 use App\Models\User;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -33,6 +35,28 @@ class CampaignFactory extends Factory
             'asset_description' => null,
             'investor_profit_share_percent' => null,
         ];
+    }
+
+    /**
+     * Submitted by its borrower and waiting for an administrator (PB-13), with its financial
+     * information (PB-14).
+     */
+    public function submitted(): static
+    {
+        return $this->state(fn () => ['status' => Campaign::STATUS_SUBMITTED, 'submitted_at' => now()->subDay()])
+            ->has(CampaignFinancials::factory(), 'financials');
+    }
+
+    /**
+     * Approved and open to investors until a deadline (PB-15).
+     */
+    public function live(?DateTimeInterface $deadline = null): static
+    {
+        return $this->submitted()->state(fn () => [
+            'status' => Campaign::STATUS_LIVE,
+            'approved_at' => now(),
+            'funding_deadline' => $deadline ?? Campaign::fundingDeadlineFrom(now()),
+        ]);
     }
 
     public function conventional(): static

@@ -37,6 +37,8 @@ erDiagram
     users ||--o| borrower_profiles : "has"
     users ||--o| investor_profiles : "has"
     users ||--o{ kyc_documents : "uploads"
+    campaigns |o--o| kyc_documents : "credit report (PB-14)"
+    campaigns ||--o| campaign_financials : "financial information (PB-14)"
     users |o--o{ kyc_documents : "reviews"
     users ||--o{ campaigns : "raises (borrower)"
     users ||--o{ pledges : "makes (investor)"
@@ -97,7 +99,8 @@ erDiagram
     kyc_documents {
         bigint id PK
         bigint user_id FK "owner"
-        enum document_type "national_id | business_registration | financial_statement | proof_of_address | other"
+        bigint campaign_id FK "nullable, set only for a credit_report (PB-14)"
+        enum document_type "national_id | business_registration | financial_statement | proof_of_address | other | credit_report"
         varchar original_name
         varchar storage_path "private disk"
         varchar mime_type
@@ -128,6 +131,18 @@ erDiagram
         timestamp submitted_at "nullable"
         timestamp approved_at "nullable"
         timestamp funded_at "nullable"
+    }
+
+    campaign_financials {
+        bigint id PK
+        bigint campaign_id FK, UK
+        decimal annual_income "snapshot, > 0"
+        decimal monthly_debt_repayments "excluding housing, >= 0"
+        tinyint employment_years "0-10, 10 = ten or more"
+        enum housing "rent | own | own_with_home_loan | family_home"
+        smallint open_credit_lines "self-declared"
+        smallint late_payments_2y "self-declared"
+        smallint public_records "self-declared"
     }
 
     pledges {
@@ -221,6 +236,8 @@ erDiagram
 | campaigns | CHECK `investor_profit_share_percent` is NOT NULL and strictly between 0 and 100 when `contract_type = 'mudarabah'`, NULL otherwise | A profit-sharing ratio both sides receive something from; not a guaranteed return |
 | campaigns | CHECK `amount_requested > 0`, `tenure_months > 0` | No zero or negative requests |
 | pledges, repayments | CHECK `amount > 0` | No zero or negative money movements |
+| campaign_financials | CHECK `annual_income > 0`, `monthly_debt_repayments >= 0`, `employment_years <= 10`; counts are unsigned; UNIQUE `campaign_id` | One set of financial information per request, with no impossible values (PB-14) |
+| kyc_documents | CHECK (`document_type = 'credit_report'` and `campaign_id` NOT NULL) or (`document_type <> 'credit_report'` and `campaign_id` NULL) | A credit report always belongs to a request; an identity document never does (PB-14) |
 | wallet_accounts | CHECK exactly one owner: (`type = 'user'`, `user_id` set, `campaign_id` NULL) or (`type = 'escrow'`, `campaign_id` set, `user_id` NULL) | Every wallet has exactly one owner |
 | wallet_transactions | CHECK `amount > 0` and `balance_after >= 0` | The database itself refuses a negative balance |
 | wallet_transactions | CHECK `type <> 'return_payout'` or both `pledge_id` and `repayment_id` are NOT NULL | Every payout traces to the investor's pledge and the repayment it came from |
@@ -258,6 +275,17 @@ values listed in the models. They are not ENUMs because the lists may grow witho
 | `borrower_profiles.phone`, `investor_profiles.phone` | Stored as `+960 NNNNNNN` | `ValidatesPersonalDetails` |
 | `kyc_documents.document_type` | Borrowers: `national_id`, `business_registration`, `financial_statement`, `proof_of_address`. Investors: `national_id`, `proof_of_address`. (`other` is not offered yet.) | `KycDocument::TYPES_BY_ROLE` |
 | `kyc_documents.storage_path` | `{user_id}/{40 random characters}.{pdf,png,jpg}` on the private `kyc` disk; the file is encrypted with APP_KEY | `KycDocumentStore` |
+
+## Financing requests (PB-13 to PB-15)
+
+| Rule | Where |
+|---|---|
+| Limits: amount MVR 10,000 – 2,000,000; tenure 3, 6, 12, 18, 24, 36, 48 or 60 months; interest rate 0–30% (conventional only); markup 0 up to the asset cost; investors' profit share 1–99% | `Campaign` constants, `StoreCampaignRequest` |
+| Status flow: `submitted` (borrower) → `live` (approve) or `rejected` (reject, with reason); `live` → `suspended` (suspend, with reason). `draft` is not used yet | `CampaignReviewService` |
+| `funding_deadline` = the end of the 30th day after approval, Maldives time (stored in UTC, e.g. 18:59:59) | `Campaign::FUNDING_DAYS`, `Campaign::fundingDeadlineFrom()` |
+| The marketplace lists `live` campaigns whose deadline has not passed | `Campaign::scopeListed()` |
+| `User::kycDocuments()` returns identity documents only (`campaign_id` NULL), so account verification never sees or decides a credit report; `Campaign::creditReport()` returns the report | `User`, `Campaign` |
+| `campaign_financials.housing`, `employment_years` and the purpose map to the risk model's values (`family_home` → OTHER) | `RiskFeatures` |
 
 ## How money moves (for reading the wallet tables)
 

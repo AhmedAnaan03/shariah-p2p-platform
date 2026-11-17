@@ -127,9 +127,16 @@ class User extends Authenticatable
         return $this->hasOne(InvestorProfile::class);
     }
 
+    /**
+     * The user's identity documents (national ID, business registration, ...), the ones
+     * account verification is about. A credit report attached to a financing request (PB-14)
+     * is also a kyc_documents row, but it belongs to that request (Campaign::creditReport) and
+     * is decided with the request, so it is left out here. Every verification query (the
+     * checklist, the admin review page, the decision) goes through this relation.
+     */
     public function kycDocuments(): HasMany
     {
-        return $this->hasMany(KycDocument::class);
+        return $this->hasMany(KycDocument::class)->whereNull('campaign_id');
     }
 
     /**

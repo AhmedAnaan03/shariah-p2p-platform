@@ -103,8 +103,9 @@ def safe_ratio(numerator, denominator):
 # Category mappings: LendingClub values and our own form's values -> one shared vocabulary
 # ---------------------------------------------------------------------------------------
 
-# PB-13's purpose options are start-up, growth, education and personal. LendingClub has
-# one business purpose, so start-up and growth both map to "business".
+# PB-13's purpose options are start-up, growth, education and personal (stored by the web
+# app as start_up, growth, education, personal). LendingClub has one business purpose, so
+# start-up and growth both map to "business".
 LENDINGCLUB_PURPOSES = {
     "small_business": "business",
     "educational": "education",
@@ -116,7 +117,7 @@ LENDINGCLUB_PURPOSES = {
         ]
     },
 }
-PLATFORM_PURPOSES = {"start-up": "business", "growth": "business", "education": "education", "personal": "personal"}
+PLATFORM_PURPOSES = {"start_up": "business", "growth": "business", "education": "education", "personal": "personal"}
 
 
 def purpose_group(values, mapping=LENDINGCLUB_PURPOSES):
@@ -326,10 +327,11 @@ FULL_FEATURES = FEATURE_SETS["full"]
 CATEGORICAL_FEATURES = ("purpose_group", "home_ownership")
 
 
-def build_features(df):
+def build_features(df, purposes=LENDINGCLUB_PURPOSES):
     """Turn raw LendingClub columns into every candidate feature (the full set).
 
-    Select one of `FEATURE_SETS` from the result to train on it."""
+    Select one of `FEATURE_SETS` from the result to train on it. `purposes` maps the
+    `purpose` column; platform_features() passes PLATFORM_PURPOSES."""
     issue = parse_month(df["issue_d"].to_numpy())
     term = term_months(df["term"].to_numpy())
     annual_income = pd.Series(df["annual_inc"].to_numpy(), dtype="float64")
@@ -339,7 +341,7 @@ def build_features(df):
     out = pd.DataFrame(
         {
             "term_months": term,
-            "purpose_group": purpose_group(df["purpose"].to_numpy()),
+            "purpose_group": purpose_group(df["purpose"].to_numpy(), mapping=purposes),
             "loan_to_income": safe_ratio(amount, annual_income),
             "repayment_burden": safe_ratio(safe_ratio(amount, term), annual_income / 12),
             "dti": dti.where(dti >= 0),  # one loan has dti = -1: not a valid ratio
@@ -354,6 +356,65 @@ def build_features(df):
         out[name] = pd.Series(df[name].to_numpy(), dtype="float64")
     out.index = df.index
     return out[list(FULL_FEATURES)]
+
+
+# ---------------------------------------------------------------------------------------
+# Our platform's applications (PB-13 / PB-14) -> the same features
+# ---------------------------------------------------------------------------------------
+
+# The web app's housing options -> LendingClub's home_ownership. A family home has no
+# LendingClub match and becomes OTHER (see the home_ownership feature above).
+PLATFORM_HOUSING = {"rent": "RENT", "own": "OWN", "own_with_home_loan": "MORTGAGE", "family_home": "OTHER"}
+
+# The web app stores years in the job as 0-10 (0 = less than a year, 10 = ten or more).
+PLATFORM_EMP_LENGTH = {years: text for text, years in EMP_LENGTH_YEARS.items()}
+
+# LendingClub terms are only 36 or 60 months. Our form also offers 3-48 months, which are
+# outside the training range; PB-21 must treat term_months as a number, not a category,
+# so the model can still place them.
+TRAINED_TERMS = (36, 60)
+
+# The columns build_features() reads for the bureau-only features. Our platform has no
+# values for them, so they are left missing.
+_BUREAU_ONLY_COLUMNS = (
+    "fico_range_low", "fico_range_high", "earliest_cr_line", "issue_d",
+    "inq_last_6mths", "total_acc", "revol_util",
+)
+
+
+def platform_raw_frame(applications):
+    """Our applications (dicts with the web app's field names) as raw LendingClub columns.
+
+    LendingClub's `dti` is monthly debt repayments (excluding housing) / monthly income x 100;
+    our form asks for the repayments and the annual income, so it is worked out here."""
+    apps = pd.DataFrame(list(applications))
+    annual_income = pd.Series(apps["annual_income"], dtype="float64")
+    monthly_debt = pd.Series(apps["monthly_debt_repayments"], dtype="float64")
+    raw = pd.DataFrame(
+        {
+            "loan_amnt": pd.Series(apps["amount_requested"], dtype="float64"),
+            "term": apps["tenure_months"].map(lambda n: f"{int(n)} months"),
+            "purpose": apps["purpose"],
+            "annual_inc": annual_income,
+            "dti": safe_ratio(monthly_debt, annual_income / 12) * 100,
+            "emp_length": apps["employment_years"].map(PLATFORM_EMP_LENGTH),
+            "home_ownership": apps["housing"].map(PLATFORM_HOUSING),
+            "open_acc": pd.Series(apps["open_credit_lines"], dtype="float64"),
+            "delinq_2yrs": pd.Series(apps["late_payments_2y"], dtype="float64"),
+            "pub_rec": pd.Series(apps["public_records"], dtype="float64"),
+        }
+    )
+    for column in _BUREAU_ONLY_COLUMNS:
+        raw[column] = None
+    return raw
+
+
+def platform_features(applications, feature_set="self_declared"):
+    """Model features for our applications, built by the same build_features() code as the
+    training data. The web app's RiskFeatures (PHP) must agree with this; the shared fixture
+    tests/fixtures/feature_parity.json is checked by both test suites."""
+    features = build_features(platform_raw_frame(applications), purposes=PLATFORM_PURPOSES)
+    return features[list(FEATURE_SETS[feature_set])]
 
 
 # ---------------------------------------------------------------------------------------
