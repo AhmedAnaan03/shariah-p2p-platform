@@ -10,6 +10,7 @@ export const NAVIGATION = {
             {
                 items: [
                     { href: '/borrower', label: 'Overview', icon: 'house' },
+                    { href: '/borrower/campaigns', label: 'Financing requests', icon: 'hand-coins' },
                     { href: '/borrower/profile', label: 'Profile', icon: 'user' },
                     { href: '/borrower/documents', label: 'Documents', icon: 'file-text' },
                 ],
@@ -22,6 +23,7 @@ export const NAVIGATION = {
             {
                 items: [
                     { href: '/investor', label: 'Overview', icon: 'house' },
+                    { href: '/investor/campaigns', label: 'Marketplace', icon: 'storefront' },
                     { href: '/investor/profile', label: 'Profile', icon: 'user' },
                     { href: '/investor/documents', label: 'Documents', icon: 'file-text' },
                     { href: '/investor/acknowledgement', label: 'Risk acknowledgement', icon: 'scales' },
@@ -36,6 +38,7 @@ export const NAVIGATION = {
                 items: [
                     { href: '/admin', label: 'Overview', icon: 'house' },
                     { href: '/admin/verifications', label: 'Verifications', icon: 'user-list' },
+                    { href: '/admin/campaigns', label: 'Campaigns', icon: 'clipboard-text' },
                 ],
             },
         ],

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Campaign;
 use App\Models\User;
 use App\Support\VerificationChecklist;
 use Illuminate\Http\Request;
@@ -17,8 +18,11 @@ class PortalController extends Controller
 {
     public function borrower(Request $request): Response
     {
+        $user = $request->user();
+
         return Inertia::render('Borrower/Portal', [
-            'checklist' => VerificationChecklist::for($request->user())->toArray(),
+            'checklist' => VerificationChecklist::for($user)->toArray(),
+            'requestCount' => $user->campaigns()->count(),
         ]);
     }
 
@@ -45,6 +49,7 @@ class PortalController extends Controller
 
         return Inertia::render('Admin/Portal', [
             'readyForReview' => $readyForReview,
+            'campaignsToReview' => Campaign::where('status', Campaign::STATUS_SUBMITTED)->count(),
         ]);
     }
 }

@@ -1,12 +1,15 @@
 <?php
 
+use App\Http\Controllers\Admin\CampaignController as AdminCampaignController;
 use App\Http\Controllers\Admin\VerificationController;
 use App\Http\Controllers\Auth\ChangePasswordController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Auth\SessionController;
+use App\Http\Controllers\Borrower\CampaignController as BorrowerCampaignController;
 use App\Http\Controllers\Borrower\ProfileController as BorrowerProfileController;
+use App\Http\Controllers\Investor\CampaignController as InvestorCampaignController;
 use App\Http\Controllers\Investor\ProfileController as InvestorProfileController;
 use App\Http\Controllers\Investor\RiskAcknowledgementController;
 use App\Http\Controllers\Investor\ShariahPreferenceController;
@@ -68,6 +71,13 @@ Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('b
 
     Route::get('/documents', [KycDocumentController::class, 'index'])->name('documents.index');
     Route::post('/documents', [KycDocumentController::class, 'store'])->name('documents.store');
+
+    // Financing requests (PB-13, PB-14). Any borrower can open the pages; only a verified one
+    // can submit (CampaignPolicy), and each borrower sees only their own requests.
+    Route::get('/campaigns', [BorrowerCampaignController::class, 'index'])->name('campaigns.index');
+    Route::get('/campaigns/create', [BorrowerCampaignController::class, 'create'])->name('campaigns.create');
+    Route::post('/campaigns', [BorrowerCampaignController::class, 'store'])->name('campaigns.store');
+    Route::get('/campaigns/{campaign}', [BorrowerCampaignController::class, 'show'])->name('campaigns.show');
 });
 
 Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('investor.')->group(function () {
@@ -86,6 +96,9 @@ Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('i
     // The top bar's Shariah-only switch (PB-51). No user id in the URL: it always changes the
     // signed-in investor's own profile.
     Route::patch('/preferences/shariah-only', ShariahPreferenceController::class)->name('preferences.shariah-only');
+
+    // The marketplace: live campaigns with their funding deadline (PB-15; PB-16 extends it).
+    Route::get('/campaigns', [InvestorCampaignController::class, 'index'])->name('campaigns.index');
 });
 
 Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin')->name('admin.')->group(function () {
@@ -94,6 +107,11 @@ Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin')->name('admin.'
     Route::get('/verifications', [VerificationController::class, 'index'])->name('verifications.index');
     Route::get('/verifications/{user}', [VerificationController::class, 'show'])->name('verifications.show');
     Route::post('/verifications/{user}/decision', [VerificationController::class, 'decide'])->name('verifications.decide');
+
+    // Campaign review (PB-15): approve, reject or suspend.
+    Route::get('/campaigns', [AdminCampaignController::class, 'index'])->name('campaigns.index');
+    Route::get('/campaigns/{campaign}', [AdminCampaignController::class, 'show'])->name('campaigns.show');
+    Route::post('/campaigns/{campaign}/decision', [AdminCampaignController::class, 'decide'])->name('campaigns.decide');
 });
 
 /*
