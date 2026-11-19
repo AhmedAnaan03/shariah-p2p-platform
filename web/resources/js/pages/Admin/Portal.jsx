@@ -4,9 +4,10 @@ import Card from '../../components/Card';
 import StatCard from '../../components/StatCard';
 
 /**
- * Admin portal home. `readyForReview` is how many accounts are complete and waiting (PB-11).
+ * Admin portal home. `readyForReview` is how many accounts are complete and waiting (PB-11);
+ * `campaignsToReview` how many financing requests are waiting for a decision (PB-15).
  */
-export default function AdminPortal({ readyForReview }) {
+export default function AdminPortal({ readyForReview, campaignsToReview }) {
     return (
         <div className="grid gap-6 @bp-md/shell:grid-cols-12">
             <StatCard
@@ -23,8 +24,22 @@ export default function AdminPortal({ readyForReview }) {
                 {readyForReview === 1 ? '1 account has' : `${readyForReview} accounts have`} a complete profile and documents.
             </StatCard>
 
-            <Card title="Coming in later sprints" className="@bp-md/shell:col-span-7">
-                <BulletList items={['Review and approve campaigns', 'Monitor the platform and audit log']} />
+            <StatCard
+                label="Campaigns to review"
+                value={campaignsToReview}
+                icon="clipboard-text"
+                className="@bp-md/shell:col-span-7"
+                action={
+                    <Button href="/admin/campaigns" iconRight="arrow-right">
+                        Open campaign review
+                    </Button>
+                }
+            >
+                {campaignsToReview === 1 ? '1 financing request is' : `${campaignsToReview} financing requests are`} waiting for a decision.
+            </StatCard>
+
+            <Card title="Coming in later sprints" className="@bp-md/shell:col-span-12">
+                <BulletList items={['Monitor the platform and audit log']} />
             </Card>
         </div>
     );

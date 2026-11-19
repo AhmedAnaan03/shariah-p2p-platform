@@ -1,0 +1,115 @@
+{
+  "about": "Feature value parity between the web app and the training code (PB-13 to PB-15). Each applicant uses the web app's stored field names. expected_features were worked out by hand from the PB-12 definitions (loan_to_income = amount / annual income; repayment_burden = (amount / tenure) / (annual income / 12); dti = monthly debt repayments / (annual income / 12) x 100), rounded to 10 decimal places. Both web/tests/Unit/RiskFeaturesTest.php (RiskFeatures::for) and risk-service/tests/test_feature_parity.py (ml.dataset.platform_features) must reproduce them within the tolerance.",
+  "feature_set": "self_declared",
+  "tolerance": 1e-9,
+  "applicants": [
+    {
+      "name": "SME growth request, 36 months, home loan, one late payment",
+      "application": {
+        "amount_requested": "120000.00",
+        "tenure_months": 36,
+        "purpose": "growth",
+        "annual_income": "480000.00",
+        "monthly_debt_repayments": "6000.00",
+        "employment_years": 7,
+        "housing": "own_with_home_loan",
+        "open_credit_lines": 3,
+        "late_payments_2y": 1,
+        "public_records": 0
+      },
+      "expected_features": {
+        "term_months": 36,
+        "purpose_group": "business",
+        "loan_to_income": 0.25,
+        "repayment_burden": 0.0833333333,
+        "dti": 15.0,
+        "emp_length_years": 7,
+        "home_ownership": "MORTGAGE",
+        "open_acc": 3,
+        "delinq_2yrs": 1,
+        "pub_rec": 0
+      }
+    },
+    {
+      "name": "Personal request, 12 months (outside the 36/60 training range), family home, no debts",
+      "application": {
+        "amount_requested": "50000.00",
+        "tenure_months": 12,
+        "purpose": "personal",
+        "annual_income": "300000.00",
+        "monthly_debt_repayments": "0.00",
+        "employment_years": 0,
+        "housing": "family_home",
+        "open_credit_lines": 0,
+        "late_payments_2y": 0,
+        "public_records": 0
+      },
+      "expected_features": {
+        "term_months": 12,
+        "purpose_group": "personal",
+        "loan_to_income": 0.1666666667,
+        "repayment_burden": 0.1666666667,
+        "dti": 0.0,
+        "emp_length_years": 0,
+        "home_ownership": "OTHER",
+        "open_acc": 0,
+        "delinq_2yrs": 0,
+        "pub_rec": 0
+      }
+    },
+    {
+      "name": "Education request, 60 months, renting, ten years or more in the job, a judgment",
+      "application": {
+        "amount_requested": "25000.00",
+        "tenure_months": 60,
+        "purpose": "education",
+        "annual_income": "90000.00",
+        "monthly_debt_repayments": "1500.00",
+        "employment_years": 10,
+        "housing": "rent",
+        "open_credit_lines": 5,
+        "late_payments_2y": 2,
+        "public_records": 1
+      },
+      "expected_features": {
+        "term_months": 60,
+        "purpose_group": "education",
+        "loan_to_income": 0.2777777778,
+        "repayment_burden": 0.0555555556,
+        "dti": 20.0,
+        "emp_length_years": 10,
+        "home_ownership": "RENT",
+        "open_acc": 5,
+        "delinq_2yrs": 2,
+        "pub_rec": 1
+      }
+    },
+    {
+      "name": "Start-up at the maximum amount, 48 months, owns outright",
+      "application": {
+        "amount_requested": "2000000.00",
+        "tenure_months": 48,
+        "purpose": "start_up",
+        "annual_income": "1200000.00",
+        "monthly_debt_repayments": "25000.00",
+        "employment_years": 2,
+        "housing": "own",
+        "open_credit_lines": 1,
+        "late_payments_2y": 0,
+        "public_records": 0
+      },
+      "expected_features": {
+        "term_months": 48,
+        "purpose_group": "business",
+        "loan_to_income": 1.6666666667,
+        "repayment_burden": 0.4166666667,
+        "dti": 25.0,
+        "emp_length_years": 2,
+        "home_ownership": "OWN",
+        "open_acc": 1,
+        "delinq_2yrs": 0,
+        "pub_rec": 0
+      }
+    }
+  ]
+}

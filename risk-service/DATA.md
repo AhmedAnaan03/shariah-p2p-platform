@@ -126,6 +126,24 @@ depends on the admin's check against the uploaded report (PB-52 plans to pre-fil
 the report). On their own they are weak (single-feature AUC 0.507 to 0.513); PB-21 measures
 what they add together.
 
+## Our applications, built the same way (PB-14)
+
+`ml.dataset.platform_features()` turns an application from the web app (its stored field
+names: `amount_requested`, `tenure_months`, `purpose`, `annual_income`,
+`monthly_debt_repayments`, `employment_years`, `housing`, `open_credit_lines`,
+`late_payments_2y`, `public_records`) into LendingClub's raw columns and then runs the same
+`build_features()` as training. Two conversions happen on the way:
+
+- `dti` = monthly debt repayments (excluding housing) / (annual income / 12) × 100, which is
+  how LendingClub defines it.
+- `housing`: rent → RENT, own → OWN, own with a home loan → MORTGAGE, family home → OTHER;
+  `employment_years` 0–10 → "< 1 year" … "10+ years".
+
+The web app's `RiskFeatures` (PHP) must give the same values. Both test suites read one fixture,
+`tests/fixtures/feature_parity.json`, with hand-worked expected values for four applicants, so
+a change to either side's definitions fails a test (`tests/test_feature_parity.py` here,
+`web/tests/Unit/RiskFeaturesTest.php` there).
+
 ## Excluded columns
 
 All 151 columns have a role in `ml/dataset.py` (`COLUMN_ROLES`); a test fails if one is
@@ -148,8 +166,11 @@ missed. Summary:
 
 - US consumer loans from 2007 to 2016, not Maldivian SME or personal financing. The model's
   absolute default probabilities will need recalibrating on local data (PB-49).
-- LendingClub only offers 36- and 60-month terms; a shorter tenure on our form is outside
-  what the model has seen.
+- LendingClub only offers 36- and 60-month terms, but our form offers 3, 6, 12, 18, 24, 36,
+  48 and 60 months (PB-13). Every tenure other than 36 and 60 is outside the training range.
+  PB-21 must treat `term_months` as a numeric feature, not a 36/60 category, so the model can
+  still place them; the admin review page flags such requests (`TRAINED_TERMS` in
+  `ml/dataset.py`, `RiskFeatures::TRAINED_TENURES` in the web app).
 - Only 423 education loans and 9,925 business loans, so the model learns little that is
   specific to those purposes.
 - The deployable set has no credit-history features; the self-declared set adds three, but

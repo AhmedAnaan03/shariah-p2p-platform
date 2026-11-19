@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\BorrowerProfile;
+use App\Models\Campaign;
 use App\Models\InvestorProfile;
 use App\Models\KycDocument;
 use App\Models\User;
@@ -12,6 +13,8 @@ use Illuminate\Database\Seeder;
  * Accounts in the states the UI screenshots need (PB-51): a borrower part-way through
  * verification, a verified investor, an investor with no profile yet (mode switch disabled), an
  * admin, and a verification queue with three complete accounts and one incomplete one.
+ * PB-13 to PB-15 add a verified borrower with requests in every state, a campaign review queue
+ * (a Murabahah with a credit report first) and live campaigns for the marketplace.
  *
  * Only for `npm run screenshots`, which runs it on its own throwaway database
  * (shariah_p2p_screenshots), never on the development or test database. Documents are rows
@@ -61,5 +64,59 @@ class ScreenshotSeeder extends Seeder
             KycDocument::factory()->for($user)->create();
         }
         User::factory()->borrower()->create(['name' => 'Still Registering']);
+
+        $this->campaigns($password);
+    }
+
+    /**
+     * Financing requests for the PB-13 to PB-15 pages.
+     */
+    private function campaigns(string $password): void
+    {
+        // A verified SME borrower with one request in each state.
+        $faiz = User::factory()->borrower()->verified()->create(['name' => 'Mohamed Faiz', 'email' => 'verified-borrower@example.com', 'password' => $password]);
+        BorrowerProfile::factory()->for($faiz)->create(['business_name' => 'Faiz Fresh Catch', 'sector' => 'fisheries', 'declared_annual_income' => 480000]);
+
+        // Waiting for review, first in the admin queue: a Murabahah with its credit report.
+        $van = Campaign::factory()->murabahah()->submitted()->for($faiz, 'borrower')->create([
+            'title' => 'Refrigerated van for hotel deliveries',
+            'purpose' => 'growth',
+            'description' => "A second refrigerated van so we can deliver to resorts' supply boats twice a day.\nThe van is quoted at MVR 120,000 by the Malé dealer.",
+            'business_background' => 'Family fish wholesaler in Malé, trading since 2015, supplying six resorts.',
+            'amount_requested' => 120000,
+            'markup_amount' => 9000,
+            'tenure_months' => 36,
+            'submitted_at' => now()->subDays(2),
+        ]);
+        KycDocument::factory()->for($faiz)->ofType(KycDocument::TYPE_CREDIT_REPORT)->create([
+            'campaign_id' => $van->id, 'original_name' => 'mma-cis-report.pdf', 'size_bytes' => 412_000,
+        ]);
+
+        Campaign::factory()->conventional()->live(now()->addDays(19))->for($faiz, 'borrower')->create([
+            'title' => 'Cold room extension', 'purpose' => 'growth', 'amount_requested' => 85000, 'tenure_months' => 24, 'submitted_at' => now()->subDays(14),
+        ]);
+        Campaign::factory()->conventional()->submitted()->for($faiz, 'borrower')->create([
+            'title' => 'Second fishing dhoni', 'purpose' => 'start_up', 'amount_requested' => 400000, 'tenure_months' => 60,
+            'status' => 'rejected', 'status_reason' => 'The credit report shows two late payments, but the request says none.',
+            'submitted_at' => now()->subDays(20),
+        ]);
+
+        // More requests in the admin queue, and campaigns in the marketplace.
+        $others = [
+            ['Aminath Leena', 'Island Tutors', 'mudarabah', 'education', 'Tutoring centre in Hulhumalé', 60000, 12, 'submitted', 1],
+            ['Ali Shareef', 'Sun Island Cafe', 'conventional', 'growth', 'Kitchen equipment for a second cafe', 150000, 36, 'live', 26],
+            ['Hawwa Nashida', 'Reef Dive Supplies', 'murabahah', 'growth', 'Dive compressor and tanks', 95000, 48, 'live', 5],
+            ['Yoosuf Rameez', null, 'mudarabah', 'start_up', 'Guest house fit-out in Maafushi', 300000, 60, 'live', 12],
+        ];
+        foreach ($others as [$name, $business, $contract, $purpose, $title, $amount, $tenure, $status, $days]) {
+            $user = User::factory()->borrower()->verified()->create(['name' => $name]);
+            $business
+                ? BorrowerProfile::factory()->for($user)->create(['business_name' => $business])
+                : BorrowerProfile::factory()->individual()->for($user)->create();
+
+            $factory = Campaign::factory()->{$contract}()->for($user, 'borrower');
+            $factory = $status === 'live' ? $factory->live(now()->addDays($days)) : $factory->submitted();
+            $factory->create(['title' => $title, 'purpose' => $purpose, 'amount_requested' => $amount, 'tenure_months' => $tenure, 'submitted_at' => now()->subDays($status === 'live' ? 10 : $days)]);
+        }
     }
 }

@@ -144,7 +144,7 @@ def test_lendingclub_purposes_map_to_three_groups(purpose, expected):
 
 @pytest.mark.parametrize(
     "purpose, expected",
-    [("start-up", "business"), ("growth", "business"), ("education", "education"), ("personal", "personal")],
+    [("start_up", "business"), ("growth", "business"), ("education", "education"), ("personal", "personal")],
 )
 def test_platform_purposes_map_to_the_same_groups(purpose, expected):
     """Our PB-13 form's options must land in the vocabulary the model was trained on."""

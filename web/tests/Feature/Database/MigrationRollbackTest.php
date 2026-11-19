@@ -54,8 +54,10 @@ class MigrationRollbackTest extends TestCase
     {
         $this->assertSame(0, Artisan::call('migrate:fresh'));
 
-        // Roll back everything down to (and including) add_role_and_status_to_users_table.
-        $this->assertSame(0, Artisan::call('migrate:rollback', ['--step' => 13]));
+        // Roll back everything down to (and including) add_role_and_status_to_users_table,
+        // however many later migrations there are.
+        $steps = DB::table('migrations')->where('migration', '>=', '2026_11_11_000002_add_role_and_status_to_users_table')->count();
+        $this->assertSame(0, Artisan::call('migrate:rollback', ['--step' => $steps]));
 
         $this->assertFalse(Schema::hasColumn('users', 'role_id'));
         $this->assertFalse(Schema::hasColumn('users', 'status'));
@@ -63,5 +65,23 @@ class MigrationRollbackTest extends TestCase
         $this->assertTrue(Schema::hasTable('roles'));
 
         $this->assertSame(0, Artisan::call('migrate'));
+    }
+
+    public function test_rolling_back_pb14_removes_the_financials_table_and_the_credit_report_link(): void
+    {
+        $this->assertSame(0, Artisan::call('migrate:fresh'));
+
+        // The two PB-13 to PB-15 migrations are the last two.
+        $this->assertSame(0, Artisan::call('migrate:rollback', ['--step' => 2]));
+
+        $this->assertFalse(Schema::hasTable('campaign_financials'));
+        $this->assertFalse(Schema::hasColumn('kyc_documents', 'campaign_id'));
+        $type = DB::selectOne("select COLUMN_TYPE as t from information_schema.COLUMNS
+            where TABLE_SCHEMA = database() and TABLE_NAME = 'kyc_documents' and COLUMN_NAME = 'document_type'")->t;
+        $this->assertSame("enum('national_id','business_registration','financial_statement','proof_of_address','other')", $type);
+
+        $this->assertSame(0, Artisan::call('migrate'));
+        $this->assertTrue(Schema::hasTable('campaign_financials'));
+        $this->assertTrue(Schema::hasColumn('kyc_documents', 'campaign_id'));
     }
 }

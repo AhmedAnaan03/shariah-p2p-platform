@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import ModeScope from './ModeScope';
 import { ToastProvider } from './Toast';
 import { TooltipProvider } from './Tooltip';
@@ -8,8 +9,11 @@ import { TooltipProvider } from './Tooltip';
  * It puts the app in that mode and provides tooltips and toasts to everything inside.
  */
 export default function AppRoot({ mode, children }) {
+    // The page URL: ModeScope re-applies the server's mode whenever it changes.
+    const { url } = usePage();
+
     return (
-        <ModeScope mode={mode}>
+        <ModeScope mode={mode} pageKey={url}>
             <TooltipProvider delayDuration={300}>
                 <ToastProvider>{children}</ToastProvider>
             </TooltipProvider>

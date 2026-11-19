@@ -6,11 +6,11 @@ import Field, { describedBy } from './Field';
  *
  *   <Textarea id="reason" label="Reason for rejecting" hint="..." error={form.errors.reason} maxLength={255} />
  *
- * With a `label` it comes in a Field (label, hint, error). Without one it is the bare control
+ * With a `label` it comes in a Field (label, hint, error, `optional` tag). Without one it is the bare control
  * (component-api.d.ts, Textarea) for use inside your own Field. `maxLength` adds a live
  * "12 / 255" counter.
  */
-export default function Textarea({ id, label, hint, error, invalid, rows = 3, maxLength, className = '', value, disabled, ...textareaProps }) {
+export default function Textarea({ id, label, hint, error, invalid, optional, rows = 3, maxLength, className = '', value, disabled, ...textareaProps }) {
     const isInvalid = invalid ?? Boolean(error);
     const length = typeof value === 'string' ? value.length : 0;
 
@@ -41,7 +41,7 @@ export default function Textarea({ id, label, hint, error, invalid, rows = 3, ma
     }
 
     return (
-        <Field htmlFor={id} label={label} helper={hint} error={error} className={className}>
+        <Field htmlFor={id} label={label} helper={hint} error={error} optional={optional} className={className}>
             {control}
         </Field>
     );
