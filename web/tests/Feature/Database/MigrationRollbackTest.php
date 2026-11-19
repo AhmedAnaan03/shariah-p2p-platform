@@ -71,8 +71,9 @@ class MigrationRollbackTest extends TestCase
     {
         $this->assertSame(0, Artisan::call('migrate:fresh'));
 
-        // The two PB-13 to PB-15 migrations are the last two.
-        $this->assertSame(0, Artisan::call('migrate:rollback', ['--step' => 2]));
+        // Down to and including the first PB-14 migration, however many later ones there are.
+        $steps = DB::table('migrations')->where('migration', '>=', '2026_11_18_000001_create_campaign_financials_table')->count();
+        $this->assertSame(0, Artisan::call('migrate:rollback', ['--step' => $steps]));
 
         $this->assertFalse(Schema::hasTable('campaign_financials'));
         $this->assertFalse(Schema::hasColumn('kyc_documents', 'campaign_id'));

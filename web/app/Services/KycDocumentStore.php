@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -55,6 +56,27 @@ class KycDocumentStore
 
             throw $e;
         }
+    }
+
+    /**
+     * Put an uploaded (already validated) identity document in its slot (PB-53). If the slot
+     * already holds a document, that one is marked replaced: its row and encrypted file stay,
+     * for the record, but only the new one counts.
+     *
+     * One transaction, with the user's row locked, so two uploads at the same moment can't
+     * both become the current document (the unique index on current_slot would refuse the
+     * second anyway). If anything fails, the old document is current again and the new file
+     * is removed by store().
+     */
+    public function storeInSlot(User $owner, UploadedFile $file, string $documentType): KycDocument
+    {
+        return DB::transaction(function () use ($owner, $file, $documentType) {
+            User::whereKey($owner->id)->lockForUpdate()->first();
+
+            $owner->kycDocuments()->where('document_type', $documentType)->update(['replaced_at' => now()]);
+
+            return $this->store($owner, $file, $documentType);
+        });
     }
 
     /**

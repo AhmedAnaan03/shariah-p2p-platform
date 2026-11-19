@@ -29,24 +29,37 @@ class SchemaMatchesErdTest extends TestCase
         'users' => [
             'id' => false, 'role_id' => false, 'name' => false, 'email' => false,
             'email_verified_at' => true, 'password' => false, 'status' => false,
-            'status_reason' => true, 'remember_token' => true,
+            'status_reason' => true, 'verification_submitted_at' => true, 'remember_token' => true,
             'created_at' => true, 'updated_at' => true,
         ],
         'borrower_profiles' => [
             'id' => false, 'user_id' => false, 'borrower_type' => false, 'phone' => false,
-            'national_id_no' => false, 'address' => false, 'business_name' => true,
+            'national_id_no' => false, 'address_house' => true, 'address_road' => true,
+            'island_id' => true, 'postcode' => true, 'address_legacy' => true,
+            'address_needs_review' => false, 'business_name' => true,
             'business_registration_no' => true, 'sector' => true, 'years_operating' => true,
             'declared_annual_income' => false, 'created_at' => true, 'updated_at' => true,
         ],
         'investor_profiles' => [
             'id' => false, 'user_id' => false, 'phone' => false, 'national_id_no' => false,
-            'address' => false, 'risk_acknowledged_at' => true, 'shariah_only' => false,
+            'address_house' => true, 'address_road' => true, 'island_id' => true, 'postcode' => true,
+            'address_legacy' => true, 'address_needs_review' => false,
+            'risk_acknowledged_at' => true, 'shariah_only' => false,
             'created_at' => true, 'updated_at' => true,
         ],
         'kyc_documents' => [
             'id' => false, 'user_id' => false, 'campaign_id' => true, 'document_type' => false, 'original_name' => false,
             'storage_path' => false, 'mime_type' => false, 'size_bytes' => false, 'status' => false,
             'reviewed_by' => true, 'reviewed_at' => true, 'rejection_reason' => true,
+            'replaced_at' => true, 'current_slot' => true,
+            'created_at' => true, 'updated_at' => true,
+        ],
+        'atolls' => [
+            'id' => false, 'code' => false, 'name' => false, 'sort_order' => false,
+            'created_at' => true, 'updated_at' => true,
+        ],
+        'islands' => [
+            'id' => false, 'atoll_id' => false, 'name' => false,
             'created_at' => true, 'updated_at' => true,
         ],
         'campaigns' => [
@@ -147,10 +160,13 @@ class SchemaMatchesErdTest extends TestCase
 
         $expected = [
             'audit_logs.actor_id' => 'users.id',
+            'borrower_profiles.island_id' => 'islands.id',
             'borrower_profiles.user_id' => 'users.id',
             'campaign_financials.campaign_id' => 'campaigns.id',
             'campaigns.borrower_id' => 'users.id',
+            'investor_profiles.island_id' => 'islands.id',
             'investor_profiles.user_id' => 'users.id',
+            'islands.atoll_id' => 'atolls.id',
             'kyc_documents.campaign_id' => 'campaigns.id',
             'kyc_documents.reviewed_by' => 'users.id',
             'kyc_documents.user_id' => 'users.id',
@@ -181,6 +197,7 @@ class SchemaMatchesErdTest extends TestCase
             ->all();
 
         $this->assertSame([
+            'borrower_profiles_postcode_check',
             'campaign_financials_annual_income_check',
             'campaign_financials_employment_years_check',
             'campaign_financials_monthly_debt_check',
@@ -189,6 +206,7 @@ class SchemaMatchesErdTest extends TestCase
             'campaigns_mudarabah_terms_check',
             'campaigns_murabahah_terms_check',
             'campaigns_tenure_months_check',
+            'investor_profiles_postcode_check',
             'kyc_documents_campaign_link_check',
             'pledges_amount_check',
             'repayment_schedules_capital_due_check',
