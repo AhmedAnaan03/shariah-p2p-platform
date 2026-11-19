@@ -14,7 +14,8 @@ import Wordmark from './Wordmark';
  * 264 px wide, 72 px collapsed (labels hide, titles become tooltips). Items are 40 px; the
  * active one is a white tile with a border, a bold primary icon and a 3 px primary bar on its
  * left edge, and is marked aria-current="page". It never animates on page change.
- * `footer` sits above the collapse control (the mode switch in the mobile drawer).
+ * `footer` sits above the collapse control: the theme toggle (PB-55), and the mode switch in
+ * the mobile drawer.
  */
 export default function Sidebar({ portal, groups = [], collapsed = false, footer, onNavigate, collapsible = true, onToggleCollapse }) {
     return (

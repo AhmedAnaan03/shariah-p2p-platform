@@ -38,7 +38,8 @@ export default function DocumentRow({ title, name, type, size, uploaded, status,
                     </p>
                 )}
             </div>
-            <div className="flex items-center gap-3">
+            {/* Wraps on narrow screens once a slot's Replace button joins the status and View. */}
+            <div className="flex flex-wrap items-center gap-3">
                 {status && <StatusBadge status={status} />}
                 {href && (
                     <a

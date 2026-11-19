@@ -73,6 +73,7 @@ erDiagram
         varchar remember_token "nullable"
         enum status "pending_verification | verified | rejected | suspended"
         varchar status_reason "nullable, why rejected or suspended"
+        enum theme "light | dark | system (default), PB-55"
         timestamp verification_submitted_at "nullable, set by Submit at the end of onboarding (PB-53)"
     }
 

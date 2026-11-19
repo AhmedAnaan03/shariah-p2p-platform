@@ -92,9 +92,12 @@ CI runs all three.
 ### Screenshots and rendered-page checks (design system, PB-51)
 
 `npm run screenshots` signs in as each demo account in headless Chrome and, for every page at
-1440, 820 and 390 px in both modes, saves a screenshot to
+1440, 820 and 390 px in all four themes (conventional and Shariah, each light and dark; PB-55),
+saves a screenshot to
 `docs/report-notes/screenshots/design-system/` and fails on a console error, a horizontal
 scrollbar or an axe-core WCAG 2.2 AA violation (including the contrast of the rendered text).
+It also checks the Shariah-only switch and the theme toggle round trips, and that a "system"
+theme on a dark device is dark on first paint. Re-seed after pulling new migrations.
 It uses its own throwaway database, so your development data is untouched:
 
 ```sh

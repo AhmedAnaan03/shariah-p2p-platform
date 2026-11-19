@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Account\ThemePreferenceController;
 use App\Http\Controllers\Admin\CampaignController as AdminCampaignController;
 use App\Http\Controllers\Admin\VerificationController;
 use App\Http\Controllers\Auth\ChangePasswordController;
@@ -52,6 +53,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/account/password', [ChangePasswordController::class, 'edit'])->name('password.edit');
     Route::put('/account/password', [ChangePasswordController::class, 'update'])->name('password.update');
+
+    // The sidebar's light / dark / system toggle (PB-55). No user id in the URL: it always
+    // changes the signed-in user's own setting.
+    Route::patch('/account/theme', ThemePreferenceController::class)->name('account.theme');
 
     // Opens one KYC file. Shared by the owner and admins, so it sits outside the role groups;
     // KycDocumentPolicy lets only those two through and answers 404 to everyone else.

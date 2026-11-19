@@ -148,6 +148,9 @@ export interface NavGroup { label?: string; items: { icon: string; label: string
 export interface SidebarProps { portal?: 'Investor' | 'Borrower' | 'Admin'; groups?: NavGroup[]; collapsed?: boolean; footer?: Node; onNavigate?: (item: NavGroup['items'][number]) => void; collapsible?: boolean }
 export interface ModeSwitchProps { mode?: Mode; onChange?: (m: Mode) => void; label?: string }
 export declare function ModeSwitch(props: ModeSwitchProps): React.ReactElement;
+/** PB-55: light / dark / system, saved per user; `compact` for the collapsed sidebar (icons, tooltips). */
+export interface ThemeToggleProps { compact?: boolean }
+export declare function ThemeToggle(props: ThemeToggleProps): React.ReactElement;
 export declare function Sidebar(props: SidebarProps): React.ReactElement;
 export interface TopBarProps { title: Node; breadcrumb?: Node; shariahOn?: boolean; mode?: Mode; onModeChange?: (m: Mode) => void; unread?: number; user?: { name: string; role: string }; search?: boolean; onMenu?: () => void }
 export declare function TopBar(props: TopBarProps): React.ReactElement;

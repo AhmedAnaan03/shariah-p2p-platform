@@ -9,6 +9,7 @@ import { navigationFor } from './navigation';
 import PageTransition from './PageTransition';
 import Sidebar from './Sidebar';
 import { useToasts } from './Toast';
+import ThemeToggle from './ThemeToggle';
 import TopBar from './TopBar';
 
 const COLLAPSED_KEY = 'amanah.sidebar.collapsed';
@@ -67,6 +68,7 @@ export default function PortalLayout({ title, description, breadcrumbs, children
                                 groups={navigation.groups}
                                 collapsed={collapsed}
                                 onToggleCollapse={() => setCollapsed(!collapsed)}
+                                footer={<ThemeToggle compact={collapsed} />}
                             />
                         </div>
                     </aside>
@@ -99,14 +101,17 @@ export default function PortalLayout({ title, description, breadcrumbs, children
                 portal={navigation.portal}
                 groups={navigation.groups}
                 footer={
-                    shariahSwitch && (
-                        <ModeSwitch
-                            mode={shariahSwitch.mode}
-                            onChange={shariahSwitch.change}
-                            disabledReason={shariahSwitch.disabledReason}
-                            compactLabel={false}
-                        />
-                    )
+                    <>
+                        {shariahSwitch && (
+                            <ModeSwitch
+                                mode={shariahSwitch.mode}
+                                onChange={shariahSwitch.change}
+                                disabledReason={shariahSwitch.disabledReason}
+                                compactLabel={false}
+                            />
+                        )}
+                        <ThemeToggle />
+                    </>
                 }
             />
         </>
