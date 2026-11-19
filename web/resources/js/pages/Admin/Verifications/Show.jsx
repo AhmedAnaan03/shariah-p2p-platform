@@ -26,8 +26,9 @@ const MONO_FIELDS = ['Phone', 'National ID card number', 'Business registration 
  * and the approve / reject decision. Rejecting is a Danger action, so it asks for confirmation
  * first (PB-51).
  */
-export default function VerificationShow({ applicant, profile, documents, missingDocuments, missingSteps = [], canDecide, canApprove, decideUrl }) {
-    const form = useForm({ decision: '', reason: '' });
+export default function VerificationShow({ applicant, profile, documents, missingDocuments, missingSteps = [], canDecide, canApprove, decideUrl, back }) {
+    // After the decision the server goes back to where the record was opened from (PB-54).
+    const form = useForm({ decision: '', reason: '', return_to: back.fromLink ? back.url : '' });
     const [confirming, setConfirming] = useState(false);
     const rejecting = form.data.decision === 'reject';
 
@@ -50,8 +51,8 @@ export default function VerificationShow({ applicant, profile, documents, missin
 
     return (
         <>
-            <TextLink href="/admin/verifications" icon="arrow-left">
-                Back to the queue
+            <TextLink href={back.url} icon="arrow-left">
+                {back.label}
             </TextLink>
 
             <Card
@@ -144,4 +145,8 @@ export default function VerificationShow({ applicant, profile, documents, missin
     );
 }
 
-VerificationShow.layout = (props) => ({ title: `Review ${props.applicant.name}` });
+// The breadcrumb's first link is the page the admin came from: the queue, or a campaign review (PB-54).
+VerificationShow.layout = (props) => ({
+    title: `Review ${props.applicant.name}`,
+    breadcrumbs: [{ label: props.back.crumb, href: props.back.url }, { label: props.applicant.name }],
+});

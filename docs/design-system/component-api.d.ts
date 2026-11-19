@@ -139,6 +139,9 @@ export interface TabsProps { tabs: { value: string; label: Node; count?: number 
 export declare function Tabs(props: TabsProps): React.ReactElement;
 export interface BreadcrumbsProps { items: { label: Node; href?: string }[] }
 export declare function Breadcrumbs(props: BreadcrumbsProps): React.ReactElement;
+/** PB-54: the shared search-and-filter bar every list uses. Server side: App\Support\ListFilters. */
+export interface ListFiltersProps { filters?: Record<string, string>; fields?: { name: string; label: Node; allLabel: string; options: { value: string; label: Node }[] }[]; only?: string[]; searchLabel?: Node; searchPlaceholder?: string; resultCount?: number; resultNoun?: [string, string] }
+export declare function ListFilters(props: ListFiltersProps): React.ReactElement;
 export interface AccordionProps { items: { q: Node; a: Node }[]; defaultOpen?: number[] }
 export declare function Accordion(props: AccordionProps): React.ReactElement;
 export interface NavGroup { label?: string; items: { icon: string; label: string; active?: boolean; count?: number }[] }

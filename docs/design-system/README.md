@@ -62,6 +62,12 @@ Every screen is one responsive layout, not a separate mobile build. The app shel
 - **Below 640 px:** one column, 16 px padding and gaps, band actions stretch full width, the mode switch keeps its icon and switch, steppers turn vertical, description lists use two columns, tables become stacked cards (any table narrower than 720 px stacks).
 - Touch targets are at least `touch-target` 44 px on coarse pointers. Example screens are shown at 1440, 820 and 390 px.
 
+## Lists, search and return navigation
+
+- Every list (a table or list of records) uses the shared `ListFilters` bar above it: a search box (search as you type, 300 ms after the last key), filters suited to that list (status, role, contract type, purpose, ...), and "Clear filters" once anything is set. Filtering happens on the server; the values stay in the URL so a filtered list can be bookmarked or returned to. The number of results is announced politely to screen readers.
+- An empty list says why: "No campaigns match these filters" (with the search illustration) is different from "No campaigns are open right now".
+- Links from one page to another pass the page they came from (`return_to`). Back links and breadcrumbs on the next page say where they go ("Back to the campaign review") and return there with the filters and tab intact. Only internal paths are accepted.
+
 ## Typography
 
 - **Bricolage Grotesque** (500–700, optical sizing on) for `display`, `h1`, `h2`, `h3`, and the risk-grade letter. **Figtree** (400–600) for interface and body text: `h4`, `body-lg`, `body`, `body-sm`, `label`, `overline`. **IBM Plex Mono** (400, 500) with `tabular-nums` for `figure-xl`, `figure-lg`, `figure` and `code`. The font files are in `fonts/`.
