@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import Alert from '../../../components/Alert';
+import BulletList from '../../../components/BulletList';
 import Button from '../../../components/Button';
 import Card from '../../../components/Card';
 import ConfirmDialog from '../../../components/ConfirmDialog';
@@ -25,7 +26,7 @@ const MONO_FIELDS = ['Phone', 'National ID card number', 'Business registration 
  * and the approve / reject decision. Rejecting is a Danger action, so it asks for confirmation
  * first (PB-51).
  */
-export default function VerificationShow({ applicant, profile, documents, missingDocuments, canDecide, canApprove, decideUrl }) {
+export default function VerificationShow({ applicant, profile, documents, missingDocuments, missingSteps = [], canDecide, canApprove, decideUrl }) {
     const form = useForm({ decision: '', reason: '' });
     const [confirming, setConfirming] = useState(false);
     const rejecting = form.data.decision === 'reject';
@@ -86,6 +87,12 @@ export default function VerificationShow({ applicant, profile, documents, missin
                 </Card>
             </div>
 
+            {missingSteps.length > 0 && (
+                <Alert tone="warning" title="Account setup is not finished">
+                    <BulletList items={missingSteps} />
+                </Alert>
+            )}
+
             {canDecide && (
                 <Card title="Decision" className="max-w-3xl">
                     <form onSubmit={submit} noValidate className="space-y-5">
@@ -126,7 +133,7 @@ export default function VerificationShow({ applicant, profile, documents, missin
                         onConfirm={send}
                         tone="danger"
                         title={`Reject ${applicant.name}?`}
-                        consequence={`${applicant.name} will be told the account was not approved, with your reason. They can then update their profile or upload new documents.`}
+                        consequence={`${applicant.name} will be told the account was not approved, with your reason. They can then fix their details or documents and submit again.`}
                         rows={[['Reason', form.data.reason]]}
                         confirmLabel="Reject and notify user"
                         loading={form.processing}

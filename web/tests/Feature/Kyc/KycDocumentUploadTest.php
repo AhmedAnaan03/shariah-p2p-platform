@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Kyc;
 
+use App\Models\BorrowerProfile;
 use App\Models\KycDocument;
 use App\Models\User;
 use App\Services\KycDocumentStore;
@@ -15,7 +16,8 @@ use Tests\Concerns\MakesKycFiles;
 use Tests\TestCase;
 
 /**
- * PB-09: documents upload to private storage; file type and size are validated.
+ * PB-09: documents upload to private storage; file type and size are validated. Since PB-53
+ * uploads go into the onboarding wizard's document slots (DocumentSlotsTest covers the slots).
  */
 class KycDocumentUploadTest extends TestCase
 {
@@ -33,11 +35,22 @@ class KycDocumentUploadTest extends TestCase
         Storage::fake(KycDocumentStore::DISK);
     }
 
+    /**
+     * A borrower who has reached the documents step: details and address saved.
+     */
+    private function borrower(): User
+    {
+        $borrower = User::factory()->borrower()->create();
+        BorrowerProfile::factory()->individual()->for($borrower)->create();
+
+        return $borrower;
+    }
+
     private function upload(User $user, ?UploadedFile $file, string $type = 'national_id')
     {
         return $this->actingAs($user)
-            ->from('/borrower/documents')
-            ->post('/borrower/documents', array_filter(['document_type' => $type, 'file' => $file]));
+            ->from('/borrower/onboarding/documents')
+            ->post('/borrower/onboarding/documents', array_filter(['document_type' => $type, 'file' => $file]));
     }
 
     /**
@@ -55,11 +68,11 @@ class KycDocumentUploadTest extends TestCase
     #[DataProvider('validFiles')]
     public function test_a_pdf_jpg_or_png_is_stored_on_the_private_disk(string $maker, string $mime, string $extension): void
     {
-        $borrower = User::factory()->borrower()->create();
+        $borrower = $this->borrower();
         $file = $this->{$maker}();
 
         $this->upload($borrower, $file)
-            ->assertRedirect('/borrower/documents')
+            ->assertRedirect('/borrower/onboarding/documents')
             ->assertSessionHas('status');
 
         $document = KycDocument::sole();
@@ -77,7 +90,7 @@ class KycDocumentUploadTest extends TestCase
 
     public function test_the_file_is_encrypted_on_disk(): void
     {
-        $borrower = User::factory()->borrower()->create();
+        $borrower = $this->borrower();
         $file = $this->pdfFile();
         $original = $file->getContent();
 
@@ -102,7 +115,7 @@ class KycDocumentUploadTest extends TestCase
 
     public function test_an_upload_exactly_5_mb_is_accepted(): void
     {
-        $borrower = User::factory()->borrower()->create();
+        $borrower = $this->borrower();
 
         $this->upload($borrower, $this->pdfFile('statement.pdf', 5 * 1024 * 1024))->assertSessionHasNoErrors();
 
@@ -124,20 +137,20 @@ class KycDocumentUploadTest extends TestCase
             'PHP code renamed to .pdf' => [['fileWithContent', 'id-card.pdf', "<?php system(\$_GET['c']);"], 'national_id', 'file', self::WRONG_TYPE],
             'HTML with script renamed to .png' => [['fileWithContent', 'id-card.png', '<!doctype html><script>alert(1)</script>'], 'national_id', 'file', self::WRONG_TYPE],
             'real PDF named .exe' => [['pdfFile', 'id-card.exe'], 'national_id', 'file', self::WRONG_TYPE],
-            'blank document type' => [['pdfFile'], '', 'document_type', 'Choose what kind of document this is.'],
-            'document type not on the list' => [['pdfFile'], 'passport', 'document_type', 'Choose what kind of document this is from the list.'],
-            "'other' is not offered" => [['pdfFile'], 'other', 'document_type', 'Choose what kind of document this is from the list.'],
+            'blank document type' => [['pdfFile'], '', 'document_type', 'Choose which document you are uploading.'],
+            'document type not on the list' => [['pdfFile'], 'passport', 'document_type', 'Upload into one of the document slots shown. Other documents are not needed.'],
+            "'other' is not offered" => [['pdfFile'], 'other', 'document_type', 'Upload into one of the document slots shown. Other documents are not needed.'],
         ];
     }
 
     #[DataProvider('invalidUploads')]
     public function test_invalid_uploads_are_rejected_and_nothing_is_stored(?array $file, string $type, string $field, string $message): void
     {
-        $borrower = User::factory()->borrower()->create();
+        $borrower = $this->borrower();
         $upload = $file ? $this->{$file[0]}(...array_slice($file, 1)) : null;
 
         $this->upload($borrower, $upload, $type)
-            ->assertRedirect('/borrower/documents')
+            ->assertRedirect('/borrower/onboarding/documents')
             ->assertSessionHasErrors([$field => $message]);
 
         $this->assertSame(0, KycDocument::count());
@@ -147,7 +160,7 @@ class KycDocumentUploadTest extends TestCase
     public function test_a_file_php_refused_as_too_large_gets_the_size_message(): void
     {
         // What Laravel receives when the file is bigger than upload_max_filesize (10M).
-        $borrower = User::factory()->borrower()->create();
+        $borrower = $this->borrower();
         $refused = $this->fileWithContent('scan.pdf', '', UPLOAD_ERR_INI_SIZE);
 
         $this->upload($borrower, $refused)
@@ -156,7 +169,7 @@ class KycDocumentUploadTest extends TestCase
 
     public function test_folder_parts_and_control_characters_are_removed_from_the_original_name(): void
     {
-        $borrower = User::factory()->borrower()->create();
+        $borrower = $this->borrower();
 
         $this->upload($borrower, $this->pdfFile("..\\..\\id\x07card.pdf"))->assertSessionHasNoErrors();
 
@@ -166,43 +179,44 @@ class KycDocumentUploadTest extends TestCase
 
     public function test_a_verified_borrowers_documents_are_locked(): void
     {
-        $borrower = User::factory()->borrower()->verified()->create();
+        $borrower = $this->borrower();
+        $borrower->forceFill(['status' => 'verified'])->save();
 
         $this->upload($borrower, $this->pdfFile())->assertForbidden();
 
         $this->assertSame(0, KycDocument::count());
     }
 
-    public function test_a_rejected_borrower_who_uploads_goes_back_to_the_review_queue(): void
+    public function test_a_rejected_borrower_who_uploads_stays_rejected_until_they_submit_again(): void
     {
-        $borrower = User::factory()->borrower()->create();
+        $borrower = $this->borrower();
         $borrower->forceFill(['status' => 'rejected', 'status_reason' => 'ID is blurred.'])->save();
 
         $this->upload($borrower, $this->pngFile())->assertSessionHasNoErrors();
 
-        $this->assertSame('pending_verification', $borrower->fresh()->status);
+        $this->assertSame('rejected', $borrower->fresh()->status);
     }
 
-    public function test_the_documents_page_lists_own_documents_without_their_storage_path(): void
+    public function test_the_documents_step_shows_own_documents_in_their_slots_without_their_storage_path(): void
     {
-        $borrower = User::factory()->borrower()->create();
+        $borrower = $this->borrower();
         $this->upload($borrower, $this->pdfFile());
         KycDocument::factory()->create(); // someone else's
 
-        $this->actingAs($borrower)->get('/borrower/documents')
+        $this->actingAs($borrower)->get('/borrower/onboarding/documents')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Documents/Index')
-                ->has('documents', 1)
-                ->has('documents.0', fn (Assert $document) => $document
+                ->component('Onboarding/Documents')
+                ->has('slots', 2)
+                ->has('slots.0.document', fn (Assert $document) => $document
                     ->where('type_label', 'National ID card')
                     ->where('status', 'pending')
                     ->where('url', route('documents.show', KycDocument::where('user_id', $borrower->id)->sole()))
                     ->missing('storage_path')
                     ->etc()
                 )
-                ->has('documentTypes', 4)
-                ->where('uploadUrl', route('borrower.documents.store'))
+                ->where('slots.1.document', null)
+                ->where('uploadUrl', route('borrower.onboarding.documents.upload'))
                 ->where('maxBytes', 5 * 1024 * 1024)
             );
     }
@@ -212,8 +226,8 @@ class KycDocumentUploadTest extends TestCase
         foreach (['investor', 'admin'] as $role) {
             $user = User::factory()->{$role}()->create();
 
-            $this->actingAs($user)->get('/borrower/documents')->assertForbidden();
-            $this->actingAs($user)->post('/borrower/documents', ['document_type' => 'national_id', 'file' => $this->pdfFile()])
+            $this->actingAs($user)->get('/borrower/onboarding/documents')->assertForbidden();
+            $this->actingAs($user)->post('/borrower/onboarding/documents', ['document_type' => 'national_id', 'file' => $this->pdfFile()])
                 ->assertForbidden();
         }
 

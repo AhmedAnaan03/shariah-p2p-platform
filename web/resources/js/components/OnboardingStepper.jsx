@@ -1,6 +1,7 @@
 import cx from '../lib/cx';
 import Button from './Button';
 import Icon from './Icon';
+import TextLink from './TextLink';
 
 /**
  * The steps to get started on a portal home (component-api.d.ts, OnboardingStepper).
@@ -12,21 +13,30 @@ import Icon from './Icon';
  * Each step's state is written out for screen readers ("Done", "Current step", "Not started"),
  * and shown by its marker (tick, ring, number), not only by colour. Horizontal when its
  * container is 640 px or wider and `orientation` allows it; vertical below.
+ *
+ * `variant="nav"` is the onboarding wizard's progress bar (PB-53): `current` is the step being
+ * shown, a step's title is a link when it has an `href` (steps the user has reached), and
+ * there are no action buttons. It is a <nav> with the current step marked aria-current="step".
+ *
+ *   <OnboardingStepper variant="nav" current={1} steps={[{ title: 'Your details', done: true, href: '/borrower/onboarding/profile' }, ...]} />
  */
-export default function OnboardingStepper({ steps, current, orientation = 'horizontal' }) {
+export default function OnboardingStepper({ steps, current, orientation = 'horizontal', variant = 'checklist' }) {
     const firstOpen = steps.findIndex((step) => !step.done);
     const active = current ?? (firstOpen === -1 ? steps.length : firstOpen);
     const doneCount = steps.filter((step) => step.done).length;
     const horizontal = orientation === 'horizontal';
+    const nav = variant === 'nav';
+    const Wrapper = nav ? 'nav' : 'div';
 
     return (
-        <div className="@container">
+        <Wrapper className="@container" aria-label={nav ? 'Setup steps' : undefined}>
             <p className="mb-4 text-label text-text-muted">
                 <span className="font-mono text-code text-text">{doneCount}</span> of <span className="font-mono text-code text-text">{steps.length}</span> steps done
             </p>
             <ol className={cx('grid gap-0', horizontal && '@bp-sm:gap-4', horizontal && GRID[steps.length])}>
                 {steps.map((step, index) => {
-                    const state = step.done ? 'done' : index === active ? 'current' : 'upcoming';
+                    // In the wizard the step on screen is "current" even when it is already done.
+                    const state = nav && index === active ? 'current' : step.done ? 'done' : index === active ? 'current' : 'upcoming';
                     const last = index === steps.length - 1;
 
                     return (
@@ -46,19 +56,25 @@ export default function OnboardingStepper({ steps, current, orientation = 'horiz
                                     )}
                                 />
                             )}
-                            <Marker state={state} number={index + 1} />
+                            <Marker state={state} number={index + 1} done={step.done} />
                             <div className="min-w-0 flex-1">
-                                <p className={cx('font-semibold', state === 'upcoming' ? 'text-text-secondary' : 'text-text')}>{step.title}</p>
-                                <p className="sr-only">{STATE_LABEL[state]}</p>
+                                <p className={cx('font-semibold', state === 'upcoming' ? 'text-text-secondary' : 'text-text')}>
+                                    {nav && step.href && state !== 'current' ? (
+                                        <TextLink href={step.href}>{step.title}</TextLink>
+                                    ) : (
+                                        step.title
+                                    )}
+                                </p>
+                                <p className="sr-only">{nav && state === 'current' && step.done ? 'Current step, done.' : STATE_LABEL[state]}</p>
                                 {step.description && <p className="mt-1 text-body-sm text-text-muted">{step.description}</p>}
-                                {state === 'current' && step.href && (
+                                {!nav && state === 'current' && step.href && (
                                     <div className="mt-3">
                                         <Button href={step.href} size="sm" iconRight="arrow-right">
                                             {step.actionLabel}
                                         </Button>
                                     </div>
                                 )}
-                                {state === 'upcoming' && step.href && (
+                                {!nav && state === 'upcoming' && step.href && (
                                     <div className="mt-3">
                                         <Button href={step.href} size="sm" variant="secondary">
                                             {step.actionLabel}
@@ -70,7 +86,7 @@ export default function OnboardingStepper({ steps, current, orientation = 'horiz
                     );
                 })}
             </ol>
-        </div>
+        </Wrapper>
     );
 }
 
@@ -78,10 +94,16 @@ const GRID = { 2: '@bp-sm:grid-cols-2', 3: '@bp-sm:grid-cols-3', 4: '@bp-sm:grid
 
 const STATE_LABEL = { done: 'Done.', current: 'Current step.', upcoming: 'Not started.' };
 
-function Marker({ state, number }) {
-    if (state === 'done') {
+function Marker({ state, number, done }) {
+    if (state === 'done' || (state === 'current' && done)) {
         return (
-            <span aria-hidden="true" className="relative flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-fg">
+            <span
+                aria-hidden="true"
+                className={cx(
+                    'relative flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-fg',
+                    state === 'current' && 'ring-3 ring-primary-muted',
+                )}
+            >
                 <Icon name="check" size={16} weight="bold" />
             </span>
         );

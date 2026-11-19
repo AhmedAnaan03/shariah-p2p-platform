@@ -148,8 +148,8 @@ function AccountStatusNotice({ user }) {
     if (user?.status === 'pending_verification') {
         return (
             <Alert tone="warning" role="note" title="Your account is pending verification">
-                An administrator will review your account once your profile and documents are complete. Until it is verified
-                you can sign in and update your details, but you can't raise financing or invest.
+                An administrator will review your account once you have finished account setup and submitted it. Until it is
+                verified you can sign in and update your details, but you can't raise financing or invest.
             </Alert>
         );
     }
@@ -158,7 +158,7 @@ function AccountStatusNotice({ user }) {
         return (
             <Alert tone="danger" role="note" title="Your verification was not approved">
                 <p>Reason: {user.status_reason}</p>
-                <p>Update your profile or upload a new document and your account will go back into the review queue.</p>
+                <p>Fix what the administrator asked for in account setup, then submit your account again from its last step.</p>
             </Alert>
         );
     }

@@ -7,7 +7,9 @@ namespace App\Support;
  * before they can pledge.
  *
  * Kept in one place so the page shows exactly this text and the audit log records exactly
- * which version was accepted. Change VERSION whenever the wording changes.
+ * which version was accepted. Change VERSION whenever the meaning changes, which would ask
+ * every investor to accept again. A rewording that keeps the meaning (PB-53 replaced
+ * "Returns are not guaranteed." for the Shariah wording rule) keeps the version.
  */
 final class RiskAcknowledgement
 {
@@ -26,7 +28,9 @@ final class RiskAcknowledgement
             'text' => 'If a business or person you fund cannot repay, you could lose some or all of the money you put in.',
         ],
         [
-            'title' => 'Returns are not guaranteed.',
+            // Worded without "guaranteed" so it can be shown in Shariah mode (PB-53); the warning
+            // means the same as before, so VERSION did not change.
+            'title' => 'Your returns could be lower than expected, or you could receive nothing.',
             'text' => 'Any return shown is an expectation, not a promise. Under a Mudarabah contract your return depends on the profit the business actually makes, and a loss reduces what you get back.',
         ],
         [

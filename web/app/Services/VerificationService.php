@@ -43,9 +43,9 @@ class VerificationService
             }
 
             $checklist = VerificationChecklist::for($applicant);
-            if ($approved && ! $checklist->isComplete()) {
+            if ($approved && ! $checklist->isReadyForReview()) {
                 throw ValidationException::withMessages([
-                    'decision' => 'This account can\'t be approved yet: its profile or required documents are missing.',
+                    'decision' => 'This account can\'t be approved yet: it has not completed and submitted every onboarding step.',
                 ]);
             }
 
@@ -55,6 +55,10 @@ class VerificationService
             // status and status_reason are not mass-assignable; set them one by one.
             $applicant->status = $approved ? 'verified' : 'rejected';
             $applicant->status_reason = $reason;
+            // After a rejection the user fixes their details and submits again (PB-53).
+            if (! $approved) {
+                $applicant->verification_submitted_at = null;
+            }
             $applicant->save();
 
             // Documents rejected in an earlier review keep that earlier decision.

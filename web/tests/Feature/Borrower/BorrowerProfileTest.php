@@ -12,7 +12,8 @@ use Tests\TestCase;
 
 /**
  * PB-09: the borrower / SME profile captures personal and business details, sector, years
- * operating and declared income or revenue.
+ * operating and declared income or revenue. Since PB-53 it is step 1 of the onboarding wizard
+ * (/borrower/onboarding/profile); the address has its own step (AddressStepTest).
  */
 class BorrowerProfileTest extends TestCase
 {
@@ -29,7 +30,6 @@ class BorrowerProfileTest extends TestCase
             'borrower_type' => 'sme',
             'phone' => '777 1234',
             'national_id_no' => 'a123456',
-            'address' => 'H. Blue Lagoon, Majeedhee Magu, Malé',
             'business_name' => 'Reef Catch Pvt Ltd',
             'business_registration_no' => 'C-0123/2019',
             'sector' => 'fisheries',
@@ -47,7 +47,6 @@ class BorrowerProfileTest extends TestCase
             'borrower_type' => 'individual',
             'phone' => '+9609876543',
             'national_id_no' => 'A654321',
-            'address' => 'M. Sunny Side, Hulhumalé',
             'declared_annual_income' => '180000',
         ], $overrides);
     }
@@ -56,12 +55,12 @@ class BorrowerProfileTest extends TestCase
     {
         $borrower = User::factory()->borrower()->create();
 
-        $this->actingAs($borrower)->get('/borrower/profile')
+        $this->actingAs($borrower)->get('/borrower/onboarding/profile')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Borrower/Profile')
+                ->component('Onboarding/Profile')
                 ->where('profile', null)
-                ->where('locked', false)
+                ->where('wizard.locked', false)
                 ->has('sectors', count(BorrowerProfile::SECTORS))
                 ->has('borrowerTypes', 2)
             );
@@ -71,9 +70,9 @@ class BorrowerProfileTest extends TestCase
     {
         $borrower = User::factory()->borrower()->create();
 
-        $this->actingAs($borrower)->put('/borrower/profile', $this->smeInput())
-            ->assertRedirect('/borrower/profile')
-            ->assertSessionHas('status', 'Your profile has been saved.');
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->smeInput())
+            ->assertRedirect('/borrower/onboarding/address')
+            ->assertSessionHas('status', 'Your details have been saved.');
 
         $profile = $borrower->fresh()->borrowerProfile;
         $this->assertSame('sme', $profile->borrower_type);
@@ -90,7 +89,7 @@ class BorrowerProfileTest extends TestCase
     {
         $borrower = User::factory()->borrower()->create();
 
-        $this->actingAs($borrower)->put('/borrower/profile', $this->smeInput());
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->smeInput());
 
         $raw = DB::table('borrower_profiles')->where('user_id', $borrower->id)->value('national_id_no');
         $this->assertNotSame('A123456', $raw);
@@ -101,7 +100,7 @@ class BorrowerProfileTest extends TestCase
     {
         $borrower = User::factory()->borrower()->create();
 
-        $this->actingAs($borrower)->put('/borrower/profile', $this->individualInput())
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->individualInput())
             ->assertSessionHasNoErrors();
 
         $profile = $borrower->fresh()->borrowerProfile;
@@ -116,7 +115,7 @@ class BorrowerProfileTest extends TestCase
     {
         $borrower = User::factory()->borrower()->create();
 
-        $this->actingAs($borrower)->put('/borrower/profile', $this->individualInput([
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->individualInput([
             'business_name' => 'Should be ignored',
             'sector' => 'retail',
         ]))->assertSessionHasNoErrors();
@@ -128,9 +127,9 @@ class BorrowerProfileTest extends TestCase
     public function test_switching_from_sme_to_individual_clears_the_business_details(): void
     {
         $borrower = User::factory()->borrower()->create();
-        $this->actingAs($borrower)->put('/borrower/profile', $this->smeInput());
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->smeInput());
 
-        $this->actingAs($borrower)->put('/borrower/profile', $this->individualInput());
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->individualInput());
 
         $this->assertSame(1, BorrowerProfile::where('user_id', $borrower->id)->count(), 'Saving again updates, not duplicates.');
         $this->assertNull($borrower->fresh()->borrowerProfile->business_name);
@@ -139,9 +138,9 @@ class BorrowerProfileTest extends TestCase
     public function test_the_saved_profile_is_shown_back_to_its_owner(): void
     {
         $borrower = User::factory()->borrower()->create();
-        $this->actingAs($borrower)->put('/borrower/profile', $this->smeInput());
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->smeInput());
 
-        $this->actingAs($borrower)->get('/borrower/profile')
+        $this->actingAs($borrower)->get('/borrower/onboarding/profile')
             ->assertInertia(fn (Assert $page) => $page
                 ->where('profile.national_id_no', 'A123456')
                 ->where('profile.sector', 'fisheries')
@@ -169,8 +168,6 @@ class BorrowerProfileTest extends TestCase
             'blank national ID' => [['national_id_no' => ''], 'national_id_no', 'Enter your national ID card number.'],
             'national ID without the A' => [['national_id_no' => '123456'], 'national_id_no', 'Enter your ID card number as the letter A and 6 digits, like A123456.'],
             'national ID with 7 digits' => [['national_id_no' => 'A1234567'], 'national_id_no', 'Enter your ID card number as the letter A and 6 digits, like A123456.'],
-            'blank address' => [['address' => ''], 'address', 'Enter your address.'],
-            'address over 500 characters' => [['address' => str_repeat('a', 501)], 'address', 'Your address must be 500 characters or fewer.'],
             'blank business name' => [['business_name' => ''], 'business_name', 'Enter your business name.'],
             'business name over 255 characters' => [['business_name' => str_repeat('a', 256)], 'business_name', 'The business name must be 255 characters or fewer.'],
             'blank registration number' => [['business_registration_no' => ''], 'business_registration_no', 'Enter your business registration number.'],
@@ -195,9 +192,9 @@ class BorrowerProfileTest extends TestCase
         $borrower = User::factory()->borrower()->create();
 
         $this->actingAs($borrower)
-            ->from('/borrower/profile')
-            ->put('/borrower/profile', $this->smeInput($change))
-            ->assertRedirect('/borrower/profile')
+            ->from('/borrower/onboarding/profile')
+            ->put('/borrower/onboarding/profile', $this->smeInput($change))
+            ->assertRedirect('/borrower/onboarding/profile')
             ->assertSessionHasErrors([$field => $message]);
 
         $this->assertNull($borrower->fresh()->borrowerProfile, 'Nothing is saved when validation fails.');
@@ -225,7 +222,7 @@ class BorrowerProfileTest extends TestCase
     {
         $borrower = User::factory()->borrower()->create();
 
-        $this->actingAs($borrower)->put('/borrower/profile', $this->smeInput($change))
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->smeInput($change))
             ->assertSessionHasNoErrors();
 
         $this->assertNotNull($borrower->fresh()->borrowerProfile);
@@ -235,7 +232,7 @@ class BorrowerProfileTest extends TestCase
     {
         $borrower = User::factory()->borrower()->create();
 
-        $this->actingAs($borrower)->put('/borrower/profile', $this->individualInput())
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->individualInput())
             ->assertSessionDoesntHaveErrors(['business_name', 'business_registration_no', 'sector', 'years_operating']);
     }
 
@@ -244,7 +241,7 @@ class BorrowerProfileTest extends TestCase
         $borrower = User::factory()->borrower()->create();
         $other = User::factory()->borrower()->create();
 
-        $this->actingAs($borrower)->put('/borrower/profile', $this->smeInput(['user_id' => $other->id]));
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->smeInput(['user_id' => $other->id]));
 
         $this->assertNotNull($borrower->fresh()->borrowerProfile);
         $this->assertNull($other->fresh()->borrowerProfile);
@@ -255,23 +252,25 @@ class BorrowerProfileTest extends TestCase
         $borrower = User::factory()->borrower()->verified()->create();
         BorrowerProfile::factory()->for($borrower)->create(['business_name' => 'Original Ltd']);
 
-        $this->actingAs($borrower)->put('/borrower/profile', $this->smeInput(['business_name' => 'Changed Ltd']))
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->smeInput(['business_name' => 'Changed Ltd']))
             ->assertForbidden();
 
         $this->assertSame('Original Ltd', $borrower->fresh()->borrowerProfile->business_name);
-        $this->actingAs($borrower)->get('/borrower/profile')
-            ->assertInertia(fn (Assert $page) => $page->where('locked', true));
+        $this->actingAs($borrower)->get('/borrower/onboarding/profile')
+            ->assertInertia(fn (Assert $page) => $page->where('wizard.locked', true));
     }
 
-    public function test_a_rejected_borrower_who_fixes_their_profile_goes_back_to_the_review_queue(): void
+    public function test_a_rejected_borrower_who_fixes_their_profile_stays_rejected_until_they_submit_again(): void
     {
+        // PB-53: editing no longer reopens the review on its own; the review step's Submit does
+        // (OnboardingSubmitTest).
         $borrower = User::factory()->borrower()->create();
         $borrower->forceFill(['status' => 'rejected', 'status_reason' => 'Address does not match.'])->save();
 
-        $this->actingAs($borrower)->put('/borrower/profile', $this->smeInput())->assertSessionHasNoErrors();
+        $this->actingAs($borrower)->put('/borrower/onboarding/profile', $this->smeInput())->assertSessionHasNoErrors();
 
-        $this->assertSame('pending_verification', $borrower->fresh()->status);
-        $this->assertNull($borrower->fresh()->status_reason);
+        $this->assertSame('rejected', $borrower->fresh()->status);
+        $this->assertSame('Address does not match.', $borrower->fresh()->status_reason);
     }
 
     /**
@@ -280,10 +279,10 @@ class BorrowerProfileTest extends TestCase
     public static function otherRolesOnBorrowerRoutes(): array
     {
         return [
-            'investor opens the profile' => ['investor', 'get', '/borrower/profile'],
-            'investor saves a profile' => ['investor', 'put', '/borrower/profile'],
-            'admin opens the profile' => ['admin', 'get', '/borrower/profile'],
-            'admin saves a profile' => ['admin', 'put', '/borrower/profile'],
+            'investor opens the profile' => ['investor', 'get', '/borrower/onboarding/profile'],
+            'investor saves a profile' => ['investor', 'put', '/borrower/onboarding/profile'],
+            'admin opens the profile' => ['admin', 'get', '/borrower/onboarding/profile'],
+            'admin saves a profile' => ['admin', 'put', '/borrower/onboarding/profile'],
         ];
     }
 
@@ -298,7 +297,7 @@ class BorrowerProfileTest extends TestCase
 
     public function test_guests_are_sent_to_sign_in(): void
     {
-        $this->get('/borrower/profile')->assertRedirect('/login');
-        $this->put('/borrower/profile', $this->smeInput())->assertRedirect('/login');
+        $this->get('/borrower/onboarding/profile')->assertRedirect('/login');
+        $this->put('/borrower/onboarding/profile', $this->smeInput())->assertRedirect('/login');
     }
 }

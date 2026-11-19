@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\VerificationDecisionRequest;
-use App\Models\BorrowerProfile;
 use App\Models\KycDocument;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\VerificationService;
+use App\Support\DocumentSlots;
+use App\Support\ProfilePresenter;
 use App\Support\VerificationChecklist;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -21,13 +22,13 @@ use Inertia\Response;
 class VerificationController extends Controller
 {
     /**
-     * Pending borrowers and investors whose profile and required documents are complete,
-     * oldest registration first. Incomplete accounts are only counted.
+     * Pending borrowers and investors who have completed and submitted every onboarding step
+     * (PB-53), oldest registration first. Accounts still completing it are only counted.
      */
     public function index(): Response
     {
         [$ready, $incomplete] = User::awaitingVerification()->get()
-            ->partition(fn (User $user) => VerificationChecklist::for($user)->isComplete());
+            ->partition(fn (User $user) => VerificationChecklist::for($user)->isReadyForReview());
 
         return Inertia::render('Admin/Verifications/Index', [
             'applicants' => $ready->map(fn (User $user) => [
@@ -62,9 +63,18 @@ class VerificationController extends Controller
                 'status_reason' => $user->status_reason,
                 'registered_at' => $user->created_at->toIso8601String(),
             ],
-            'profile' => self::profileDetails($user),
-            'documents' => $user->kycDocuments->sortByDesc('id')->values()->map->toListItem(),
-            'missingDocuments' => array_map(fn ($type) => KycDocument::TYPE_LABELS[$type], $checklist->missingDocumentTypes()),
+            'profile' => ProfilePresenter::details($user),
+            'documents' => $user->kycDocuments->sortByDesc('id')->values()->map(fn (KycDocument $document) => [
+                ...$document->toListItem(),
+                'type_label' => DocumentSlots::labelFor($user, $document->document_type),
+            ]),
+            'missingDocuments' => array_map(fn ($type) => DocumentSlots::labelFor($user, $type), $checklist->missingDocumentTypes()),
+            // Anything else the user hasn't finished (PB-53), so the admin knows why Approve is off.
+            'missingSteps' => array_values(array_filter([
+                $checklist->hasProfile() && ! $checklist->hasCompleteAddress() ? 'The address has not been completed or checked.' : null,
+                ! $checklist->hasAcceptedRisk() ? 'The risk acknowledgement has not been accepted.' : null,
+                $user->isPending() && ! $checklist->isSubmitted() ? 'The account has not been submitted for verification.' : null,
+            ])),
             'canDecide' => $user->isPending(),
             'canApprove' => $checklist->isReadyForReview(),
             'decideUrl' => route('admin.verifications.decide', $user),
@@ -84,45 +94,5 @@ class VerificationController extends Controller
         }
 
         return to_route('admin.verifications.index')->with('status', $message);
-    }
-
-    /**
-     * The profile as label/value pairs for the review page, including the decrypted national ID
-     * number, which the administrator compares with the ID document. null if there is no profile.
-     *
-     * @return list<array{label: string, value: mixed}>|null
-     */
-    private static function profileDetails(User $user): ?array
-    {
-        $profile = VerificationChecklist::for($user)->profile();
-
-        if ($profile === null) {
-            return null;
-        }
-
-        $details = [
-            ['label' => 'Phone', 'value' => $profile->phone],
-            ['label' => 'National ID card number', 'value' => $profile->national_id_no],
-            ['label' => 'Address', 'value' => $profile->address],
-        ];
-
-        if ($profile instanceof BorrowerProfile) {
-            $details = [
-                ['label' => 'Borrowing as', 'value' => BorrowerProfile::TYPES[$profile->borrower_type]],
-                ...$details,
-                ...($profile->isSme() ? [
-                    ['label' => 'Business name', 'value' => $profile->business_name],
-                    ['label' => 'Business registration number', 'value' => $profile->business_registration_no],
-                    ['label' => 'Sector', 'value' => BorrowerProfile::SECTORS[$profile->sector] ?? $profile->sector],
-                    ['label' => 'Years operating', 'value' => $profile->years_operating],
-                ] : []),
-                [
-                    'label' => $profile->isSme() ? 'Declared annual revenue' : 'Declared annual income',
-                    'value' => 'MVR '.number_format((float) $profile->declared_annual_income, 2),
-                ],
-            ];
-        }
-
-        return $details;
     }
 }

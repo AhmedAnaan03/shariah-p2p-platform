@@ -5,14 +5,16 @@ namespace Database\Seeders;
 use App\Models\BorrowerProfile;
 use App\Models\Campaign;
 use App\Models\InvestorProfile;
+use App\Models\Island;
 use App\Models\KycDocument;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
  * Accounts in the states the UI screenshots need (PB-51): a borrower part-way through
- * verification, a verified investor, an investor with no profile yet (mode switch disabled), an
- * admin, and a verification queue with three complete accounts and one incomplete one.
+ * onboarding with a migrated address to check (PB-53), a verified investor, an investor with no
+ * profile yet (mode switch disabled), an investor at the documents step, an admin, and a
+ * verification queue with three complete, submitted accounts and one incomplete one.
  * PB-13 to PB-15 add a verified borrower with requests in every state, a campaign review queue
  * (a Murabahah with a credit report first) and live campaigns for the marketplace.
  *
@@ -28,40 +30,60 @@ class ScreenshotSeeder extends Seeder
 
         User::factory()->admin()->create(['name' => 'Demo Admin', 'email' => 'admin@example.com', 'password' => $password]);
 
-        // Borrower: profile saved, ID uploaded, business certificate still missing.
+        // Borrower part-way through onboarding (PB-53): profile saved before addresses were
+        // structured, so the address still has to be checked; ID and business certificate
+        // uploaded, proof of address and financial statement still missing.
         $borrower = User::factory()->borrower()->create(['name' => 'Ibrahim Waheed', 'email' => 'borrower@example.com', 'password' => $password]);
-        BorrowerProfile::factory()->for($borrower)->create([
+        BorrowerProfile::factory()->legacyAddress('M. Blue Lagoon, Malé', [
+            'address_house' => 'M. Blue Lagoon',
+            'island_id' => Island::idFor('Malé City', 'Malé'),
+        ])->for($borrower)->create([
             'business_name' => 'Coral Cove Trading',
             'business_registration_no' => 'C-0412/2021',
             'sector' => 'fisheries',
             'years_operating' => 6,
             'declared_annual_income' => 840000,
-            'address' => 'M. Blue Lagoon, Malé',
         ]);
         KycDocument::factory()->for($borrower)->create(['original_name' => 'national-id-front.jpg', 'mime_type' => 'image/jpeg', 'size_bytes' => 839_680]);
+        KycDocument::factory()->for($borrower)->ofType('business_registration')->create(['original_name' => 'registration-certificate.pdf', 'size_bytes' => 245_760]);
 
         // Investor: verified, acknowledged, documents approved.
         $investor = User::factory()->investor()->verified()->create(['name' => 'Aishath Rasheed', 'email' => 'investor@example.com', 'password' => $password]);
-        InvestorProfile::factory()->for($investor)->create(['risk_acknowledged_at' => now()->subDays(3), 'address' => 'H. Sea Breeze, Hulhumalé']);
+        InvestorProfile::factory()->for($investor)->create([
+            'risk_acknowledged_at' => now()->subDays(3),
+            'address_house' => 'H. Sea Breeze', 'address_road' => 'Nirolhu Magu', 'island_id' => Island::idFor('Malé City', 'Hulhumalé'), 'postcode' => '23000',
+        ]);
         KycDocument::factory()->for($investor)->create(['status' => 'approved', 'original_name' => 'id-card.pdf']);
+        KycDocument::factory()->for($investor)->ofType('proof_of_address')->create(['status' => 'approved', 'original_name' => 'stelco-bill-october.pdf']);
 
         // Investor who has only registered: the mode switch is disabled until the profile exists.
         User::factory()->investor()->create(['name' => 'Hassan Nizam', 'email' => 'new-investor@example.com', 'password' => $password]);
 
-        // The verification queue: three complete accounts, oldest first, and one incomplete.
+        // Investor at the documents step: details and address saved, nothing uploaded yet.
+        $onboarding = User::factory()->investor()->create(['name' => 'Mohamed Rilwan', 'email' => 'onboarding-investor@example.com', 'password' => $password]);
+        InvestorProfile::factory()->for($onboarding)->create(['address_house' => 'G. Hiyaa', 'address_road' => 'Hithadhoo Magu', 'island_id' => Island::idFor('Seenu (Addu City)', 'Hithadhoo'), 'postcode' => '19020']);
+
+        // Individual borrower who has finished every step but not yet submitted: the review step.
+        $ready = User::factory()->borrower()->create(['name' => 'Aminath Shiuna', 'email' => 'ready-borrower@example.com', 'password' => $password]);
+        BorrowerProfile::factory()->individual()->for($ready)->create(['address_house' => 'Ma. Sosun Villa', 'address_road' => 'Sosun Magu', 'postcode' => '20187']);
+        KycDocument::factory()->for($ready)->create(['original_name' => 'id-card-both-sides.pdf']);
+        KycDocument::factory()->for($ready)->ofType('proof_of_address')->create(['original_name' => 'fenaka-bill-october.pdf']);
+
+        // The verification queue: three complete, submitted accounts, oldest first, and one incomplete.
         $queue = [
             ['Mariyam Shifza', 'investor', 5],
             ['Ahmed Saleem', 'borrower', 4],
             ['Fathimath Zaha', 'investor', 2],
         ];
         foreach ($queue as [$name, $role, $daysAgo]) {
-            $user = User::factory()->{$role}()->create(['name' => $name, 'created_at' => now()->subDays($daysAgo)]);
+            $user = User::factory()->{$role}()->submitted()->create(['name' => $name, 'created_at' => now()->subDays($daysAgo)]);
             if ($role === 'borrower') {
                 BorrowerProfile::factory()->individual()->for($user)->create();
             } else {
-                InvestorProfile::factory()->for($user)->create();
+                InvestorProfile::factory()->for($user)->create(['risk_acknowledged_at' => now()->subDays($daysAgo)]);
             }
             KycDocument::factory()->for($user)->create();
+            KycDocument::factory()->for($user)->ofType('proof_of_address')->create(['original_name' => 'council-letter.pdf']);
         }
         User::factory()->borrower()->create(['name' => 'Still Registering']);
 
