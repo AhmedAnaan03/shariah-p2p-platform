@@ -10,7 +10,8 @@
 Planned points: · Completed points:
 
 ## Demo evidence
-Screenshots / recordings stored in this folder:
+What was demonstrated, with the merged PRs and closed issues. No screenshots: all report
+screenshots are taken once in Sprint 5 (PB-56), when the UI is final.
 
 ## Supervisor review
 Meeting date: · Log sheet no.: · Feedback turned into issues:
