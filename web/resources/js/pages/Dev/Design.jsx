@@ -22,7 +22,11 @@ import KhatamIcon from '../../components/KhatamIcon';
 import ModeSwitch from '../../components/ModeSwitch';
 import Money from '../../components/Money';
 import MoneyInput from '../../components/MoneyInput';
+import Breadcrumbs from '../../components/Breadcrumbs';
+import DocumentSlot from '../../components/DocumentSlot';
+import ListFilters from '../../components/ListFilters';
 import OnboardingStepper from '../../components/OnboardingStepper';
+import ThemeToggle from '../../components/ThemeToggle';
 import PageBand from '../../components/PageBand';
 import PageHeading from '../../components/PageHeading';
 import PercentInput from '../../components/PercentInput';
@@ -365,6 +369,33 @@ function DataDisplay() {
                 ]}
             />
             <OnboardingStepper orientation="vertical" steps={[{ title: 'Done step', done: true }, { title: 'Current step', href: '/dev/design', actionLabel: 'Go' }, { title: 'Later step' }]} />
+            {/* PB-53: the wizard's progress bar and its document slots, empty and filled. */}
+            <OnboardingStepper
+                variant="nav"
+                current={2}
+                steps={[
+                    { title: 'Your details', done: true, href: '/dev/design' },
+                    { title: 'Address', done: true, href: '/dev/design' },
+                    { title: 'Documents', done: false, href: '/dev/design' },
+                    { title: 'Review and submit', done: false, href: null },
+                ]}
+            />
+            <ul className="space-y-4">
+                <DocumentSlot
+                    slot={{ type: 'national_id', label: 'National ID card', description: 'Both sides of your Maldivian national ID card, in one PDF or as one photo.', document: null }}
+                    uploadUrl="/dev/design"
+                    maxBytes={5 * 1024 * 1024}
+                />
+                <DocumentSlot
+                    slot={{
+                        type: 'proof_of_address',
+                        label: 'Proof of address',
+                        description: 'A utility bill, tenancy agreement or island council letter from the last 3 months.',
+                        document: { id: 1, original_name: 'stelco-bill.pdf', size_bytes: 245760, status: 'pending', uploaded_at: '2026-11-19T09:00:00Z', url: '#' },
+                    }}
+                    uploadUrl="/dev/design"
+                />
+            </ul>
             <Table
                 caption="Sample queue"
                 rows={tableRows}
@@ -468,7 +499,7 @@ function Shell({ mode, setMode }) {
     ];
 
     return (
-        <Section id="shell" title="App shell and patterns" description="Sidebar expanded and collapsed, the mode switch, and both background textures.">
+        <Section id="shell" title="App shell and patterns" description="Sidebar expanded and collapsed, list search, breadcrumbs, the theme toggle, the mode switch, and both background textures.">
             <div className="grid gap-6 @bp-md/shell:grid-cols-[auto_auto_1fr]">
                 <div className="h-96 w-(--sidebar) overflow-hidden rounded-lg border border-border">
                     <Sidebar portal="Investor" groups={groups} collapsible={false} />
@@ -477,6 +508,20 @@ function Shell({ mode, setMode }) {
                     <Sidebar portal="Investor" groups={groups} collapsed />
                 </div>
                 <div className="space-y-4">
+                    {/* PB-54 and PB-55: the list search bar, breadcrumbs and the theme toggle. */}
+                    <ListFilters
+                        filters={{}}
+                        searchLabel="Search campaigns"
+                        searchPlaceholder="Title or borrower name"
+                        fields={[{ name: 'contract', label: 'Contract', allLabel: 'All contracts', options: [{ value: 'murabahah', label: 'Murabahah' }] }]}
+                        resultCount={3}
+                        resultNoun={['campaign', 'campaigns']}
+                    />
+                    <Breadcrumbs items={[{ label: 'Campaign review', href: '/dev/design' }, { label: 'Ibrahim Waheed' }]} />
+                    <Row>
+                        <ThemeToggle save={false} />
+                        <ThemeToggle save={false} compact />
+                    </Row>
                     <Row>
                         <ModeSwitch mode={mode} onChange={setMode} compactLabel={false} />
                         <ModeSwitch mode="conventional" compactLabel={false} disabledReason="Complete your profile to choose Shariah-only mode." />

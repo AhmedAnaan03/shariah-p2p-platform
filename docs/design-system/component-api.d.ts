@@ -112,10 +112,17 @@ export interface DescriptionListProps { items: [Node, Node, boolean?][]; columns
 export declare function DescriptionList(props: DescriptionListProps): React.ReactElement;
 export interface RepaymentTimelineProps { items: { state: 'paid' | 'due' | 'late'; due: string; paidOn?: string; lateBy?: string; amount: number; of?: number }[] }
 export declare function RepaymentTimeline(props: RepaymentTimelineProps): React.ReactElement;
-export interface OnboardingStepperProps { steps: { title: Node; description?: Node }[]; current: number; orientation?: 'horizontal' | 'vertical' }
+/** variant 'nav' (PB-53): the wizard's progress bar; `current` is the step on screen and a step with `href` is a link. */
+export interface OnboardingStepperProps { steps: { title: Node; description?: Node; done?: boolean; href?: string | null; actionLabel?: Node }[]; current?: number; orientation?: 'horizontal' | 'vertical'; variant?: 'checklist' | 'nav' }
 export declare function OnboardingStepper(props: OnboardingStepperProps): React.ReactElement;
-export interface DocumentRowProps { name: string; type?: 'pdf' | 'jpg' | 'png'; size: string; uploaded: string; status?: Status; onView?: () => void }
+export interface DocumentRowProps { title?: Node; name: string; type?: 'pdf' | 'jpg' | 'png'; size: string; uploaded: string; status?: Status; href?: string; onView?: () => void; reason?: Node; action?: Node }
 export declare function DocumentRow(props: DocumentRowProps): React.ReactElement;
+/** PB-53: one fixed onboarding document slot; empty shows an upload box, filled shows the file with View and Replace. */
+export interface DocumentSlotProps { slot: { type: string; label: string; description: string; document: { id: number; original_name: string; size_bytes: number; status: Status | 'approved'; rejection_reason?: string | null; uploaded_at: string; url: string } | null }; uploadUrl: string; maxBytes?: number; tooLargeMessage?: string; locked?: boolean }
+export declare function DocumentSlot(props: DocumentSlotProps): React.ReactElement;
+/** PB-53: the frame of every onboarding wizard step: steps, content, Back and Continue (or `actions`). */
+export interface OnboardingFrameProps { wizard: { steps: { key: string; title: string; done: boolean; href: string | null }[]; step: string; backUrl: string | null; nextUrl: string | null; locked: boolean; role: 'borrower' | 'investor' }; onSubmit?: (e: React.FormEvent) => void; processing?: boolean; continueLabel?: Node; actions?: Node; children?: Node }
+export declare function OnboardingFrame(props: OnboardingFrameProps): React.ReactElement;
 export interface AvatarProps { name: string; size?: number }
 export declare function Avatar(props: AvatarProps): React.ReactElement;
 
@@ -132,12 +139,18 @@ export interface TabsProps { tabs: { value: string; label: Node; count?: number 
 export declare function Tabs(props: TabsProps): React.ReactElement;
 export interface BreadcrumbsProps { items: { label: Node; href?: string }[] }
 export declare function Breadcrumbs(props: BreadcrumbsProps): React.ReactElement;
+/** PB-54: the shared search-and-filter bar every list uses. Server side: App\Support\ListFilters. */
+export interface ListFiltersProps { filters?: Record<string, string>; fields?: { name: string; label: Node; allLabel: string; options: { value: string; label: Node }[] }[]; only?: string[]; searchLabel?: Node; searchPlaceholder?: string; resultCount?: number; resultNoun?: [string, string] }
+export declare function ListFilters(props: ListFiltersProps): React.ReactElement;
 export interface AccordionProps { items: { q: Node; a: Node }[]; defaultOpen?: number[] }
 export declare function Accordion(props: AccordionProps): React.ReactElement;
 export interface NavGroup { label?: string; items: { icon: string; label: string; active?: boolean; count?: number }[] }
 export interface SidebarProps { portal?: 'Investor' | 'Borrower' | 'Admin'; groups?: NavGroup[]; collapsed?: boolean; footer?: Node; onNavigate?: (item: NavGroup['items'][number]) => void; collapsible?: boolean }
 export interface ModeSwitchProps { mode?: Mode; onChange?: (m: Mode) => void; label?: string }
 export declare function ModeSwitch(props: ModeSwitchProps): React.ReactElement;
+/** PB-55: light / dark / system, saved per user; `compact` for the collapsed sidebar (icons, tooltips). */
+export interface ThemeToggleProps { compact?: boolean }
+export declare function ThemeToggle(props: ThemeToggleProps): React.ReactElement;
 export declare function Sidebar(props: SidebarProps): React.ReactElement;
 export interface TopBarProps { title: Node; breadcrumb?: Node; shariahOn?: boolean; mode?: Mode; onModeChange?: (m: Mode) => void; unread?: number; user?: { name: string; role: string }; search?: boolean; onMenu?: () => void }
 export declare function TopBar(props: TopBarProps): React.ReactElement;

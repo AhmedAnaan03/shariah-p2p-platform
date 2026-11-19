@@ -52,14 +52,15 @@ class CreditReportTest extends TestCase
         $this->actingAs(User::factory()->investor()->verified()->create())->get($url)->assertNotFound();
     }
 
-    public function test_the_report_is_not_listed_on_the_kyc_documents_page(): void
+    public function test_the_report_is_not_shown_in_the_document_slots(): void
     {
         $id = KycDocument::factory()->for($this->borrower)->ofType('national_id')->create()->id;
 
-        $this->actingAs($this->borrower)->get('/borrower/documents')
+        $this->actingAs($this->borrower)->get('/borrower/onboarding/documents')
             ->assertInertia(fn (Assert $page) => $page
-                ->has('documents', 1)
-                ->where('documents.0.id', $id)
+                ->has('slots', 2)
+                ->where('slots.0.document.id', $id)
+                ->where('slots.1.document', null)
             );
     }
 
@@ -70,7 +71,7 @@ class CreditReportTest extends TestCase
         $this->actingAs($admin)->get("/admin/verifications/{$this->borrower->id}")
             ->assertInertia(fn (Assert $page) => $page
                 ->has('documents', 0)
-                ->where('missingDocuments', ['National ID card'])
+                ->where('missingDocuments', ['National ID card', 'Proof of address'])
             );
     }
 
@@ -99,12 +100,12 @@ class CreditReportTest extends TestCase
             ->for($this->borrower)->ofType('national_id')->create(['campaign_id' => $this->campaign->id]));
     }
 
-    public function test_a_credit_report_cannot_be_uploaded_on_the_kyc_documents_page(): void
+    public function test_a_credit_report_cannot_be_uploaded_into_a_document_slot(): void
     {
-        $pending = User::factory()->borrower()->create();
+        $pending = BorrowerProfile::factory()->individual()->create()->user;
 
-        $this->actingAs($pending)->from('/borrower/documents')
-            ->post('/borrower/documents', ['document_type' => KycDocument::TYPE_CREDIT_REPORT, 'file' => $this->pdfFile()])
-            ->assertSessionHasErrors(['document_type' => 'Choose what kind of document this is from the list.']);
+        $this->actingAs($pending)->from('/borrower/onboarding/documents')
+            ->post('/borrower/onboarding/documents', ['document_type' => KycDocument::TYPE_CREDIT_REPORT, 'file' => $this->pdfFile()])
+            ->assertSessionHasErrors(['document_type' => 'Upload into one of the document slots shown. Other documents are not needed.']);
     }
 }

@@ -23,7 +23,7 @@ export default function TopBar({ title, breadcrumb, modeSwitch, unread = 0, user
             )}
 
             <div className="min-w-0 flex-1">
-                {breadcrumb && <p className="truncate text-body-sm text-text-muted">{breadcrumb}</p>}
+                {breadcrumb && <div className="min-w-0 truncate">{breadcrumb}</div>}
                 <h1 className="truncate text-h4 text-text @bp-sm/shell:text-h3">{title}</h1>
             </div>
 

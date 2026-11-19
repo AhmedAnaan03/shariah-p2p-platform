@@ -1,4 +1,4 @@
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
@@ -14,6 +14,7 @@ import StatusBadge from '../../../components/StatusBadge';
 import Textarea from '../../../components/Textarea';
 import TextLink from '../../../components/TextLink';
 import { formatDate } from '../../../lib/format';
+import { withReturn } from '../../../lib/returnUrl';
 
 const DECISIONS = {
     approve: { label: 'Approve', icon: 'check-circle', description: 'Open it to investors until the funding deadline.' },
@@ -32,8 +33,10 @@ const BUTTONS = {
  * the MMA credit report they attached (PB-14), so the two can be compared before deciding.
  * Every decision is confirmed first; rejecting and suspending need a reason.
  */
-export default function AdminCampaignShow({ campaign, borrower, finances, creditHistory, creditReport, ratios, tenureOutsideTrainingRange, decisions, fundingDays, deadlineIfApproved, decideUrl }) {
-    const form = useForm({ decision: '', reason: '' });
+export default function AdminCampaignShow({ campaign, borrower, finances, creditHistory, creditReport, ratios, tenureOutsideTrainingRange, decisions, fundingDays, deadlineIfApproved, decideUrl, back }) {
+    const { url } = usePage();
+    // After the decision the server goes back to where the review was opened from (PB-54).
+    const form = useForm({ decision: '', reason: '', return_to: back.fromLink ? back.url : '' });
     const [confirming, setConfirming] = useState(false);
     const decision = form.data.decision;
     const needsReason = decision === 'reject' || decision === 'suspend';
@@ -57,8 +60,8 @@ export default function AdminCampaignShow({ campaign, borrower, finances, credit
 
     return (
         <>
-            <TextLink href="/admin/campaigns" icon="arrow-left">
-                Back to campaigns
+            <TextLink href={back.url} icon="arrow-left">
+                {back.label}
             </TextLink>
 
             <Card
@@ -122,7 +125,8 @@ export default function AdminCampaignShow({ campaign, borrower, finances, credit
                                 ['Business name', borrower.business_name],
                             ]}
                         />
-                        <TextLink href={borrower.verification_url} icon="identification-card">
+                        {/* Carries this page's address, so the record's back link returns here (PB-54). */}
+                        <TextLink href={withReturn(borrower.verification_url, url)} icon="identification-card">
                             Open the borrower’s verification record
                         </TextLink>
                     </div>
@@ -205,4 +209,8 @@ export default function AdminCampaignShow({ campaign, borrower, finances, credit
     );
 }
 
-AdminCampaignShow.layout = (props) => ({ title: `Review ${props.campaign.title}` });
+// The breadcrumb's first link is the page the admin came from, with its filters (PB-54).
+AdminCampaignShow.layout = (props) => ({
+    title: `Review ${props.campaign.title}`,
+    breadcrumbs: [{ label: props.back.crumb, href: props.back.url }, { label: props.campaign.title }],
+});

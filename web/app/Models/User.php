@@ -16,7 +16,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 // role_id and status are deliberately NOT fillable: a registration form must not be able to
-// make someone an admin or mark them verified by adding a field to the request.
+// make someone an admin or mark them verified by adding a field to the request. Nor is theme
+// (PB-55): only the theme route sets it.
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -32,7 +33,15 @@ class User extends Authenticatable
      */
     protected $attributes = [
         'status' => 'pending_verification',
+        'theme' => self::THEME_SYSTEM,
     ];
+
+    /**
+     * The interface themes a user can choose (PB-55). 'system' follows the device's setting.
+     */
+    public const THEME_SYSTEM = 'system';
+
+    public const THEMES = ['light', 'dark', self::THEME_SYSTEM];
 
     /**
      * Get the attributes that should be cast.
@@ -44,6 +53,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'verification_submitted_at' => 'datetime',
         ];
     }
 
@@ -93,18 +103,20 @@ class User extends Authenticatable
     }
 
     /**
-     * After a rejection, any change the user makes (new profile details or a new document)
-     * puts the account back in the review queue, and the old reason is cleared.
+     * The last step of the onboarding wizard (PB-53): send the account for verification. After
+     * a rejection this also puts it back in the review queue and clears the old reason; editing
+     * a rejected account's details no longer does that on its own, the user submits again once
+     * they have fixed everything.
      */
-    public function reopenReviewIfRejected(): void
+    public function submitForVerification(): void
     {
-        if ($this->status !== 'rejected') {
-            return;
+        // status, status_reason and verification_submitted_at are not mass-assignable.
+        if ($this->status === 'rejected') {
+            $this->status = 'pending_verification';
+            $this->status_reason = null;
         }
 
-        // status and status_reason are not mass-assignable, so they are set one by one.
-        $this->status = 'pending_verification';
-        $this->status_reason = null;
+        $this->verification_submitted_at = now();
         $this->save();
     }
 
@@ -131,12 +143,15 @@ class User extends Authenticatable
      * The user's identity documents (national ID, business registration, ...), the ones
      * account verification is about. A credit report attached to a financing request (PB-14)
      * is also a kyc_documents row, but it belongs to that request (Campaign::creditReport) and
-     * is decided with the request, so it is left out here. Every verification query (the
-     * checklist, the admin review page, the decision) goes through this relation.
+     * is decided with the request, so it is left out here, and so is any upload a newer one has
+     * replaced. Every verification query (the checklist, the admin review page, the decision)
+     * goes through this relation.
      */
     public function kycDocuments(): HasMany
     {
-        return $this->hasMany(KycDocument::class)->whereNull('campaign_id');
+        // Only the current document in each slot (PB-53): a replaced upload is kept, with its
+        // file, but no longer counts or shows.
+        return $this->hasMany(KycDocument::class)->whereNull('campaign_id')->whereNull('replaced_at');
     }
 
     /**

@@ -8,8 +8,11 @@ use App\Models\BorrowerProfile;
 use App\Models\Campaign;
 use App\Services\CampaignReviewService;
 use App\Support\CampaignPresenter;
+use App\Support\ListFilters;
+use App\Support\ReturnUrl;
 use App\Support\RiskFeatures;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,25 +22,44 @@ use Inertia\Response;
  */
 class CampaignController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $filters = ListFilters::from($request, [
+            'tab' => ['review', 'live'],
+            'contract' => array_keys(CampaignPresenter::CONTRACT_LABELS),
+            'purpose' => array_keys(Campaign::PURPOSES),
+        ]);
+
         $row = fn (Campaign $campaign) => [
             ...CampaignPresenter::summary($campaign),
             'borrower_name' => $campaign->borrower->name,
             'url' => route('admin.campaigns.show', $campaign),
         ];
 
+        // Both tabs use the same filters, so switching tabs keeps them.
+        $list = function (string $status) use ($filters) {
+            $query = Campaign::with('borrower')->where('status', $status)
+                ->when($filters->get('contract'), fn ($q, $contract) => $q->where('contract_type', $contract))
+                ->when($filters->get('purpose'), fn ($q, $purpose) => $q->where('purpose', $purpose));
+
+            return $filters->applySearch($query, ['title', 'borrower.name']);
+        };
+
         return Inertia::render('Admin/Campaigns/Index', [
             // Oldest first, so nobody waits longest.
-            'toReview' => Campaign::with('borrower')->where('status', Campaign::STATUS_SUBMITTED)
-                ->oldest('submitted_at')->oldest('id')->get()->map($row),
+            'toReview' => $list(Campaign::STATUS_SUBMITTED)->oldest('submitted_at')->oldest('id')->get()->map($row),
             // Soonest deadline first.
-            'live' => Campaign::with('borrower')->where('status', Campaign::STATUS_LIVE)
-                ->orderBy('funding_deadline')->get()->map($row),
+            'live' => $list(Campaign::STATUS_LIVE)->orderBy('funding_deadline')->get()->map($row),
+            // PB-54: the shared search-and-filter bar, and which tab is open (kept in the URL).
+            'filters' => $filters->toArray(),
+            'filterOptions' => [
+                'contract' => ListFilters::options(CampaignPresenter::CONTRACT_LABELS),
+                'purpose' => ListFilters::options(Campaign::PURPOSES),
+            ],
         ]);
     }
 
-    public function show(Campaign $campaign): Response
+    public function show(Request $request, Campaign $campaign): Response
     {
         $campaign->load(['borrower.borrowerProfile', 'financials', 'creditReport']);
         $borrower = $campaign->borrower;
@@ -69,6 +91,8 @@ class CampaignController extends Controller
             // For the approve confirmation: the deadline if approved now, as a Maldives date.
             'deadlineIfApproved' => Campaign::localDate(Campaign::fundingDeadlineFrom(now())),
             'decideUrl' => route('admin.campaigns.decide', $campaign),
+            // PB-54: back to the (filtered) list or page the admin came from.
+            'back' => ReturnUrl::back($request, 'admin.campaigns.index'),
         ]);
     }
 
@@ -90,6 +114,9 @@ class CampaignController extends Controller
             CampaignReviewService::SUSPEND => "\"{$campaign->title}\" has been suspended and the borrower notified of the reason.",
         };
 
-        return to_route('admin.campaigns.index')->with('status', $message);
+        // Back to the page the review was opened from, if it came with a safe return_to.
+        $returnTo = ReturnUrl::sanitize($request->input(ReturnUrl::PARAM));
+
+        return ($returnTo ? redirect($returnTo) : to_route('admin.campaigns.index'))->with('status', $message);
     }
 }

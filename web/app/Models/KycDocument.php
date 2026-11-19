@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 // Review fields (status, reviewed_by, reviewed_at, rejection_reason) are set by admin code,
 // not mass-assigned from an upload form. storage_path is only ever set by KycDocumentStore,
 // and so is campaign_id (set for a credit report attached to a financing request, PB-14).
+// replaced_at is set by KycDocumentStore when a newer upload takes the document's slot (PB-53);
+// the slots each user fills are in App\Support\DocumentSlots.
 #[Fillable(['document_type', 'original_name', 'storage_path', 'mime_type', 'size_bytes'])]
 // The path on the private disk never leaves the server: React gets the controller URL instead.
 #[Hidden(['storage_path'])]
@@ -42,15 +44,6 @@ class KycDocument extends Model
     ];
 
     /**
-     * Which identity document types each role may upload on the documents page. The credit
-     * report is not here: it comes with a financing request.
-     */
-    public const TYPES_BY_ROLE = [
-        Role::BORROWER => ['national_id', 'business_registration', 'financial_statement', 'proof_of_address'],
-        Role::INVESTOR => ['national_id', 'proof_of_address'],
-    ];
-
-    /**
      * Upload limits. The size is in kilobytes because that is what Laravel's `max` rule uses
      * for files: 5120 KB = 5 MB. PHP's own limits (upload_max_filesize, post_max_size) must be
      * higher than this, see web/README.md.
@@ -71,20 +64,13 @@ class KycDocument extends Model
         return [
             'size_bytes' => 'integer',
             'reviewed_at' => 'datetime',
+            'replaced_at' => 'datetime',
         ];
     }
 
     /**
-     * @return list<string>
-     */
-    public static function typesFor(string $role): array
-    {
-        return self::TYPES_BY_ROLE[$role] ?? [];
-    }
-
-    /**
      * Whether this document still counts towards verification: waiting for review or approved.
-     * A rejected document has to be replaced by a new upload.
+     * A rejected document has to be replaced by a new upload in the same slot.
      */
     public function counts(): bool
     {

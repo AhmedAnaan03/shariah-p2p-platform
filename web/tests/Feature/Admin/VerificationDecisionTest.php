@@ -3,8 +3,6 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\AuditLog;
-use App\Models\BorrowerProfile;
-use App\Models\InvestorProfile;
 use App\Models\KycDocument;
 use App\Models\User;
 use App\Notifications\VerificationDecided;
@@ -14,6 +12,7 @@ use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Tests\Concerns\CreatesOnboardedUsers;
 use Tests\TestCase;
 
 /**
@@ -22,7 +21,7 @@ use Tests\TestCase;
  */
 class VerificationDecisionTest extends TestCase
 {
-    use RefreshDatabase;
+    use CreatesOnboardedUsers, RefreshDatabase;
 
     private User $admin;
 
@@ -36,8 +35,9 @@ class VerificationDecisionTest extends TestCase
         Carbon::setTestNow('2026-11-12 14:00:00');
 
         $this->admin = User::factory()->admin()->create();
-        $this->applicant = BorrowerProfile::factory()->individual()->create()->user;
-        $this->document = KycDocument::factory()->for($this->applicant)->ofType('national_id')->create();
+        // Finished onboarding and submitted (PB-53): an individual with both document slots filled.
+        $this->applicant = $this->onboardedBorrower();
+        $this->document = $this->applicant->kycDocuments()->where('document_type', 'national_id')->sole();
     }
 
     private function decide(array $input, ?User $applicant = null)
@@ -84,7 +84,7 @@ class VerificationDecisionTest extends TestCase
             'reason' => null,
             'status_before' => 'pending_verification',
             'status_after' => 'verified',
-            'document_ids' => [$this->document->id],
+            'document_ids' => $this->applicant->kycDocuments()->orderBy('id')->pluck('id')->all(),
         ], $entry->details);
         $this->assertSame('127.0.0.1', $entry->ip_address);
         $this->assertTrue($entry->created_at->equalTo(now()));
@@ -215,7 +215,7 @@ class VerificationDecisionTest extends TestCase
         $incomplete = User::factory()->borrower()->create(); // no profile, no documents
 
         $this->decide(['decision' => 'approve'], $incomplete)
-            ->assertSessionHasErrors(['decision' => 'This account can\'t be approved yet: its profile or required documents are missing.']);
+            ->assertSessionHasErrors(['decision' => 'This account can\'t be approved yet: it has not completed and submitted every onboarding step.']);
         $this->assertSame('pending_verification', $incomplete->fresh()->status);
 
         $this->decide(['decision' => 'reject', 'reason' => 'The registration looks like a duplicate.'], $incomplete)
@@ -227,22 +227,44 @@ class VerificationDecisionTest extends TestCase
     {
         Notification::fake();
         $earlierReviewer = User::factory()->admin()->create();
+        // Rejected in an earlier review, then replaced in its slot by the current upload (PB-53).
         $old = KycDocument::factory()->for($this->applicant)->ofType('national_id')->rejected('Blurred.')->create([
             'reviewed_by' => $earlierReviewer->id,
+            'replaced_at' => now()->subDay(),
         ]);
 
         $this->decide(['decision' => 'approve']);
 
         $this->assertSame('rejected', $old->fresh()->status);
         $this->assertSame($earlierReviewer->id, $old->fresh()->reviewed_by);
-        $this->assertSame([$this->document->id], AuditLog::sole()->details['document_ids']);
+        $this->assertNotContains($old->id, AuditLog::sole()->details['document_ids']);
+        $this->assertContains($this->document->id, AuditLog::sole()->details['document_ids']);
+    }
+
+    public function test_an_account_that_was_not_submitted_cannot_be_approved(): void
+    {
+        Notification::fake();
+        $notSubmitted = $this->onboardedBorrower(submitted: false);
+
+        $this->decide(['decision' => 'approve'], $notSubmitted)
+            ->assertSessionHasErrors(['decision' => 'This account can\'t be approved yet: it has not completed and submitted every onboarding step.']);
+
+        $this->assertSame('pending_verification', $notSubmitted->fresh()->status);
+    }
+
+    public function test_rejecting_clears_the_submission_so_the_user_submits_again(): void
+    {
+        Notification::fake();
+
+        $this->decide(['decision' => 'reject', 'reason' => 'The ID card photo is too blurred to read.']);
+
+        $this->assertNull($this->applicant->fresh()->verification_submitted_at);
     }
 
     public function test_investors_are_verified_the_same_way(): void
     {
         Notification::fake();
-        $investor = InvestorProfile::factory()->create()->user;
-        KycDocument::factory()->for($investor)->ofType('national_id')->create();
+        $investor = $this->onboardedInvestor();
 
         $this->decide(['decision' => 'approve'], $investor)->assertSessionHasNoErrors();
 

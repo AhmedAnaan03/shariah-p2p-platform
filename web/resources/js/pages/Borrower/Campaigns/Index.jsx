@@ -1,18 +1,23 @@
+import { usePage } from '@inertiajs/react';
 import Alert from '../../../components/Alert';
 import Button from '../../../components/Button';
 import Card from '../../../components/Card';
 import ContractBadge from '../../../components/ContractBadge';
 import EmptyState from '../../../components/EmptyState';
+import ListFilters from '../../../components/ListFilters';
 import Money from '../../../components/Money';
 import StatusBadge from '../../../components/StatusBadge';
 import Table from '../../../components/Table';
 import { formatDate } from '../../../lib/format';
+import { withReturn } from '../../../lib/returnUrl';
 
 /**
- * The borrower's financing requests, newest first (PB-13). Only a verified borrower gets the
- * "New request" button; the create page explains why to anyone else.
+ * The borrower's financing requests, newest first (PB-13), with the shared search-and-filter bar
+ * (PB-54). Only a verified borrower gets the "New request" button; the create page explains why
+ * to anyone else.
  */
-export default function CampaignsIndex({ campaigns, canCreate }) {
+export default function CampaignsIndex({ campaigns, hasAny, canCreate, filters, filterOptions }) {
+    const { url } = usePage();
     const newRequest = (
         <Button href="/borrower/campaigns/create" iconLeft="plus">
             New request
@@ -30,7 +35,7 @@ export default function CampaignsIndex({ campaigns, canCreate }) {
             key: 'view',
             label: <span className="sr-only">Actions</span>,
             render: (row) => (
-                <Button href={row.url} size="sm" variant="secondary" iconRight="arrow-right">
+                <Button href={withReturn(row.url, url)} size="sm" variant="secondary" iconRight="arrow-right">
                     View<span className="sr-only"> {row.title}</span>
                 </Button>
             ),
@@ -53,10 +58,30 @@ export default function CampaignsIndex({ campaigns, canCreate }) {
                 </Alert>
             )}
 
-            <Card title="Your requests" actions={canCreate && campaigns.length > 0 ? newRequest : null}>
-                {campaigns.length === 0 ? (
+            <Card title="Your requests" actions={canCreate && hasAny ? newRequest : null}>
+                {hasAny && (
+                    <div className="mb-5">
+                        <ListFilters
+                            filters={filters}
+                            only={['campaigns']}
+                            searchLabel="Search your requests"
+                            searchPlaceholder="Request title"
+                            fields={[
+                                { name: 'status', label: 'Status', allLabel: 'All statuses', options: filterOptions.status },
+                                { name: 'contract', label: 'Contract', allLabel: 'All contracts', options: filterOptions.contract },
+                            ]}
+                            resultCount={campaigns.length}
+                            resultNoun={['request', 'requests']}
+                        />
+                    </div>
+                )}
+                {!hasAny ? (
                     <EmptyState kind="campaigns" title="No financing requests yet" action={canCreate ? newRequest : null}>
                         Requests you submit appear here with their review status.
+                    </EmptyState>
+                ) : campaigns.length === 0 ? (
+                    <EmptyState kind="search" title="No requests match these filters">
+                        Try other words, or clear the filters to see all your requests.
                     </EmptyState>
                 ) : (
                     <Table columns={columns} rows={campaigns} caption="Your financing requests" stack="wide" />

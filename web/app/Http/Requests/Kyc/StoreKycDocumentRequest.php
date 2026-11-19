@@ -3,12 +3,13 @@
 namespace App\Http\Requests\Kyc;
 
 use App\Models\KycDocument;
+use App\Support\DocumentSlots;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Validates a KYC document upload (PB-09; investors use it too, PB-10).
+ * Validates a KYC document upload into one of the user's slots (PB-09, PB-10; slots PB-53).
  */
 class StoreKycDocumentRequest extends FormRequest
 {
@@ -37,8 +38,9 @@ class StoreKycDocumentRequest extends FormRequest
         $extensions = implode(',', KycDocument::ALLOWED_EXTENSIONS);
 
         return [
-            // Each role has its own list (an investor can't upload a business registration).
-            'document_type' => ['required', 'string', Rule::in(KycDocument::typesFor($this->user()->role->name))],
+            // Only one of the user's own slots (PB-53): an investor can't upload a business
+            // registration, and nobody can add a document that has no slot.
+            'document_type' => ['required', 'string', Rule::in(DocumentSlots::typesFor($this->user()))],
             'file' => [
                 'required',
                 'file',
@@ -58,9 +60,9 @@ class StoreKycDocumentRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'document_type.required' => 'Choose what kind of document this is.',
-            'document_type.string' => 'Choose what kind of document this is.',
-            'document_type.in' => 'Choose what kind of document this is from the list.',
+            'document_type.required' => 'Choose which document you are uploading.',
+            'document_type.string' => 'Choose which document you are uploading.',
+            'document_type.in' => 'Upload into one of the document slots shown. Other documents are not needed.',
             'file.required' => 'Choose a file to upload.',
             'file.file' => 'Choose a file to upload.',
             // PHP refused the file before Laravel saw it; by far the commonest cause is that

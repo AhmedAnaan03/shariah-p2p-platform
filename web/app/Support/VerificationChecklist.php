@@ -9,8 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * What a borrower or investor still has to provide before an administrator can review them
- * (PB-09, PB-10, PB-11). Used by the portal checklists and to build the admin queue, so the
- * user and the admin always agree on what "ready for review" means.
+ * (PB-09, PB-10, PB-11; PB-53 added the address, the document slots, the investor's risk
+ * acknowledgement and the explicit submission). Used by the onboarding wizard, the portal
+ * checklists and the admin queue, so the user and the admin always agree on what "ready for
+ * review" means.
  *
  * Expects the user's role, profile and kycDocuments to be loaded (or loads them lazily).
  */
@@ -38,24 +40,27 @@ final class VerificationChecklist
     }
 
     /**
-     * Documents everyone must provide: a national ID; an SME borrower also needs its business
-     * registration certificate.
+     * Every address field filled in and, for an address moved from the old single line,
+     * checked by the user.
+     */
+    public function hasCompleteAddress(): bool
+    {
+        return $this->profile()?->hasCompleteAddress() ?? false;
+    }
+
+    /**
+     * The user's document slots (DocumentSlots), every one of them required.
      *
      * @return list<string>
      */
     public function requiredDocumentTypes(): array
     {
-        $required = ['national_id'];
-
-        if ($this->user->hasRole(Role::BORROWER) && $this->user->borrowerProfile?->isSme()) {
-            $required[] = 'business_registration';
-        }
-
-        return $required;
+        return DocumentSlots::typesFor($this->user);
     }
 
     /**
-     * Required types with no pending or approved upload. A rejected upload doesn't count.
+     * Required types with no current upload, or whose current upload was rejected (it has to
+     * be replaced).
      *
      * @return list<string>
      */
@@ -69,17 +74,44 @@ final class VerificationChecklist
         return array_values(array_diff($this->requiredDocumentTypes(), $provided));
     }
 
-    public function isComplete(): bool
+    public function hasAllDocuments(): bool
     {
         return $this->hasProfile() && $this->missingDocumentTypes() === [];
     }
 
     /**
-     * Complete, and waiting for an administrator: what puts a user in the admin queue.
+     * Investors must accept the risk acknowledgement as their last step; borrowers have no
+     * such step.
+     */
+    public function hasAcceptedRisk(): bool
+    {
+        if (! $this->user->hasRole(Role::INVESTOR)) {
+            return true;
+        }
+
+        return $this->user->investorProfile?->risk_acknowledged_at !== null;
+    }
+
+    /**
+     * Everything provided: what the user needs before they can submit, and what an admin
+     * needs before they can approve.
+     */
+    public function isComplete(): bool
+    {
+        return $this->hasProfile() && $this->hasCompleteAddress() && $this->hasAllDocuments() && $this->hasAcceptedRisk();
+    }
+
+    public function isSubmitted(): bool
+    {
+        return $this->user->verification_submitted_at !== null;
+    }
+
+    /**
+     * Complete, submitted and waiting for an administrator: what puts a user in the admin queue.
      */
     public function isReadyForReview(): bool
     {
-        return $this->user->isPending() && $this->isComplete();
+        return $this->user->isPending() && $this->isComplete() && $this->isSubmitted();
     }
 
     /**
@@ -93,12 +125,14 @@ final class VerificationChecklist
 
         return [
             'has_profile' => $this->hasProfile(),
+            'has_address' => $this->hasCompleteAddress(),
             'required_documents' => array_map(fn (string $type) => [
                 'type' => $type,
-                'label' => KycDocument::TYPE_LABELS[$type],
+                'label' => DocumentSlots::labelFor($this->user, $type),
                 'provided' => ! in_array($type, $missing, true),
             ], $this->requiredDocumentTypes()),
             'complete' => $this->isComplete(),
+            'submitted' => $this->isSubmitted(),
         ];
     }
 }

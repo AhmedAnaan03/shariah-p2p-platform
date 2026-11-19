@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasStructuredAddress;
 use Database\Factories\BorrowerProfileFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -9,16 +10,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+// address_legacy and address_needs_review are set by the migration and the address step's
+// code (PB-53), never mass-assigned from a form.
 #[Fillable([
-    'borrower_type', 'phone', 'national_id_no', 'address', 'business_name',
-    'business_registration_no', 'sector', 'years_operating', 'declared_annual_income',
+    'borrower_type', 'phone', 'national_id_no', 'address_house', 'address_road', 'island_id', 'postcode',
+    'business_name', 'business_registration_no', 'sector', 'years_operating', 'declared_annual_income',
 ])]
 // Kept out of arrays/JSON (and so out of React page props) unless a page asks for it.
 #[Hidden(['national_id_no'])]
 class BorrowerProfile extends Model
 {
     /** @use HasFactory<BorrowerProfileFactory> */
-    use HasFactory;
+    use HasFactory, HasStructuredAddress;
 
     public const TYPES = [
         'individual' => 'Individual',
@@ -61,6 +64,7 @@ class BorrowerProfile extends Model
             'national_id_no' => 'encrypted',
             'years_operating' => 'integer',
             'declared_annual_income' => 'decimal:2',
+            'address_needs_review' => 'boolean',
         ];
     }
 

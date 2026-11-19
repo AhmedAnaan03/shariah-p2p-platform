@@ -15,7 +15,8 @@ use Tests\Concerns\MakesKycFiles;
 use Tests\TestCase;
 
 /**
- * PB-10: the investor completes their profile (and uploads an ID document for PB-11).
+ * PB-10: the investor completes their profile (and uploads an ID document for PB-11). Since
+ * PB-53 these are steps of the onboarding wizard; the address has its own step.
  */
 class InvestorProfileTest extends TestCase
 {
@@ -29,7 +30,6 @@ class InvestorProfileTest extends TestCase
         return array_merge([
             'phone' => '9601234',
             'national_id_no' => 'A246810',
-            'address' => 'G. Coral View, Hulhumalé',
         ], $overrides);
     }
 
@@ -37,12 +37,12 @@ class InvestorProfileTest extends TestCase
     {
         $investor = User::factory()->investor()->create();
 
-        $this->actingAs($investor)->get('/investor/profile')
+        $this->actingAs($investor)->get('/investor/onboarding/profile')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Investor/Profile')
+                ->component('Onboarding/Profile')
                 ->where('profile', null)
-                ->where('locked', false)
+                ->where('wizard.locked', false)
             );
     }
 
@@ -50,14 +50,13 @@ class InvestorProfileTest extends TestCase
     {
         $investor = User::factory()->investor()->create();
 
-        $this->actingAs($investor)->put('/investor/profile', $this->validInput())
-            ->assertRedirect('/investor/profile')
-            ->assertSessionHas('status', 'Your profile has been saved.');
+        $this->actingAs($investor)->put('/investor/onboarding/profile', $this->validInput())
+            ->assertRedirect('/investor/onboarding/address')
+            ->assertSessionHas('status', 'Your details have been saved.');
 
         $profile = $investor->fresh()->investorProfile;
         $this->assertSame('+960 9601234', $profile->phone);
         $this->assertSame('A246810', $profile->national_id_no);
-        $this->assertSame('G. Coral View, Hulhumalé', $profile->address);
         $this->assertNull($profile->risk_acknowledged_at, 'Saving the profile does not accept the acknowledgement.');
         $this->assertNotSame('A246810', DB::table('investor_profiles')->value('national_id_no'), 'Stored encrypted.');
     }
@@ -72,8 +71,6 @@ class InvestorProfileTest extends TestCase
             'phone with 8 digits' => [['phone' => '96012345'], 'phone', 'Enter a 7-digit Maldivian phone number, like 7771234 or +960 7771234.'],
             'blank national ID' => [['national_id_no' => ''], 'national_id_no', 'Enter your national ID card number.'],
             'passport number instead of ID' => [['national_id_no' => 'LA1234567'], 'national_id_no', 'Enter your ID card number as the letter A and 6 digits, like A123456.'],
-            'blank address' => [['address' => ''], 'address', 'Enter your address.'],
-            'address over 500 characters' => [['address' => str_repeat('b', 501)], 'address', 'Your address must be 500 characters or fewer.'],
         ];
     }
 
@@ -82,9 +79,9 @@ class InvestorProfileTest extends TestCase
     {
         $investor = User::factory()->investor()->create();
 
-        $this->actingAs($investor)->from('/investor/profile')
-            ->put('/investor/profile', $this->validInput($change))
-            ->assertRedirect('/investor/profile')
+        $this->actingAs($investor)->from('/investor/onboarding/profile')
+            ->put('/investor/onboarding/profile', $this->validInput($change))
+            ->assertRedirect('/investor/onboarding/profile')
             ->assertSessionHasErrors([$field => $message]);
 
         $this->assertNull($investor->fresh()->investorProfile);
@@ -94,7 +91,7 @@ class InvestorProfileTest extends TestCase
     {
         $investor = User::factory()->investor()->create();
 
-        $this->actingAs($investor)->put('/investor/profile', $this->validInput([
+        $this->actingAs($investor)->put('/investor/onboarding/profile', $this->validInput([
             'risk_acknowledged_at' => now()->toDateTimeString(),
             'shariah_only' => '1',
         ]));
@@ -106,39 +103,42 @@ class InvestorProfileTest extends TestCase
     public function test_a_verified_investors_profile_is_locked(): void
     {
         $investor = User::factory()->investor()->verified()->create();
-        InvestorProfile::factory()->for($investor)->create(['address' => 'Original address']);
+        InvestorProfile::factory()->for($investor)->create(['phone' => '+960 7000001']);
 
-        $this->actingAs($investor)->put('/investor/profile', $this->validInput())->assertForbidden();
+        $this->actingAs($investor)->put('/investor/onboarding/profile', $this->validInput())->assertForbidden();
 
-        $this->assertSame('Original address', $investor->fresh()->investorProfile->address);
+        $this->assertSame('+960 7000001', $investor->fresh()->investorProfile->phone);
     }
 
-    public function test_a_rejected_investor_who_fixes_their_profile_goes_back_to_the_review_queue(): void
+    public function test_a_rejected_investor_who_fixes_their_profile_stays_rejected_until_they_submit_again(): void
     {
         $investor = User::factory()->investor()->create();
         $investor->forceFill(['status' => 'rejected', 'status_reason' => 'Name does not match ID.'])->save();
 
-        $this->actingAs($investor)->put('/investor/profile', $this->validInput());
+        $this->actingAs($investor)->put('/investor/onboarding/profile', $this->validInput());
 
-        $this->assertSame('pending_verification', $investor->fresh()->status);
+        $this->assertSame('rejected', $investor->fresh()->status);
     }
 
     public function test_an_investor_can_upload_an_id_document(): void
     {
         Storage::fake(KycDocumentStore::DISK);
         $investor = User::factory()->investor()->create();
+        InvestorProfile::factory()->for($investor)->create();
 
-        $this->actingAs($investor)->post('/investor/documents', ['document_type' => 'national_id', 'file' => $this->pdfFile()])
-            ->assertRedirect('/investor/documents')
+        $this->actingAs($investor)->post('/investor/onboarding/documents', ['document_type' => 'national_id', 'file' => $this->pdfFile()])
+            ->assertRedirect('/investor/onboarding/documents')
             ->assertSessionHasNoErrors();
 
         $this->assertSame($investor->id, KycDocument::sole()->user_id);
-        $this->actingAs($investor)->get('/investor/documents')
+        $this->actingAs($investor)->get('/investor/onboarding/documents')
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Documents/Index')
-                ->has('documents', 1)
-                ->has('documentTypes', 2)
-                ->where('uploadUrl', route('investor.documents.store'))
+                ->component('Onboarding/Documents')
+                ->has('slots', 2)
+                ->where('slots.0.type', 'national_id')
+                ->where('slots.0.document.original_name', 'id-card.pdf')
+                ->where('slots.1.document', null)
+                ->where('uploadUrl', route('investor.onboarding.documents.upload'))
             );
     }
 
@@ -146,9 +146,10 @@ class InvestorProfileTest extends TestCase
     {
         Storage::fake(KycDocumentStore::DISK);
         $investor = User::factory()->investor()->create();
+        InvestorProfile::factory()->for($investor)->create();
 
-        $this->actingAs($investor)->post('/investor/documents', ['document_type' => 'business_registration', 'file' => $this->pdfFile()])
-            ->assertSessionHasErrors(['document_type' => 'Choose what kind of document this is from the list.']);
+        $this->actingAs($investor)->post('/investor/onboarding/documents', ['document_type' => 'business_registration', 'file' => $this->pdfFile()])
+            ->assertSessionHasErrors(['document_type' => 'Upload into one of the document slots shown. Other documents are not needed.']);
 
         $this->assertSame(0, KycDocument::count());
     }
@@ -159,11 +160,11 @@ class InvestorProfileTest extends TestCase
     public static function otherRolesOnInvestorRoutes(): array
     {
         return [
-            'borrower opens the investor profile' => ['borrower', 'get', '/investor/profile'],
-            'borrower saves an investor profile' => ['borrower', 'put', '/investor/profile'],
-            'admin saves an investor profile' => ['admin', 'put', '/investor/profile'],
-            'borrower opens investor documents' => ['borrower', 'get', '/investor/documents'],
-            'borrower uploads as an investor' => ['borrower', 'post', '/investor/documents'],
+            'borrower opens the investor profile' => ['borrower', 'get', '/investor/onboarding/profile'],
+            'borrower saves an investor profile' => ['borrower', 'put', '/investor/onboarding/profile'],
+            'admin saves an investor profile' => ['admin', 'put', '/investor/onboarding/profile'],
+            'borrower opens investor documents' => ['borrower', 'get', '/investor/onboarding/documents'],
+            'borrower uploads as an investor' => ['borrower', 'post', '/investor/onboarding/documents'],
         ];
     }
 

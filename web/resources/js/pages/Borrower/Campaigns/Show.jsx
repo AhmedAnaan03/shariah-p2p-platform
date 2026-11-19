@@ -12,11 +12,11 @@ import { formatDate } from '../../../lib/format';
  * One of the borrower's own requests (PB-13, PB-14): its review status and, after a decision,
  * the administrator's reason. The decision email links here.
  */
-export default function CampaignShow({ campaign, finances, creditHistory, creditReport }) {
+export default function CampaignShow({ campaign, finances, creditHistory, creditReport, back }) {
     return (
         <>
-            <TextLink href="/borrower/campaigns" icon="arrow-left">
-                Back to your requests
+            <TextLink href={back.url} icon="arrow-left">
+                {back.label}
             </TextLink>
 
             <Card
@@ -94,4 +94,8 @@ function StatusAlert({ campaign }) {
     }
 }
 
-CampaignShow.layout = (props) => ({ title: props.campaign.title });
+// The breadcrumb's first link is the page the borrower came from (PB-54).
+CampaignShow.layout = (props) => ({
+    title: props.campaign.title,
+    breadcrumbs: [{ label: props.back.crumb, href: props.back.url }, { label: props.campaign.title }],
+});

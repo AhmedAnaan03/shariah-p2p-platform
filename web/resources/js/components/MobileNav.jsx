@@ -7,7 +7,8 @@ import Sidebar from './Sidebar';
  * focus is trapped inside while it is open, Escape closes it, and focus returns to the menu
  * button. Slides in from the left over 250 ms (a short fade with reduced motion).
  *
- * `footer` holds the mode switch for investors, since the top bar is short on room here.
+ * `footer` holds the theme toggle (PB-55) and, for investors, the mode switch, since the top
+ * bar is short on room here.
  */
 export default function MobileNav({ open, onClose, portal, groups, footer }) {
     return (

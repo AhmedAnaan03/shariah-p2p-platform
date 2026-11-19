@@ -2,12 +2,14 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import cx from '../lib/cx';
 import Alert from './Alert';
+import Breadcrumbs from './Breadcrumbs';
 import MobileNav from './MobileNav';
 import ModeSwitch, { useShariahSwitch } from './ModeSwitch';
 import { navigationFor } from './navigation';
 import PageTransition from './PageTransition';
 import Sidebar from './Sidebar';
 import { useToasts } from './Toast';
+import ThemeToggle from './ThemeToggle';
 import TopBar from './TopBar';
 
 const COLLAPSED_KEY = 'amanah.sidebar.collapsed';
@@ -20,6 +22,7 @@ const COLLAPSED_KEY = 'amanah.sidebar.collapsed';
  * top bar never re-render from scratch or animate, only the content inside PageTransition does.
  * A page gives it its title (and an optional `description` under the top bar) through
  * `Page.layout = { title: '...' }`, or a function of the page props for a dynamic title.
+ * A detail page also passes `breadcrumbs` (PB-54), built from its `back` prop.
  *
  * The shell is a container (`@container/shell`): it responds to its own width, so it works in
  * a phone browser, a tablet, a desktop window or a split view.
@@ -27,7 +30,7 @@ const COLLAPSED_KEY = 'amanah.sidebar.collapsed';
  *   - Below 1024 px: the sidebar becomes the MobileNav drawer behind the menu button.
  *   - Below 640 px: 16 px padding.
  */
-export default function PortalLayout({ title, description, children }) {
+export default function PortalLayout({ title, description, breadcrumbs, children }) {
     const page = usePage();
     const user = page.props.auth?.user;
     const navigation = navigationFor(user?.role, page.url);
@@ -65,12 +68,19 @@ export default function PortalLayout({ title, description, children }) {
                                 groups={navigation.groups}
                                 collapsed={collapsed}
                                 onToggleCollapse={() => setCollapsed(!collapsed)}
+                                footer={<ThemeToggle compact={collapsed} />}
                             />
                         </div>
                     </aside>
 
                     <div className="flex min-w-0 flex-1 flex-col">
-                        <TopBar title={title} modeSwitch={shariahSwitch} user={user} onMenu={() => setMenuOpen(true)} />
+                        <TopBar
+                            title={title}
+                            breadcrumb={breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
+                            modeSwitch={shariahSwitch}
+                            user={user}
+                            onMenu={() => setMenuOpen(true)}
+                        />
 
                         <main id="main" tabIndex={-1} className="mx-auto w-full max-w-(--content-max) flex-1 px-4 py-6 outline-none @bp-sm/shell:px-6 @bp-lg/shell:px-8 @bp-lg/shell:py-8">
                             <PageTransition>
@@ -91,14 +101,17 @@ export default function PortalLayout({ title, description, children }) {
                 portal={navigation.portal}
                 groups={navigation.groups}
                 footer={
-                    shariahSwitch && (
-                        <ModeSwitch
-                            mode={shariahSwitch.mode}
-                            onChange={shariahSwitch.change}
-                            disabledReason={shariahSwitch.disabledReason}
-                            compactLabel={false}
-                        />
-                    )
+                    <>
+                        {shariahSwitch && (
+                            <ModeSwitch
+                                mode={shariahSwitch.mode}
+                                onChange={shariahSwitch.change}
+                                disabledReason={shariahSwitch.disabledReason}
+                                compactLabel={false}
+                            />
+                        )}
+                        <ThemeToggle />
+                    </>
                 }
             />
         </>
@@ -148,8 +161,8 @@ function AccountStatusNotice({ user }) {
     if (user?.status === 'pending_verification') {
         return (
             <Alert tone="warning" role="note" title="Your account is pending verification">
-                An administrator will review your account once your profile and documents are complete. Until it is verified
-                you can sign in and update your details, but you can't raise financing or invest.
+                An administrator will review your account once you have finished account setup and submitted it. Until it is
+                verified you can sign in and update your details, but you can't raise financing or invest.
             </Alert>
         );
     }
@@ -158,7 +171,7 @@ function AccountStatusNotice({ user }) {
         return (
             <Alert tone="danger" role="note" title="Your verification was not approved">
                 <p>Reason: {user.status_reason}</p>
-                <p>Update your profile or upload a new document and your account will go back into the review queue.</p>
+                <p>Fix what the administrator asked for in account setup, then submit your account again from its last step.</p>
             </Alert>
         );
     }
