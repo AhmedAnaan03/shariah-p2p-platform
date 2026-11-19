@@ -1,37 +1,64 @@
-// Screenshots and rendered-page checks for the design system (PB-51).
+// Rendered-page checks and report screenshots (PB-51; four themes since PB-55; axe-only mode
+// for the testing and evidence policy, see CLAUDE.md and web/README.md).
 //
 //   1. DB_DATABASE=shariah_p2p_screenshots php artisan migrate:fresh --seed --seeder=ScreenshotSeeder
 //   2. DB_DATABASE=shariah_p2p_screenshots php artisan serve --port=8010
-//   3. npm run build && npm run screenshots            (from web/)
+//   3. npm run build, then one of (from web/):
 //
-// Signs in as each demo account in headless Chrome (puppeteer-core drives the installed
-// Chrome), then for every page, at 1440, 820 and 390 px, in all four themes (conventional and
-// Shariah, each light and dark; PB-55):
-//   - saves a full-page screenshot to docs/report-notes/screenshots/design-system/
-//   - fails on a console error, an uncaught exception, or a horizontal scrollbar
-//   - runs axe-core's WCAG 2.2 A/AA rules (contrast of the real rendered text included)
-// It also flips the investor's real top-bar switch once, to check the PATCH round trip, and
-// does the same for the sidebar's theme toggle, including the no-flash first paint (PB-55).
-// Exits with code 1 if any check fails.
+//      npm run check:a11y -- onboarding-borrower-profile admin-queue
+//          Axe-only, for an item that changed pages or styling: only the named pages, light
+//          conventional, no screenshots saved. Quick.
+//
+//      npm run screenshots -- --out=/path/outside/the/repo
+//          Full mode, once in Sprint 5 (PB-56): every page at 1440, 820 and 390 px in all four
+//          themes, with full-page screenshots, the mode-switch and theme-toggle round trips and
+//          the focus-ring shots.
+//
+// Options (both modes):
+//   <page names>      limit the run to these pages (required with --axe-only; see PAGES below)
+//   --theme=<list>    comma-separated: conventional, shariah, conventional-dark, shariah-dark
+//                     (default: conventional with --axe-only, all four otherwise)
+//   --out=<dir>       where screenshots go (default docs/report-notes/screenshots/design-system/,
+//                     git-ignored); Sprint 5 report screenshots are saved outside the repo
+//
+// For every page and width it fails on a console error, an uncaught exception or a horizontal
+// scrollbar, and at 1440 and 390 px runs axe-core's WCAG 2.2 A/AA rules (contrast of the real
+// rendered text included). Exits with code 1 if any check fails.
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
 
 const require = createRequire(import.meta.url);
 const BASE = process.env.SCREENSHOT_URL ?? 'http://127.0.0.1:8010';
 const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const OUT = fileURLToPath(new URL('../../docs/report-notes/screenshots/design-system/', import.meta.url));
 const PASSWORD = 'Demo#2026';
 const WIDTHS = [1440, 820, 390];
-// [data-mode, data-theme]: every palette the design system defines.
-const THEMES = [
-    ['conventional', 'light'],
-    ['shariah', 'light'],
-    ['conventional', 'dark'],
-    ['shariah', 'dark'],
-];
-const ONLY = process.argv.slice(2); // optional page names to limit the run
+
+// Every palette the design system defines: name → [data-mode, data-theme].
+const ALL_THEMES = {
+    conventional: ['conventional', 'light'],
+    shariah: ['shariah', 'light'],
+    'conventional-dark': ['conventional', 'dark'],
+    'shariah-dark': ['shariah', 'dark'],
+};
+
+const args = process.argv.slice(2);
+const option = (name) => args.find((arg) => arg.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
+const AXE_ONLY = args.includes('--axe-only');
+const ONLY = args.filter((arg) => !arg.startsWith('--')); // page names to limit the run
+const OUT = option('out') ? `${resolve(option('out'))}/` : fileURLToPath(new URL('../../docs/report-notes/screenshots/design-system/', import.meta.url));
+
+const themeNames = (option('theme') ?? (AXE_ONLY ? 'conventional' : Object.keys(ALL_THEMES).join(','))).split(',').map((name) => name.trim());
+for (const name of themeNames) {
+    if (!ALL_THEMES[name]) {
+        console.error(`Unknown theme "${name}". Use: ${Object.keys(ALL_THEMES).join(', ')}.`);
+        process.exit(2);
+    }
+}
+// [data-mode, data-theme, label used in file names and messages]
+const THEMES = themeNames.map((name) => [...ALL_THEMES[name], name]);
 
 const ACCOUNTS = {
     guest: null,
@@ -126,8 +153,7 @@ async function capture(context, name, path) {
         await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle0' });
         await page.evaluate(() => document.fonts.ready);
 
-        for (const [mode, theme] of THEMES) {
-            const label = theme === 'dark' ? `${mode}-dark` : mode;
+        for (const [mode, theme, label] of THEMES) {
             const where = `${name} ${width} ${label}`;
             await page.evaluate(
                 (m, t) => {
@@ -137,14 +163,14 @@ async function capture(context, name, path) {
                 mode,
                 theme,
             );
-            await new Promise((resolve) => setTimeout(resolve, 650)); // let the 500 ms cross-fade finish
+            await new Promise((done) => setTimeout(done, 650)); // let the 500 ms cross-fade finish
 
             const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
             if (overflow > 0) fail(where, `scrolls sideways by ${overflow}px`);
 
             if (width === 1440 || width === 390) await runAxe(page, where);
 
-            await page.screenshot({ path: `${OUT}${name}-${width}-${label}.png`, fullPage: true });
+            if (!AXE_ONLY) await page.screenshot({ path: `${OUT}${name}-${width}-${label}.png`, fullPage: true });
             console.log(`  ok   ${where}`);
         }
     }
@@ -229,18 +255,35 @@ async function captureFocus(context) {
     await page.close();
 }
 
-mkdirSync(OUT, { recursive: true });
+// Page names must be real (a typo would otherwise check nothing and "pass").
+const NAMES = [...PAGES.map(([, name]) => name), 'mode-switch', 'theme-toggle', 'focus'];
+const unknown = ONLY.filter((name) => !NAMES.includes(name));
+if (unknown.length || (AXE_ONLY && ONLY.length === 0)) {
+    console.error(unknown.length ? `Unknown page name(s): ${unknown.join(', ')}.` : 'Name the pages to check: npm run check:a11y -- <page names>.');
+    console.error(`Pages: ${NAMES.join(', ')}`);
+    process.exit(2);
+}
+
+if (!AXE_ONLY) mkdirSync(OUT, { recursive: true });
+console.log(AXE_ONLY ? `Axe-only check, ${themeNames.join(', ')}, no screenshots saved.` : `Full run, ${themeNames.join(', ')}, screenshots in ${OUT}`);
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--hide-scrollbars'] });
 const contexts = {};
 
+// The round trips and focus shots belong to the full run; with --axe-only they run only if named.
+const runExtra = (name) => (AXE_ONLY ? ONLY.includes(name) : ONLY.length === 0 || ONLY.includes(name));
+
 try {
-    for (const [account, email] of Object.entries(ACCOUNTS)) {
-        contexts[account] = await signIn(browser, email);
+    // Sign in only the accounts the chosen pages and checks need.
+    const needed = new Set(PAGES.filter(([, name]) => ONLY.length === 0 || ONLY.includes(name)).map(([account]) => account));
+    if (runExtra('mode-switch') || runExtra('theme-toggle')) needed.add('investor');
+    if (runExtra('focus')) needed.add('guest');
+    for (const account of needed) {
+        contexts[account] = await signIn(browser, ACCOUNTS[account]);
     }
 
-    if (ONLY.length === 0 || ONLY.includes('mode-switch')) await checkModeSwitch(contexts.investor);
-    if (ONLY.length === 0 || ONLY.includes('theme-toggle')) await checkThemeToggle(contexts.investor);
-    if (ONLY.length === 0 || ONLY.includes('focus')) await captureFocus(contexts.guest);
+    if (runExtra('mode-switch')) await checkModeSwitch(contexts.investor);
+    if (runExtra('theme-toggle')) await checkThemeToggle(contexts.investor);
+    if (runExtra('focus') && !AXE_ONLY) await captureFocus(contexts.guest);
 
     for (const [account, name, path] of PAGES) {
         if (ONLY.length && !ONLY.includes(name)) continue;
