@@ -16,7 +16,7 @@ Amanah P2P is a peer-to-peer financing and SME crowdinvesting platform for the M
 - Buttons name the action and the amount: "Pledge MVR 5,000", "Approve borrower", "Upload document", "Confirm pledge of MVR 5,000.00".
 - Errors say what went wrong and how to fix it: "Enter the number in the format C-0412/2021." "This file is 7.2 MB. Files must be 5 MB or smaller."
 - Explain Islamic finance terms on first use with a `Term` tooltip. Murabahah: "a sale at cost plus an agreed, fixed markup". Mudarabah: "profit sharing; returns depend on the business's actual profit".
-- In Shariah mode never write "interest" or "guaranteed". Say "markup" (Murabahah) or "profit share" (Mudarabah), and "expected returns".
+- In Shariah mode, text must never present returns as guaranteed or as interest. Never write "interest" or "guaranteed"; say "markup" (Murabahah) or "profit share" (Mudarabah), and "expected returns". Risk warnings still say the same thing in other words, just as clearly: "Your returns could be lower than expected, or you could receive nothing", not "Returns are not guaranteed". Naming something that is not a return, such as a "deposit guarantee scheme", is fine.
 - Formats: dates `12 Nov 2026`, chart months `Nov 26`, times `14:30`, money `MVR 12,500.00` (compact `MVR 12.5K` on chart axes only), percentages to one decimal `12.4%`, phone `+960 774 2210`, national ID `A123456`.
 - The wallet card and every pledge confirmation say "Simulated wallet, no real money." (academic prototype).
 
@@ -27,7 +27,7 @@ The mode is platform-wide. When an investor turns on **Shariah-only** (the `Mode
 - Wrap the app in `ModeScope mode={mode}` (in app CSS: `data-mode="conventional|shariah"` next to `data-theme="light|dark"`). Don't nest a second mode to tint one card.
 - The switch cross-fades every colour token and the background pattern over `duration-mode` (500 ms) with `ease-mode`, an even ease-in-out so the change reads as one smooth dissolve. With reduced motion it is instant.
 - In conventional mode, Shariah campaigns are still listed; each carries the `ShariahBadge` (khatam plus the word "Shariah") and its contract badge. Shariah status is never shown by colour alone, so it reads for colour-blind users and in greyscale prints.
-- In Shariah mode never write "interest" or "guaranteed".
+- In Shariah mode never present returns as guaranteed or as interest (see "Voice and content" for the wording, including risk warnings).
 
 ## Colour
 

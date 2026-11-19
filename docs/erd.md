@@ -37,6 +37,9 @@ erDiagram
     users ||--o| borrower_profiles : "has"
     users ||--o| investor_profiles : "has"
     users ||--o{ kyc_documents : "uploads"
+    atolls ||--o{ islands : "contains (PB-53)"
+    islands |o--o{ borrower_profiles : "address (PB-53)"
+    islands |o--o{ investor_profiles : "address (PB-53)"
     campaigns |o--o| kyc_documents : "credit report (PB-14)"
     campaigns ||--o| campaign_financials : "financial information (PB-14)"
     users |o--o{ kyc_documents : "reviews"
@@ -70,6 +73,7 @@ erDiagram
         varchar remember_token "nullable"
         enum status "pending_verification | verified | rejected | suspended"
         varchar status_reason "nullable, why rejected or suspended"
+        timestamp verification_submitted_at "nullable, set by Submit at the end of onboarding (PB-53)"
     }
 
     borrower_profiles {
@@ -78,7 +82,12 @@ erDiagram
         enum borrower_type "individual | sme"
         varchar phone
         text national_id_no "encrypted cast"
-        text address
+        varchar address_house "nullable until the address step (PB-53)"
+        varchar address_road "nullable, the magu"
+        bigint island_id FK "nullable, islands.id (implies the atoll)"
+        char postcode "nullable, 5 digits (CHECK)"
+        text address_legacy "nullable, the single-line address from before PB-53"
+        boolean address_needs_review "set by the PB-53 migration until the user checks the fields"
         varchar business_name "nullable (individuals)"
         varchar business_registration_no "nullable"
         varchar sector "nullable"
@@ -91,7 +100,12 @@ erDiagram
         bigint user_id FK, UK
         varchar phone
         text national_id_no "encrypted cast"
-        text address
+        varchar address_house "nullable until the address step (PB-53)"
+        varchar address_road "nullable, the magu"
+        bigint island_id FK "nullable, islands.id (implies the atoll)"
+        char postcode "nullable, 5 digits (CHECK)"
+        text address_legacy "nullable, the single-line address from before PB-53"
+        boolean address_needs_review "set by the PB-53 migration until the user checks the fields"
         timestamp risk_acknowledged_at "nullable, set when accepted"
         boolean shariah_only "default false"
     }
@@ -109,6 +123,21 @@ erDiagram
         bigint reviewed_by FK "nullable, admin user"
         timestamp reviewed_at "nullable"
         varchar rejection_reason "nullable"
+        timestamp replaced_at "nullable, set when a newer upload takes the slot (PB-53)"
+        varchar current_slot "generated: document_type while current, else NULL; UK with user_id"
+    }
+
+    atolls {
+        bigint id PK
+        varchar code UK "HA, HDh, ... S; Malé City"
+        varchar name UK
+        tinyint sort_order "north to south"
+    }
+
+    islands {
+        bigint id PK
+        bigint atoll_id FK
+        varchar name "UK with atoll_id"
     }
 
     campaigns {
@@ -273,7 +302,9 @@ values listed in the models. They are not ENUMs because the lists may grow witho
 |---|---|---|
 | `borrower_profiles.sector` | `agriculture`, `construction`, `education`, `fisheries`, `food_and_beverage`, `health`, `manufacturing`, `retail`, `technology`, `tourism`, `transport`, `other_services` (NULL for individuals) | `BorrowerProfile::SECTORS` |
 | `borrower_profiles.phone`, `investor_profiles.phone` | Stored as `+960 NNNNNNN` | `ValidatesPersonalDetails` |
-| `kyc_documents.document_type` | Borrowers: `national_id`, `business_registration`, `financial_statement`, `proof_of_address`. Investors: `national_id`, `proof_of_address`. (`other` is not offered yet.) | `KycDocument::TYPES_BY_ROLE` |
+| `kyc_documents.document_type` | Fixed slots, every one required (PB-53). Individual borrower: `national_id`, `proof_of_address`. SME borrower: `national_id`, `business_registration`, `proof_of_address`, `financial_statement`. Investor: `national_id`, `proof_of_address`. (`other` is never offered.) One current document per slot: `UNIQUE (user_id, current_slot)`. | `DocumentSlots` |
+| `borrower_profiles.postcode`, `investor_profiles.postcode` | Exactly 5 digits (`CHECK ... REGEXP '^[0-9]{5}$'`) | `AddressRequest` |
+| `islands` | 21 atolls (20 administrative atolls and Malé City) and 188 inhabited islands, loaded by the migration from `database/data/maldives_islands.php` (sources cited there) | `Atoll::options()` |
 | `kyc_documents.storage_path` | `{user_id}/{40 random characters}.{pdf,png,jpg}` on the private `kyc` disk; the file is encrypted with APP_KEY | `KycDocumentStore` |
 
 ## Financing requests (PB-13 to PB-15)
