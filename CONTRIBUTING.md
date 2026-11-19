@@ -33,4 +33,6 @@ These conventions apply to every backlog item (PB-XX) in this repository.
 
 At the end of each sprint, copy `docs/sprints/SPRINT_TEMPLATE.md` into
 `docs/sprints/sprint-N/README.md` and fill it in: goal, planned vs completed points,
-demo screenshots, supervisor feedback and retrospective.
+what was demonstrated (merged PRs and closed issues), supervisor feedback and retrospective.
+Screenshots are not taken per sprint: all report screenshots come from the Sprint 5 evidence
+pass (PB-56), when the UI is final.

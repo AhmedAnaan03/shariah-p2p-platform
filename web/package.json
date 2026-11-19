@@ -7,7 +7,8 @@
         "dev": "vite",
         "test": "vitest run",
         "check:contrast": "node scripts/check-contrast.mjs",
-        "screenshots": "node scripts/screenshots.mjs"
+        "screenshots": "node scripts/screenshots.mjs",
+        "check:a11y": "node scripts/screenshots.mjs --axe-only"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

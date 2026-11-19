@@ -63,7 +63,7 @@ The mode is platform-wide (see `README.md`, "Modes").
    - the three portal homes, with the onboarding checklist on the borrower and investor portals
    - borrower and investor profiles, documents, and the risk acknowledgement
    - the admin verification queue and review page (rows leave the queue with the 200 ms height-and-fade animation)
-5. **Add a design preview page** at `/dev/design` (local environment only, never registered in production or tests). It renders every built component in every state, in both modes, with a mode toggle. It's used to check the work and for report screenshots.
+5. **Add a design preview page** at `/dev/design` (local environment only, never registered in production or tests). It renders every built component in every state, in both modes, with a mode toggle. It's used to check the work; its report screenshot is taken in the Sprint 5 evidence pass (PB-56).
 
 Not in this item: charts, CampaignCard, WalletCard, RiskExplanation and the other campaign, wallet and portfolio components. Build each one from this spec in the backlog item that first needs it: PB-16 and PB-17 for campaign cards and pages, PB-18 for the wallet, PB-26 for the risk explanation and charts, PB-37 for the portfolio charts.
 
@@ -79,7 +79,7 @@ Not in this item: charts, CampaignCard, WalletCard, RiskExplanation and the othe
 
 - All existing feature tests still pass, and CI is green.
 - The new PATCH route for the Shariah preference has feature tests: owner only, investors only, and validated.
-- Every restyled page has been checked at 1440, 820 and 390 px wide, in both modes. Headless Chrome screenshots are saved to `docs/report-notes/screenshots/design-system/`.
+- Every restyled page has been checked at 1440, 820 and 390 px wide, in both modes, with the axe-core check. (Changed 19 Nov 2026: later items run only the axe-only check, `npm run check:a11y`, on the pages they touch, in light conventional mode, without saving screenshots. All report screenshots and the full four-theme run happen once in Sprint 5, PB-56. See `web/README.md`.)
 - `docs/report-notes/design-system.md` covers:
   - what was built and the key decisions (Tailwind v4 tokens, platform-wide mode, `@property` cross-fade, self-hosted fonts, Radix primitives)
   - a sample code excerpt, such as the mode wiring

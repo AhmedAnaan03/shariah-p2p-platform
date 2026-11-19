@@ -26,8 +26,8 @@ Shariah compliance is rule-based, not a formal certification.
 - Board columns: Todo → In Progress → Done (GitHub Projects).
 - Branches: `feature/PB-XX-short-name`, merged into `main` by pull request.
 - A story is done only when it meets the [Definition of Done](docs/DEFINITION_OF_DONE.md).
-- Each sprint leaves an evidence folder in `docs/sprints/` (goal, completed stories, demo
-  screenshots, retrospective, burndown).
+- Each sprint leaves an evidence folder in `docs/sprints/` (goal, completed stories, what was
+  demonstrated, retrospective, burndown). Report screenshots are taken once, in Sprint 5.
 
 ## Setup
 

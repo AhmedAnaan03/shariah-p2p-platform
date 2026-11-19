@@ -89,26 +89,45 @@ npm run check:contrast   # every text, control and focus-ring colour pair, all f
 
 CI runs all three.
 
-### Screenshots and rendered-page checks (design system, PB-51)
+### Accessibility checks and report screenshots
 
-`npm run screenshots` signs in as each demo account in headless Chrome and, for every page at
-1440, 820 and 390 px in all four themes (conventional and Shariah, each light and dark; PB-55),
-saves a screenshot to
-`docs/report-notes/screenshots/design-system/` and fails on a console error, a horizontal
-scrollbar or an axe-core WCAG 2.2 AA violation (including the contrast of the rendered text).
-It also checks the Shariah-only switch and the theme toggle round trips, and that a "system"
-theme on a dark device is dark on first paint. Re-seed after pulling new migrations.
-It uses its own throwaway database, so your development data is untouched:
+The project's testing and evidence policy:
+
+- **During development, no screenshots.** When an item changes pages or styling, run the
+  axe-only check on just the pages it touched, in light conventional mode, and fix anything it
+  finds. Nothing is saved.
+- **Once, in Sprint 5 (PB-56), the full run:** every page at three widths in all four themes
+  (conventional and Shariah, each light and dark), with the report screenshots saved outside
+  the repository. Report notes don't include screenshots before then.
+
+Both use `scripts/screenshots.mjs`, which signs in as the demo accounts in headless Chrome
+and, for every page and width, fails on a console error, an uncaught exception or a
+horizontal scrollbar, and runs axe-core's WCAG 2.2 AA rules (including the contrast of the
+rendered text) at 1440 and 390 px. It uses its own throwaway database, so your development data
+is untouched:
 
 ```sh
 mysql -u root -e "CREATE DATABASE IF NOT EXISTS shariah_p2p_screenshots; GRANT ALL ON shariah_p2p_screenshots.* TO 'shariah_p2p'@'localhost';"
 DB_DATABASE=shariah_p2p_screenshots php artisan migrate:fresh --seed --seeder=ScreenshotSeeder
 DB_DATABASE=shariah_p2p_screenshots php artisan serve --port=8010    # terminal 1
-npm run build && npm run screenshots                                  # terminal 2
+npm run build                                                         # terminal 2, then:
+
+# Per item: axe-only, only the pages it touched, light conventional, no screenshots
+npm run check:a11y -- onboarding-borrower-profile admin-queue
+
+# Sprint 5 (PB-56): every page, all four themes, screenshots outside the repo
+npm run screenshots -- --out=$HOME/amanah-evidence/screenshots
 ```
 
-It needs Google Chrome installed (`CHROME_PATH` to point elsewhere). The screenshots are
-git-ignored except `focus-input.png` and `focus-button.png`, which the report notes reference.
+Options: page names limit any run (required for `check:a11y`; a wrong name lists the valid
+ones); `--theme=conventional,shariah,conventional-dark,shariah-dark` picks the themes (default
+light conventional for `check:a11y`, all four for `screenshots`); `--out=<dir>` sets where
+screenshots go. The full run also checks the Shariah-only switch and theme toggle round trips
+and the no-flash first paint (or name `mode-switch` / `theme-toggle` to run them alone).
+Re-seed after pulling new migrations. It needs Google Chrome (`CHROME_PATH` to point
+elsewhere). Without `--out`, screenshots go to the git-ignored
+`docs/report-notes/screenshots/design-system/`, except `focus-input.png` and
+`focus-button.png`, which are tracked for the PB-51 report notes.
 
 ## Where things live
 
