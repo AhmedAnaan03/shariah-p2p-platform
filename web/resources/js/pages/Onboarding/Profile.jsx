@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import Card from '../../components/Card';
+import CountInput from '../../components/CountInput';
 import Input from '../../components/Input';
 import OnboardingFrame from '../../components/OnboardingFrame';
 import RadioCards from '../../components/RadioCards';
@@ -81,7 +82,7 @@ export default function OnboardingProfile({ wizard, profile, borrowerTypes, sect
                             placeholder="Choose a sector"
                             options={sectors}
                         />
-                        <Input {...field('years_operating')} type="number" min="0" max="100" label="Years operating" />
+                        <CountInput {...field('years_operating')} onChange={(value) => form.setData('years_operating', value)} label="Years operating" />
                     </fieldset>
                 </Card>
             )}

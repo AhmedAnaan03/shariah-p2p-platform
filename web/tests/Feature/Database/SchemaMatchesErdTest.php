@@ -29,7 +29,7 @@ class SchemaMatchesErdTest extends TestCase
         'users' => [
             'id' => false, 'role_id' => false, 'name' => false, 'email' => false,
             'email_verified_at' => true, 'password' => false, 'status' => false,
-            'status_reason' => true, 'theme' => false, 'verification_submitted_at' => true, 'remember_token' => true,
+            'status_reason' => true, 'theme' => true, 'theme_system_at_choice' => true, 'verification_submitted_at' => true, 'remember_token' => true,
             'created_at' => true, 'updated_at' => true,
         ],
         'borrower_profiles' => [

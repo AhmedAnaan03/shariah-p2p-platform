@@ -71,7 +71,7 @@
   --color-surface: var(--color-slate-0);
   --color-surface-raised: var(--color-slate-0);
   --color-surface-subtle: var(--color-slate-50);
-  --color-band: #ecf7f9;
+  --color-band: #e2f1f4; /* PB-57: one step more tinted (was #ecf7f9) */
   --color-border: var(--color-slate-200);
   --color-border-subtle: var(--color-slate-100);
   --color-border-strong: var(--color-slate-300);
@@ -263,8 +263,8 @@
   --z-tooltip: 60;
   --opacity-disabled: 0.45;
   --opacity-icon-muted: 0.7;
-  --opacity-pattern: 0.07;
-  --opacity-pattern-dark: 0.09;
+  --opacity-pattern: 0.1; /* PB-57: was 0.07 */
+  --opacity-pattern-dark: 0.12; /* PB-57: was 0.09 */
 }
 
 @layer base {
@@ -273,7 +273,7 @@
     --color-surface: var(--color-moss-0);
     --color-surface-raised: var(--color-moss-0);
     --color-surface-subtle: var(--color-moss-50);
-    --color-band: #eef7f1;
+    --color-band: #e4f1e8; /* PB-57: was #eef7f1 */
     --color-border: var(--color-moss-200);
     --color-border-subtle: var(--color-moss-100);
     --color-border-strong: var(--color-moss-300);
@@ -313,7 +313,7 @@
     --color-surface: #152326;
     --color-surface-raised: #1f2d30;
     --color-surface-subtle: #0f1d20;
-    --color-band: #0f1d20;
+    --color-band: #122429; /* PB-57: lifted off the page so the sidebar reads as a panel (was #0f1d20) */
     --color-border: #2c3b3e;
     --color-border-subtle: #223134;
     --color-border-strong: #3c4b4e;
@@ -388,7 +388,7 @@
     --color-surface: #18231d;
     --color-surface-raised: #222d26;
     --color-surface-subtle: #131d17;
-    --color-band: #131d17;
+    --color-band: #17251c; /* PB-57: was #131d17 */
     --color-border: #303b34;
     --color-border-subtle: #26312a;
     --color-border-strong: #3f4b44;
@@ -432,7 +432,7 @@
 @property --color-surface { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
 @property --color-surface-raised { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
 @property --color-surface-subtle { syntax: '<color>'; inherits: true; initial-value: #eef4f5; }
-@property --color-band { syntax: '<color>'; inherits: true; initial-value: #ecf7f9; }
+@property --color-band { syntax: '<color>'; inherits: true; initial-value: #e2f1f4; }
 @property --color-border { syntax: '<color>'; inherits: true; initial-value: #d9e1e4; }
 @property --color-border-subtle { syntax: '<color>'; inherits: true; initial-value: #e5edee; }
 @property --color-border-strong { syntax: '<color>'; inherits: true; initial-value: #becacc; }

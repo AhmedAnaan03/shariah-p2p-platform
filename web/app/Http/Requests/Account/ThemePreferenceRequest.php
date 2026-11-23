@@ -7,7 +7,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Validates the sidebar's theme toggle (PB-55): light, dark or system.
+ * Validates the sidebar's theme switch (PB-55, PB-57): the chosen theme, light or dark, and the
+ * device's own setting at that moment, so a later change of the device setting can win.
  */
 class ThemePreferenceRequest extends FormRequest
 {
@@ -23,6 +24,7 @@ class ThemePreferenceRequest extends FormRequest
     {
         return [
             'theme' => ['required', 'string', Rule::in(User::THEMES)],
+            'system' => ['required', 'string', Rule::in(User::THEMES)],
         ];
     }
 
@@ -31,8 +33,12 @@ class ThemePreferenceRequest extends FormRequest
      */
     public function messages(): array
     {
-        $message = 'Choose light, dark or system.';
+        $message = 'Choose light or dark.';
+        $system = 'Send the device\'s own setting, light or dark.';
 
-        return ['theme.required' => $message, 'theme.string' => $message, 'theme.in' => $message];
+        return [
+            'theme.required' => $message, 'theme.string' => $message, 'theme.in' => $message,
+            'system.required' => $system, 'system.string' => $system, 'system.in' => $system,
+        ];
     }
 }

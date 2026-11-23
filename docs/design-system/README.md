@@ -46,12 +46,12 @@ Four themes: `conventional`, `shariah`, `dark` (conventional) and `shariah-dark`
 
 ## Background pattern
 
-`BackgroundPattern` sits behind `color-band` areas, the mode panel and banded empty states, in `color-pattern` at `opacity-pattern` (7%; 9% in dark), fading out toward the content.
+`BackgroundPattern` sits behind `color-band` areas, the mode panel and banded empty states, in `color-pattern` at `opacity-pattern` (10%; 12% in dark, raised from 7% and 9% in PB-57 so the band and pattern read clearly), fading out toward the content.
 
 - **Conventional: lagoon ripples.** Two offset rows of soft sine lines on a 48 px tile: water, not geometry, so it never reads as Islamic pattern.
 - **Shariah: the khatam.** The eight-pointed star lattice on a 48 px tile.
 - Both layers are always rendered; a mode switch cross-fades them (with a 4% scale and a 6° turn) in step with the colours.
-- Never behind tables or charts, never above 9%, never with calligraphy or religious text. Tiles are in the **Patterns** asset group.
+- Never behind tables or charts, never above 12%, never with calligraphy or religious text. Text on the band stays `text-secondary` or darker; `npm run check:contrast` checks it against the band with the pattern laid on top. Tiles are in the **Patterns** asset group.
 
 ## Layout across devices
 

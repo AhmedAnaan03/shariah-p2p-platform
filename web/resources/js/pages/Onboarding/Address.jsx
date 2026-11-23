@@ -32,8 +32,8 @@ export default function OnboardingAddress({ wizard, address, atolls }) {
             <Card title="Your address" description="Where you live. For a business, where it operates.">
                 <fieldset className="grid gap-5 @bp-sm/shell:grid-cols-2">
                     <legend className="sr-only">Address</legend>
-                    <Input {...field('address_house')} label="House or building name" autoComplete="address-line1" hint="Like H. Sea Breeze or Fehivina." />
-                    <Input {...field('address_road')} label="Road (magu)" autoComplete="address-line2" hint="Like Majeedhee Magu." />
+                    <Input {...field('address_house')} label="House or building name" autoComplete="address-line1" />
+                    <Input {...field('address_road')} label="Road (magu)" autoComplete="address-line2" />
                     <Select
                         {...field('atoll_id')}
                         onChange={(value) => form.setData((data) => ({ ...data, atoll_id: value, island_id: value === data.atoll_id ? data.island_id : '' }))}
@@ -55,7 +55,7 @@ export default function OnboardingAddress({ wizard, address, atolls }) {
                         inputMode="numeric"
                         autoComplete="postal-code"
                         maxLength={6}
-                        hint="5 digits, like 20026."
+                        hint="5 digits"
                         controlClassName="max-w-40"
                     />
                 </fieldset>

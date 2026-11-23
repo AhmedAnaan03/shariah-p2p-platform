@@ -14,6 +14,9 @@ const SIZES = {
  *   <TextInput id="amount" prefix="MVR" inputMode="decimal" />
  *   <TextInput icon="magnifying-glass" size="sm" placeholder="Search" />
  *
+ * `figures` sets numbers in IBM Plex Mono with tabular digits (MoneyInput, PercentInput,
+ * CountInput use it).
+ *
  * Heights control-sm 32 / md 40 / lg 48 px with 12 px side padding. Placeholders are examples,
  * never instructions (they are only 3.6:1).
  */
@@ -26,6 +29,7 @@ export default function TextInput({
     disabled = false,
     className = '',
     inputClassName = '',
+    figures = false,
     type = 'text',
     ...inputProps
 }) {
@@ -47,6 +51,9 @@ export default function TextInput({
                 aria-invalid={invalid ? 'true' : undefined}
                 className={cx(
                     'h-full min-w-0 flex-1 bg-transparent text-text outline-none placeholder:text-text-placeholder disabled:cursor-not-allowed',
+                    // Numbers (money, percentages, counts) in the figure font with tabular digits,
+                    // so amounts line up and don't shift as they change (PB-57).
+                    figures && 'font-mono text-code tabular-nums',
                     inputClassName,
                 )}
                 {...inputProps}

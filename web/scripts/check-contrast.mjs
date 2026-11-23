@@ -118,7 +118,8 @@ const PAIRS = [
 ];
 
 // Text on a patterned band sits over pattern lines: the band with color-pattern laid on top at
-// the pattern's opacity (7%, 9% in dark). Checked against that worst pixel, not the plain band.
+// the pattern's opacity (--opacity-pattern, --opacity-pattern-dark in the theme). Checked against
+// that worst pixel, not the plain band.
 const PATTERNED = [
     ['text', TEXT, 'heading on a patterned band'],
     ['text-secondary', TEXT, 'body and labels on a patterned band'],
@@ -129,8 +130,11 @@ const PATTERNED = [
 // Pairs the components must never use. Printed for the record, not counted as failures.
 const BANNED = [['text-muted', 'text-muted on a patterned band: use text-secondary']];
 
+const opacityToken = (name) => Number(css.match(new RegExp(`--${name}:\\s*([0-9.]+)`))[1]);
+const PATTERN_OPACITY = { light: opacityToken('opacity-pattern'), dark: opacityToken('opacity-pattern-dark') };
+
 function patternedBand(themeName, theme) {
-    const strength = themeName.includes('dark') ? 0.09 : 0.07;
+    const strength = themeName.includes('dark') ? PATTERN_OPACITY.dark : PATTERN_OPACITY.light;
     const ink = parseHex(resolve(theme, 'color-pattern'));
     const band = parseHex(resolve(theme, 'color-band'));
     const mixed = composite({ ...ink, a: strength }, band);

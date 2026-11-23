@@ -1,7 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import Alert from '../../components/Alert';
 import Card from '../../components/Card';
-import Input from '../../components/Input';
+import CountInput from '../../components/CountInput';
 import MoneyInput from '../../components/MoneyInput';
 import OnboardingFrame from '../../components/OnboardingFrame';
 import RadioCards from '../../components/RadioCards';
@@ -37,16 +37,12 @@ export default function OnboardingFinances({ wizard, finances, isSme, housing, e
         error: form.errors[name],
         disabled: wizard.locked,
     });
-    // Whole numbers only (counts): anything but digits is dropped as it is typed.
     const count = (name) => ({
         id: name,
         value: form.data[name],
-        onChange: (e) => form.setData(name, e.target.value.replace(/\D/g, '')),
+        onChange: (value) => form.setData(name, value),
         error: form.errors[name],
         disabled: wizard.locked,
-        inputMode: 'numeric',
-        autoComplete: 'off',
-        controlClassName: 'max-w-40',
     });
 
     return (
@@ -104,9 +100,9 @@ export default function OnboardingFinances({ wizard, finances, isSme, housing, e
                 description="Answer from your MMA Credit Information System report. An administrator checks your answers against the report you attach to a financing request."
             >
                 <div className="space-y-5">
-                    <Input {...count('open_credit_lines')} label="How many loans, financing facilities and credit cards do you have open?" hint="Count each one separately. Enter 0 if none." />
-                    <Input {...count('late_payments_2y')} label="In the past 2 years, how many times was a repayment 30 or more days late?" hint="Across all your loans and cards. Enter 0 if never." />
-                    <Input {...count('public_records')} label="How many court judgments, bankruptcies or debts written off have you had?" hint="Enter 0 if none." />
+                    <CountInput {...count('open_credit_lines')} label="How many loans, financing facilities and credit cards do you have open?" hint="Count each one separately. Enter 0 if none." />
+                    <CountInput {...count('late_payments_2y')} label="In the past 2 years, how many times was a repayment 30 or more days late?" hint="Across all your loans and cards. Enter 0 if never." />
+                    <CountInput {...count('public_records')} label="How many court judgments, bankruptcies or debts written off have you had?" hint="Enter 0 if none." />
                 </div>
             </Card>
         </OnboardingFrame>

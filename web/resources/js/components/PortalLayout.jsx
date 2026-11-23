@@ -68,7 +68,11 @@ export default function PortalLayout({ title, description, breadcrumbs, children
                                 groups={navigation.groups}
                                 collapsed={collapsed}
                                 onToggleCollapse={() => setCollapsed(!collapsed)}
-                                footer={<ThemeToggle compact={collapsed} />}
+                                footer={
+                                    <div className={collapsed ? 'flex justify-center' : 'px-3'}>
+                                        <ThemeToggle vertical={collapsed} />
+                                    </div>
+                                }
                             />
                         </div>
                     </aside>
@@ -156,17 +160,12 @@ function useFlashToasts() {
     }, [flash, push]);
 }
 
-/** A standing notice while the account is not yet verified. */
+/**
+ * A standing notice when the account is rejected or suspended: both block everything and ask the
+ * user to act. "Pending verification" is not shown here (PB-57): each page it affects says so
+ * itself (the onboarding review step, financing requests, the marketplace).
+ */
 function AccountStatusNotice({ user }) {
-    if (user?.status === 'pending_verification') {
-        return (
-            <Alert tone="warning" role="note" title="Your account is pending verification">
-                An administrator will review your account once you have finished account setup and submitted it. Until it is
-                verified you can sign in and update your details, but you can't raise financing or invest.
-            </Alert>
-        );
-    }
-
     if (user?.status === 'rejected') {
         return (
             <Alert tone="danger" role="note" title="Your verification was not approved">

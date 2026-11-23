@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use App\Models\Role;
-use App\Models\User;
 use App\Support\PlatformMode;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -67,9 +66,10 @@ class HandleInertiaRequests extends Middleware
             // data-mode on <html>, so the first paint is already in the right colours.
             'mode' => PlatformMode::for($user),
 
-            // The light / dark / system theme (PB-55). Not lazy either: app.blade.php puts it on
-            // <html> for the first paint. Guests follow their device.
-            'theme' => $user?->theme ?? User::THEME_SYSTEM,
+            // The theme choice (PB-55, PB-57): light, dark or null (follow the device), and the
+            // device's setting when it was chosen. Not lazy: app.blade.php puts both on <html>
+            // for the first paint. Guests follow their device.
+            'theme' => ['choice' => $user?->theme, 'systemAtChoice' => $user?->theme_system_at_choice],
 
             // The top bar's Shariah-only switch, for investors only. The preference is stored on
             // the investor profile, so it can only be changed once that profile exists.

@@ -80,7 +80,8 @@ const PAGES = [
     ['borrower', 'borrower-portal', '/borrower'],
     // The onboarding wizard (PB-53), one page per step and state.
     ['borrower', 'onboarding-borrower-profile', '/borrower/onboarding/profile'],
-    ['borrower', 'onboarding-borrower-address-legacy', '/borrower/onboarding/address'],
+    ['borrower', 'onboarding-borrower-address', '/borrower/onboarding/address'],
+    ['readyBorrower', 'onboarding-borrower-finances', '/borrower/onboarding/finances'],
     ['readyBorrower', 'onboarding-borrower-documents', '/borrower/onboarding/documents'],
     ['readyBorrower', 'onboarding-borrower-review', '/borrower/onboarding/review'],
     ['newInvestor', 'onboarding-investor-profile', '/investor/onboarding/profile'],
@@ -206,36 +207,44 @@ async function checkModeSwitch(context) {
 }
 
 /**
- * The sidebar's theme toggle (PB-55): the colours change at once, the PATCH saves the choice,
- * and after a reload the server's own HTML already carries it (no flash). Then, with the
- * choice on "system" and the device set to dark, the page is dark before any app code runs.
+ * The sidebar's theme switch (PB-55, PB-57). The most recent change wins:
+ *   1. device light, switch to dark → dark at once, saved, and still dark after a reload
+ *      (the choice holds while the device keeps the setting it had);
+ *   2. switch back to light (saved with the device on light), then the device turns dark →
+ *      the next load is dark before any app code runs (the device changed after the choice).
  */
 async function checkThemeToggle(context) {
     const page = await context.newPage();
     await page.setViewport({ width: 1440, height: 900 });
+    const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
+    const toggle = 'aside [role="switch"][aria-label="Dark theme"]';
+    const saved = () => page.waitForResponse((r) => r.url().endsWith('/account/theme') && r.request().method() === 'PATCH');
+
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
     await page.goto(`${BASE}/investor`, { waitUntil: 'networkidle0' });
+    const start = await theme();
 
-    const patch = page.waitForResponse((r) => r.url().endsWith('/account/theme') && r.request().method() === 'PATCH');
-    await page.click('aside [role="radio"][value="dark"]');
-    const immediately = await page.evaluate(() => document.documentElement.dataset.theme);
+    let patch = saved();
+    await page.click(toggle);
+    const immediately = await theme();
     const response = await patch;
-    const reloaded = await page.goto(`${BASE}/investor`, { waitUntil: 'networkidle0' });
-    const html = await reloaded.text();
-    const serverPainted = html.includes('data-theme="dark"') && html.includes('data-theme-preference="dark"');
+    await page.goto(`${BASE}/investor`, { waitUntil: 'domcontentloaded' });
+    const kept = await theme();
 
-    const ok = immediately === 'dark' && response.status() < 400 && serverPainted;
-    console.log(`  ${ok ? 'ok  ' : 'FAIL'} theme toggle: dark at once ${immediately === 'dark'}, PATCH ${response.status()}, in the server's HTML after reload ${serverPainted}`);
-    if (!ok) fail('theme toggle', 'did not switch and persist');
+    const ok1 = start === 'light' && immediately === 'dark' && response.status() < 400 && kept === 'dark';
+    console.log(`  ${ok1 ? 'ok  ' : 'FAIL'} theme switch: ${start} → ${immediately} at once, PATCH ${response.status()}, ${kept} after reload on the same device setting`);
+    if (!ok1) fail('theme switch', 'did not switch and persist');
 
-    // Back to "system", then check the first paint follows a dark device.
-    const back = page.waitForResponse((r) => r.url().endsWith('/account/theme'));
-    await page.click('aside [role="radio"][value="system"]');
-    await back;
+    await page.waitForNetworkIdle();
+    patch = saved();
+    await page.click(toggle);
+    await patch;
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }]);
     await page.goto(`${BASE}/investor`, { waitUntil: 'domcontentloaded' });
-    const firstPaint = await page.evaluate(() => document.documentElement.dataset.theme);
-    console.log(`  ${firstPaint === 'dark' ? 'ok  ' : 'FAIL'} system theme on a dark device: ${firstPaint} at DOMContentLoaded`);
-    if (firstPaint !== 'dark') fail('theme toggle', 'system preference did not follow the device on first paint');
+    const followed = await theme();
+    console.log(`  ${followed === 'dark' ? 'ok  ' : 'FAIL'} device changed to dark after the light choice: ${followed} at DOMContentLoaded`);
+    if (followed !== 'dark') fail('theme switch', 'a later device change did not win on first paint');
+
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
     await page.close();
 }
