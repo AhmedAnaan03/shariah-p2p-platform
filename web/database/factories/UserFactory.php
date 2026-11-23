@@ -61,6 +61,14 @@ class UserFactory extends Factory
     }
 
     /**
+     * A pending account the user has submitted for verification at the end of onboarding (PB-53).
+     */
+    public function submitted(): static
+    {
+        return $this->state(fn () => ['verification_submitted_at' => now()]);
+    }
+
+    /**
      * Indicate that the model's email address should be unverified.
      */
     public function unverified(): static

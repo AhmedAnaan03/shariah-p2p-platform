@@ -4,6 +4,7 @@ namespace Tests\Feature\Investor;
 
 use App\Models\AuditLog;
 use App\Models\InvestorProfile;
+use App\Models\KycDocument;
 use App\Models\User;
 use App\Support\RiskAcknowledgement;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,30 +15,37 @@ use Tests\TestCase;
 
 /**
  * PB-10: the acknowledgement explains capital-at-risk in plain language, and accepting it is
- * recorded.
+ * recorded. Since PB-53 it is the investor's last onboarding step before review.
  */
 class RiskAcknowledgementTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * An investor who has reached the risk step: details, address and both documents done.
+     */
     private function investorWithProfile(): User
     {
-        return InvestorProfile::factory()->create()->user;
+        $investor = InvestorProfile::factory()->create()->user;
+        KycDocument::factory()->for($investor)->create();
+        KycDocument::factory()->for($investor)->ofType('proof_of_address')->create();
+
+        return $investor;
     }
 
     public function test_the_page_shows_the_acknowledgement_text_from_the_server(): void
     {
         $investor = $this->investorWithProfile();
 
-        $this->actingAs($investor)->get('/investor/acknowledgement')
+        $this->actingAs($investor)->get('/investor/onboarding/risk')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Investor/Acknowledgement')
+                ->component('Onboarding/Risk')
                 ->where('acknowledgement.version', RiskAcknowledgement::VERSION)
                 ->where('acknowledgement.title', 'Before you invest: understand the risks')
                 ->has('acknowledgement.points', count(RiskAcknowledgement::POINTS))
-                ->where('hasProfile', true)
                 ->where('acknowledgedAt', null)
+                ->where('acceptUrl', route('investor.onboarding.risk'))
             );
     }
 
@@ -49,10 +57,14 @@ class RiskAcknowledgementTest extends TestCase
 
         // The facts an investor must be told.
         $this->assertStringContainsString('lose some or all of the money', $text);
-        $this->assertStringContainsString('not guaranteed', $text);
+        $this->assertStringContainsString('Your returns could be lower than expected, or you could receive nothing.', $text);
         $this->assertStringContainsString('cannot take your pledge back', $text);
         $this->assertStringContainsString('not covered by any government or deposit guarantee scheme', $text);
         $this->assertStringContainsString('afford to lose', $text);
+
+        // Shariah wording (PB-53): never presents returns as guaranteed or as interest, since
+        // Shariah-only investors see this page in Shariah mode.
+        $this->assertDoesNotMatchRegularExpression('/\bguaranteed\b/i', $text);
 
         // Plain language: no financial jargon that needs a definition.
         foreach (['capital impairment', 'illiquid', 'principal', 'counterparty', 'default risk', 'interest'] as $jargon) {
@@ -70,8 +82,8 @@ class RiskAcknowledgementTest extends TestCase
         Carbon::setTestNow('2026-11-12 10:30:00');
         $investor = $this->investorWithProfile();
 
-        $this->actingAs($investor)->post('/investor/acknowledgement', ['accepted' => '1'])
-            ->assertRedirect('/investor')
+        $this->actingAs($investor)->post('/investor/onboarding/risk', ['accepted' => '1'])
+            ->assertRedirect('/investor/onboarding/review')
             ->assertSessionHas('status', 'Thank you. You have accepted the risk acknowledgement.');
 
         $profile = $investor->fresh()->investorProfile;
@@ -104,9 +116,9 @@ class RiskAcknowledgementTest extends TestCase
     {
         $investor = $this->investorWithProfile();
 
-        $this->actingAs($investor)->from('/investor/acknowledgement')
-            ->post('/investor/acknowledgement', $input)
-            ->assertRedirect('/investor/acknowledgement')
+        $this->actingAs($investor)->from('/investor/onboarding/risk')
+            ->post('/investor/onboarding/risk', $input)
+            ->assertRedirect('/investor/onboarding/risk')
             ->assertSessionHasErrors(['accepted' => 'Tick the box to confirm you have read and understood the risks.']);
 
         $this->assertNull($investor->fresh()->investorProfile->risk_acknowledged_at);
@@ -117,27 +129,30 @@ class RiskAcknowledgementTest extends TestCase
     {
         Carbon::setTestNow('2026-11-12 09:00:00');
         $investor = $this->investorWithProfile();
-        $this->actingAs($investor)->post('/investor/acknowledgement', ['accepted' => '1']);
+        $this->actingAs($investor)->post('/investor/onboarding/risk', ['accepted' => '1']);
 
         Carbon::setTestNow('2026-11-20 09:00:00');
-        $this->actingAs($investor)->post('/investor/acknowledgement', ['accepted' => '1']);
+        $this->actingAs($investor)->post('/investor/onboarding/risk', ['accepted' => '1']);
 
         $this->assertTrue($investor->fresh()->investorProfile->risk_acknowledged_at->equalTo('2026-11-12 09:00:00'));
         $this->assertSame(1, AuditLog::count());
     }
 
-    public function test_an_investor_without_a_profile_is_sent_to_complete_it_first(): void
+    public function test_an_investor_who_has_not_reached_the_step_is_sent_to_the_step_they_are_on(): void
     {
         $investor = User::factory()->investor()->create();
 
-        $this->actingAs($investor)->get('/investor/acknowledgement')
-            ->assertInertia(fn (Assert $page) => $page->where('hasProfile', false));
-
-        $this->actingAs($investor)->post('/investor/acknowledgement', ['accepted' => '1'])
-            ->assertRedirect('/investor/profile')
-            ->assertSessionHas('status', 'Complete your profile first, then accept the risk acknowledgement.');
+        $this->actingAs($investor)->get('/investor/onboarding/risk')->assertRedirect('/investor/onboarding/profile');
+        $this->actingAs($investor)->post('/investor/onboarding/risk', ['accepted' => '1'])->assertRedirect('/investor/onboarding/profile');
 
         $this->assertSame(0, AuditLog::count());
+    }
+
+    public function test_the_old_acknowledgement_address_opens_the_wizard_step(): void
+    {
+        $investor = $this->investorWithProfile();
+
+        $this->actingAs($investor)->get('/investor/acknowledgement')->assertRedirect('/investor/onboarding/risk');
     }
 
     public function test_only_investors_can_open_or_accept_the_acknowledgement(): void
@@ -145,8 +160,8 @@ class RiskAcknowledgementTest extends TestCase
         foreach (['borrower', 'admin'] as $role) {
             $user = User::factory()->{$role}()->create();
 
-            $this->actingAs($user)->get('/investor/acknowledgement')->assertForbidden();
-            $this->actingAs($user)->post('/investor/acknowledgement', ['accepted' => '1'])->assertForbidden();
+            $this->actingAs($user)->get('/investor/onboarding/risk')->assertForbidden();
+            $this->actingAs($user)->post('/investor/onboarding/risk', ['accepted' => '1'])->assertForbidden();
         }
 
         $this->assertSame(0, AuditLog::count());

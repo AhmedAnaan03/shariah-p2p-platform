@@ -83,8 +83,8 @@ class PledgeGateTest extends TestCase
         $investor = self::investor(verified: true, hasProfile: true, acknowledged: false);
         $this->actingAs($investor)->post('/test-only/pledge')->assertForbidden();
 
-        // Accept through the real form, then try again.
-        $this->actingAs($investor)->post('/investor/acknowledgement', ['accepted' => '1']);
+        // Accept through the real wizard step (open to a verified investor), then try again.
+        $this->actingAs($investor)->post('/investor/onboarding/risk', ['accepted' => '1'])->assertSessionHasNoErrors();
         $this->actingAs($investor->fresh())->post('/test-only/pledge')->assertOk()->assertSee('pledged');
     }
 
@@ -97,7 +97,8 @@ class PledgeGateTest extends TestCase
                 ->component('Investor/Portal')
                 ->where('pledge.allowed', false)
                 ->where('pledge.reason', self::NEEDS_ACKNOWLEDGEMENT)
-                ->where('riskAcknowledged', false)
+                ->where('onboarding.steps.3.key', 'risk')
+                ->where('onboarding.steps.3.done', false)
             );
     }
 
@@ -108,7 +109,7 @@ class PledgeGateTest extends TestCase
         $this->actingAs($investor)->get('/investor')
             ->assertInertia(fn (Assert $page) => $page
                 ->where('pledge.allowed', true)
-                ->where('riskAcknowledged', true)
+                ->where('onboarding.steps.3.done', true)
             );
     }
 }

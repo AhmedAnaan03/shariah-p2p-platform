@@ -10,6 +10,8 @@ use App\Models\CampaignFinancials;
 use App\Models\KycDocument;
 use App\Services\CampaignSubmissionService;
 use App\Support\CampaignPresenter;
+use App\Support\ListFilters;
+use App\Support\ReturnUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -22,17 +24,46 @@ use Inertia\Response;
  */
 class CampaignController extends Controller
 {
+    /**
+     * The statuses a borrower can filter their requests by (PB-54), in the words the status
+     * badges use.
+     */
+    private const STATUS_FILTERS = [
+        Campaign::STATUS_SUBMITTED => 'Awaiting review',
+        Campaign::STATUS_LIVE => 'Live',
+        Campaign::STATUS_REJECTED => 'Rejected',
+        Campaign::STATUS_SUSPENDED => 'Suspended',
+    ];
+
     public function index(Request $request): Response
     {
         $user = $request->user();
 
+        $filters = ListFilters::from($request, [
+            'status' => array_keys(self::STATUS_FILTERS),
+            'contract' => array_keys(CampaignPresenter::CONTRACT_LABELS),
+        ]);
+        $query = $user->campaigns()
+            ->when($filters->get('status'), fn ($q, $status) => $q->where('status', $status))
+            ->when($filters->get('contract'), fn ($q, $contract) => $q->where('contract_type', $contract));
+        $filters->applySearch($query, ['title']);
+
         return Inertia::render('Borrower/Campaigns/Index', [
-            'campaigns' => $user->campaigns()->latest('id')->get()
+            'campaigns' => $query->latest('id')->get()
                 ->map(fn (Campaign $campaign) => [
                     ...CampaignPresenter::summary($campaign),
                     'url' => route('borrower.campaigns.show', $campaign),
                 ]),
+            // Whether the borrower has any request at all, so "no results for these filters"
+            // and "no requests yet" can be told apart.
+            'hasAny' => $user->campaigns()->exists(),
             'canCreate' => Gate::forUser($user)->allows('create', Campaign::class),
+            // PB-54: the shared search-and-filter bar.
+            'filters' => $filters->toArray(),
+            'filterOptions' => [
+                'status' => ListFilters::options(self::STATUS_FILTERS),
+                'contract' => ListFilters::options(CampaignPresenter::CONTRACT_LABELS),
+            ],
         ]);
     }
 
@@ -77,7 +108,7 @@ class CampaignController extends Controller
             ->with('status', 'Your request has been submitted. An administrator will review it before it is shown to investors.');
     }
 
-    public function show(Campaign $campaign): Response
+    public function show(Request $request, Campaign $campaign): Response
     {
         // Someone else's request answers 404 (CampaignPolicy::view).
         Gate::authorize('view', $campaign);
@@ -89,6 +120,8 @@ class CampaignController extends Controller
             'finances' => CampaignPresenter::finances($campaign->financials),
             'creditHistory' => CampaignPresenter::creditHistory($campaign->financials),
             'creditReport' => $campaign->creditReport?->toListItem(),
+            // PB-54: back to the (filtered) list the borrower came from.
+            'back' => ReturnUrl::back($request, 'borrower.campaigns.index'),
         ]);
     }
 

@@ -5,11 +5,13 @@
 //   3. npm run build && npm run screenshots            (from web/)
 //
 // Signs in as each demo account in headless Chrome (puppeteer-core drives the installed
-// Chrome), then for every page, at 1440, 820 and 390 px, in conventional and Shariah mode:
+// Chrome), then for every page, at 1440, 820 and 390 px, in all four themes (conventional and
+// Shariah, each light and dark; PB-55):
 //   - saves a full-page screenshot to docs/report-notes/screenshots/design-system/
 //   - fails on a console error, an uncaught exception, or a horizontal scrollbar
 //   - runs axe-core's WCAG 2.2 A/AA rules (contrast of the real rendered text included)
-// It also flips the investor's real top-bar switch once, to check the PATCH round trip.
+// It also flips the investor's real top-bar switch once, to check the PATCH round trip, and
+// does the same for the sidebar's theme toggle, including the no-flash first paint (PB-55).
 // Exits with code 1 if any check fails.
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -22,7 +24,13 @@ const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Conte
 const OUT = fileURLToPath(new URL('../../docs/report-notes/screenshots/design-system/', import.meta.url));
 const PASSWORD = 'Demo#2026';
 const WIDTHS = [1440, 820, 390];
-const MODES = ['conventional', 'shariah'];
+// [data-mode, data-theme]: every palette the design system defines.
+const THEMES = [
+    ['conventional', 'light'],
+    ['shariah', 'light'],
+    ['conventional', 'dark'],
+    ['shariah', 'dark'],
+];
 const ONLY = process.argv.slice(2); // optional page names to limit the run
 
 const ACCOUNTS = {
@@ -30,6 +38,8 @@ const ACCOUNTS = {
     borrower: 'borrower@example.com',
     investor: 'investor@example.com',
     newInvestor: 'new-investor@example.com',
+    onboardingInvestor: 'onboarding-investor@example.com',
+    readyBorrower: 'ready-borrower@example.com',
     verifiedBorrower: 'verified-borrower@example.com',
     admin: 'admin@example.com',
 };
@@ -41,13 +51,17 @@ const PAGES = [
     ['guest', 'forgot-password', '/forgot-password'],
     ['guest', 'reset-password', '/reset-password/sample-token?email=aishath%40example.com'],
     ['borrower', 'borrower-portal', '/borrower'],
-    ['borrower', 'borrower-profile', '/borrower/profile'],
-    ['borrower', 'borrower-documents', '/borrower/documents'],
+    // The onboarding wizard (PB-53), one page per step and state.
+    ['borrower', 'onboarding-borrower-profile', '/borrower/onboarding/profile'],
+    ['borrower', 'onboarding-borrower-address-legacy', '/borrower/onboarding/address'],
+    ['readyBorrower', 'onboarding-borrower-documents', '/borrower/onboarding/documents'],
+    ['readyBorrower', 'onboarding-borrower-review', '/borrower/onboarding/review'],
+    ['newInvestor', 'onboarding-investor-profile', '/investor/onboarding/profile'],
+    ['onboardingInvestor', 'onboarding-investor-documents', '/investor/onboarding/documents'],
     ['borrower', 'change-password', '/account/password'],
     ['investor', 'investor-portal', '/investor'],
-    ['investor', 'investor-profile', '/investor/profile'],
-    ['investor', 'investor-documents', '/investor/documents'],
-    ['investor', 'investor-acknowledgement', '/investor/acknowledgement'],
+    ['investor', 'onboarding-investor-risk-accepted', '/investor/onboarding/risk'],
+    ['investor', 'onboarding-investor-review-verified', '/investor/onboarding/review'],
     ['newInvestor', 'investor-portal-no-profile', '/investor'],
     ['admin', 'admin-portal', '/admin'],
     ['admin', 'admin-queue', '/admin/verifications'],
@@ -112,11 +126,17 @@ async function capture(context, name, path) {
         await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle0' });
         await page.evaluate(() => document.fonts.ready);
 
-        for (const mode of MODES) {
-            const where = `${name} ${width} ${mode}`;
-            await page.evaluate((m) => {
-                document.documentElement.dataset.mode = m;
-            }, mode);
+        for (const [mode, theme] of THEMES) {
+            const label = theme === 'dark' ? `${mode}-dark` : mode;
+            const where = `${name} ${width} ${label}`;
+            await page.evaluate(
+                (m, t) => {
+                    document.documentElement.dataset.mode = m;
+                    document.documentElement.dataset.theme = t;
+                },
+                mode,
+                theme,
+            );
             await new Promise((resolve) => setTimeout(resolve, 650)); // let the 500 ms cross-fade finish
 
             const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -124,7 +144,7 @@ async function capture(context, name, path) {
 
             if (width === 1440 || width === 390) await runAxe(page, where);
 
-            await page.screenshot({ path: `${OUT}${name}-${width}-${mode}.png`, fullPage: true });
+            await page.screenshot({ path: `${OUT}${name}-${width}-${label}.png`, fullPage: true });
             console.log(`  ok   ${where}`);
         }
     }
@@ -159,6 +179,41 @@ async function checkModeSwitch(context) {
     await page.close();
 }
 
+/**
+ * The sidebar's theme toggle (PB-55): the colours change at once, the PATCH saves the choice,
+ * and after a reload the server's own HTML already carries it (no flash). Then, with the
+ * choice on "system" and the device set to dark, the page is dark before any app code runs.
+ */
+async function checkThemeToggle(context) {
+    const page = await context.newPage();
+    await page.setViewport({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/investor`, { waitUntil: 'networkidle0' });
+
+    const patch = page.waitForResponse((r) => r.url().endsWith('/account/theme') && r.request().method() === 'PATCH');
+    await page.click('aside [role="radio"][value="dark"]');
+    const immediately = await page.evaluate(() => document.documentElement.dataset.theme);
+    const response = await patch;
+    const reloaded = await page.goto(`${BASE}/investor`, { waitUntil: 'networkidle0' });
+    const html = await reloaded.text();
+    const serverPainted = html.includes('data-theme="dark"') && html.includes('data-theme-preference="dark"');
+
+    const ok = immediately === 'dark' && response.status() < 400 && serverPainted;
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'} theme toggle: dark at once ${immediately === 'dark'}, PATCH ${response.status()}, in the server's HTML after reload ${serverPainted}`);
+    if (!ok) fail('theme toggle', 'did not switch and persist');
+
+    // Back to "system", then check the first paint follows a dark device.
+    const back = page.waitForResponse((r) => r.url().endsWith('/account/theme'));
+    await page.click('aside [role="radio"][value="system"]');
+    await back;
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }]);
+    await page.goto(`${BASE}/investor`, { waitUntil: 'domcontentloaded' });
+    const firstPaint = await page.evaluate(() => document.documentElement.dataset.theme);
+    console.log(`  ${firstPaint === 'dark' ? 'ok  ' : 'FAIL'} system theme on a dark device: ${firstPaint} at DOMContentLoaded`);
+    if (firstPaint !== 'dark') fail('theme toggle', 'system preference did not follow the device on first paint');
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
+    await page.close();
+}
+
 /** One extra shot of the keyboard focus ring on a field and a button. */
 async function captureFocus(context) {
     const page = await context.newPage();
@@ -184,6 +239,7 @@ try {
     }
 
     if (ONLY.length === 0 || ONLY.includes('mode-switch')) await checkModeSwitch(contexts.investor);
+    if (ONLY.length === 0 || ONLY.includes('theme-toggle')) await checkThemeToggle(contexts.investor);
     if (ONLY.length === 0 || ONLY.includes('focus')) await captureFocus(contexts.guest);
 
     for (const [account, name, path] of PAGES) {

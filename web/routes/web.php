@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Account\ThemePreferenceController;
 use App\Http\Controllers\Admin\CampaignController as AdminCampaignController;
 use App\Http\Controllers\Admin\VerificationController;
 use App\Http\Controllers\Auth\ChangePasswordController;
@@ -8,15 +9,14 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\Borrower\CampaignController as BorrowerCampaignController;
-use App\Http\Controllers\Borrower\ProfileController as BorrowerProfileController;
 use App\Http\Controllers\Investor\CampaignController as InvestorCampaignController;
-use App\Http\Controllers\Investor\ProfileController as InvestorProfileController;
-use App\Http\Controllers\Investor\RiskAcknowledgementController;
 use App\Http\Controllers\Investor\ShariahPreferenceController;
 use App\Http\Controllers\KycDocumentController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\WelcomeController;
 use App\Models\Role;
+use App\Support\OnboardingSteps;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -54,23 +54,44 @@ Route::middleware('auth')->group(function () {
     Route::get('/account/password', [ChangePasswordController::class, 'edit'])->name('password.edit');
     Route::put('/account/password', [ChangePasswordController::class, 'update'])->name('password.update');
 
+    // The sidebar's light / dark / system toggle (PB-55). No user id in the URL: it always
+    // changes the signed-in user's own setting.
+    Route::patch('/account/theme', ThemePreferenceController::class)->name('account.theme');
+
     // Opens one KYC file. Shared by the owner and admins, so it sits outside the role groups;
     // KycDocumentPolicy lets only those two through and answers 404 to everyone else.
     Route::get('/documents/{document}', [KycDocumentController::class, 'show'])->name('documents.show');
 });
 
 /*
+| The onboarding wizard (PB-53), registered inside the borrower and the investor groups below so
+| it inherits their role gate. One controller; the user's role picks the steps. The old
+| profile and documents pages now open the matching step, so earlier links still work.
+*/
+// A closure, not a named function: tests boot the app many times and would redeclare it.
+$onboardingRoutes = function (string $role): void {
+    Route::get('/onboarding', [OnboardingController::class, 'start'])->name('onboarding');
+    Route::get('/onboarding/{step}', [OnboardingController::class, 'show'])
+        ->whereIn('step', OnboardingSteps::stepsForRole($role))
+        ->name('onboarding.show');
+    Route::put('/onboarding/profile', [OnboardingController::class, 'saveProfile'])->name('onboarding.profile');
+    Route::put('/onboarding/address', [OnboardingController::class, 'saveAddress'])->name('onboarding.address');
+    Route::post('/onboarding/documents', [OnboardingController::class, 'uploadDocument'])->name('onboarding.documents.upload');
+    Route::put('/onboarding/documents', [OnboardingController::class, 'saveDocuments'])->name('onboarding.documents.save');
+    Route::post('/onboarding/submit', [OnboardingController::class, 'submit'])->name('onboarding.submit');
+
+    Route::get('/profile', fn () => to_route("{$role}.onboarding.show", OnboardingSteps::PROFILE))->name('profile.edit');
+    Route::get('/documents', fn () => to_route("{$role}.onboarding.show", OnboardingSteps::DOCUMENTS))->name('documents.index');
+};
+
+/*
 | One portal per role. Every route a later item adds for a role goes inside its group, so it
 | inherits the gate: e.g. a borrower opening /investor/... gets 403 Forbidden.
 */
-Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('borrower.')->group(function () {
+Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('borrower.')->group(function () use ($onboardingRoutes) {
     Route::get('/', [PortalController::class, 'borrower'])->name('portal');
 
-    Route::get('/profile', [BorrowerProfileController::class, 'edit'])->name('profile.edit');
-    Route::put('/profile', [BorrowerProfileController::class, 'update'])->name('profile.update');
-
-    Route::get('/documents', [KycDocumentController::class, 'index'])->name('documents.index');
-    Route::post('/documents', [KycDocumentController::class, 'store'])->name('documents.store');
+    $onboardingRoutes(Role::BORROWER);
 
     // Financing requests (PB-13, PB-14). Any borrower can open the pages; only a verified one
     // can submit (CampaignPolicy), and each borrower sees only their own requests.
@@ -80,18 +101,14 @@ Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('b
     Route::get('/campaigns/{campaign}', [BorrowerCampaignController::class, 'show'])->name('campaigns.show');
 });
 
-Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('investor.')->group(function () {
+Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('investor.')->group(function () use ($onboardingRoutes) {
     Route::get('/', [PortalController::class, 'investor'])->name('portal');
 
-    Route::get('/profile', [InvestorProfileController::class, 'edit'])->name('profile.edit');
-    Route::put('/profile', [InvestorProfileController::class, 'update'])->name('profile.update');
+    $onboardingRoutes(Role::INVESTOR);
 
-    // Same controller as the borrower's documents; it uses the signed-in user's role.
-    Route::get('/documents', [KycDocumentController::class, 'index'])->name('documents.index');
-    Route::post('/documents', [KycDocumentController::class, 'store'])->name('documents.store');
-
-    Route::get('/acknowledgement', [RiskAcknowledgementController::class, 'show'])->name('acknowledgement.show');
-    Route::post('/acknowledgement', [RiskAcknowledgementController::class, 'store'])->name('acknowledgement.store');
+    // The risk acknowledgement is the investor's last onboarding step (PB-53).
+    Route::post('/onboarding/risk', [OnboardingController::class, 'acceptRisk'])->name('onboarding.risk');
+    Route::get('/acknowledgement', fn () => to_route('investor.onboarding.show', OnboardingSteps::RISK))->name('acknowledgement.show');
 
     // The top bar's Shariah-only switch (PB-51). No user id in the URL: it always changes the
     // signed-in investor's own profile.

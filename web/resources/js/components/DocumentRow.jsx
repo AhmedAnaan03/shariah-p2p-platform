@@ -13,8 +13,9 @@ const FILE_ICONS = { pdf: 'file-pdf', jpg: 'file-image', jpeg: 'file-image', png
  *
  * `href` opens the file through the protected document route in a new tab (a normal browser
  * request, since the server returns the file, not a page). `reason` shows an admin's rejection.
+ * `action` is one more control after View, such as a document slot's Replace button (PB-53).
  */
-export default function DocumentRow({ title, name, type, size, uploaded, status, href, onView, reason }) {
+export default function DocumentRow({ title, name, type, size, uploaded, status, href, onView, reason, action }) {
     const extension = (type ?? name?.split('.').pop() ?? '').toLowerCase();
 
     return (
@@ -37,7 +38,8 @@ export default function DocumentRow({ title, name, type, size, uploaded, status,
                     </p>
                 )}
             </div>
-            <div className="flex items-center gap-3">
+            {/* Wraps on narrow screens once a slot's Replace button joins the status and View. */}
+            <div className="flex flex-wrap items-center gap-3">
                 {status && <StatusBadge status={status} />}
                 {href && (
                     <a
@@ -55,6 +57,7 @@ export default function DocumentRow({ title, name, type, size, uploaded, status,
                         View
                     </Button>
                 )}
+                {action}
             </div>
         </div>
     );
