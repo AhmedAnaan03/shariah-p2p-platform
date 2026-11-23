@@ -37,7 +37,7 @@ class ScreenshotSeeder extends Seeder
             'business_registration_no' => 'C-0412/2021',
             'sector' => 'fisheries',
             'years_operating' => 6,
-            'declared_annual_income' => 840000,
+            'monthly_income' => 70000,
         ]);
         KycDocument::factory()->for($borrower)->create(['original_name' => 'national-id-front.jpg', 'mime_type' => 'image/jpeg', 'size_bytes' => 839_680]);
         KycDocument::factory()->for($borrower)->ofType('business_registration')->create(['original_name' => 'registration-certificate.pdf', 'size_bytes' => 245_760]);
@@ -92,7 +92,7 @@ class ScreenshotSeeder extends Seeder
     {
         // A verified SME borrower with one request in each state.
         $faiz = User::factory()->borrower()->verified()->create(['name' => 'Mohamed Faiz', 'email' => 'verified-borrower@example.com', 'password' => $password]);
-        BorrowerProfile::factory()->for($faiz)->create(['business_name' => 'Faiz Fresh Catch', 'sector' => 'fisheries', 'declared_annual_income' => 480000]);
+        BorrowerProfile::factory()->for($faiz)->create(['business_name' => 'Faiz Fresh Catch', 'sector' => 'fisheries', 'monthly_income' => 40000]);
 
         // Waiting for review, first in the admin queue: a Murabahah with its credit report.
         $van = Campaign::factory()->murabahah()->submitted()->for($faiz, 'borrower')->create([

@@ -13,6 +13,8 @@ use Illuminate\Auth\Access\Response;
  */
 class CampaignPolicy
 {
+    public const NO_FINANCIAL_PROFILE = 'Complete your financial profile in account setup before you submit a financing request.';
+
     public const NOT_VERIFIED = 'Your account must be verified before you can submit a financing request.';
 
     /**
@@ -24,7 +26,15 @@ class CampaignPolicy
             return Response::deny('Only borrowers can submit financing requests.');
         }
 
-        return $user->status === 'verified' ? Response::allow() : Response::deny(self::NOT_VERIFIED);
+        if ($user->status !== 'verified') {
+            return Response::deny(self::NOT_VERIFIED);
+        }
+
+        // PB-58: every request carries a snapshot of the financial profile, so a borrower verified
+        // before the profile existed must complete it first (which sends it for checking).
+        return $user->borrowerProfile?->hasFinancialProfile()
+            ? Response::allow()
+            : Response::deny(self::NO_FINANCIAL_PROFILE);
     }
 
     /**

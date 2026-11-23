@@ -8,7 +8,7 @@ use App\Models\User;
 /**
  * The onboarding wizard's steps, in order, and where a user is in them (PB-53):
  *
- *   borrower  profile → address → documents → review
+ *   borrower  profile → address → finances → documents → review   (finances: PB-58)
  *   investor  profile → address → documents → risk → review
  *
  * A step is done when VerificationChecklist says its part is provided; review is done once the
@@ -23,6 +23,8 @@ final class OnboardingSteps
 
     public const ADDRESS = 'address';
 
+    public const FINANCES = 'finances';
+
     public const DOCUMENTS = 'documents';
 
     public const RISK = 'risk';
@@ -30,11 +32,12 @@ final class OnboardingSteps
     public const REVIEW = 'review';
 
     /** Every step any role can have, for the route constraint. */
-    public const ALL = [self::PROFILE, self::ADDRESS, self::DOCUMENTS, self::RISK, self::REVIEW];
+    public const ALL = [self::PROFILE, self::ADDRESS, self::FINANCES, self::DOCUMENTS, self::RISK, self::REVIEW];
 
     private const TITLES = [
         self::PROFILE => 'Your details',
         self::ADDRESS => 'Address',
+        self::FINANCES => 'Finances',
         self::DOCUMENTS => 'Documents',
         self::RISK => 'Risk acknowledgement',
         self::REVIEW => 'Review and submit',
@@ -59,7 +62,8 @@ final class OnboardingSteps
     {
         return $role === Role::INVESTOR
             ? [self::PROFILE, self::ADDRESS, self::DOCUMENTS, self::RISK, self::REVIEW]
-            : [self::PROFILE, self::ADDRESS, self::DOCUMENTS, self::REVIEW];
+            // Finances before documents: the salary slip backs up the declared income.
+            : [self::PROFILE, self::ADDRESS, self::FINANCES, self::DOCUMENTS, self::REVIEW];
     }
 
     /**
@@ -80,6 +84,7 @@ final class OnboardingSteps
         return match ($step) {
             self::PROFILE => $this->checklist->hasProfile(),
             self::ADDRESS => $this->checklist->hasCompleteAddress(),
+            self::FINANCES => $this->checklist->hasFinancialProfile(),
             self::DOCUMENTS => $this->checklist->hasAllDocuments(),
             self::RISK => $this->checklist->hasAcceptedRisk(),
             self::REVIEW => $this->checklist->isSubmitted() || $this->user->status === 'verified',
@@ -134,6 +139,19 @@ final class OnboardingSteps
         $index = array_search($step, $steps, true);
 
         return $index > 0 ? $steps[$index - 1] : null;
+    }
+
+    /**
+     * Whether this step can be saved now. Every step locks once the account is verified, except
+     * the borrower's finances (PB-58): a change there sends the account back for verification.
+     */
+    public function isLocked(string $step): bool
+    {
+        if ($step === self::FINANCES || $step === self::RISK) {
+            return $this->user->status === 'suspended';
+        }
+
+        return ! $this->user->canEditVerificationDetails();
     }
 
     public function url(string $step): string

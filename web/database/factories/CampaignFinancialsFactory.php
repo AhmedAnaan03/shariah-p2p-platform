@@ -21,7 +21,7 @@ class CampaignFinancialsFactory extends Factory
     {
         return [
             'campaign_id' => Campaign::factory(),
-            'annual_income' => 480_000,
+            'monthly_income' => 40_000,
             'monthly_debt_repayments' => 6_000,
             'employment_years' => 7,
             'housing' => 'own_with_home_loan',

@@ -74,7 +74,7 @@ class AddressStepTest extends TestCase
     public function test_a_valid_address_is_saved_and_the_wizard_moves_on(): void
     {
         $this->save($this->input(['postcode' => '23 000']))
-            ->assertRedirect('/borrower/onboarding/documents')
+            ->assertRedirect('/borrower/onboarding/finances')
             ->assertSessionHas('status', 'Your address has been saved.');
 
         $profile = $this->borrower->fresh()->borrowerProfile;

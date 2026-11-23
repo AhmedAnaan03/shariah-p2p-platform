@@ -37,7 +37,9 @@ class SchemaMatchesErdTest extends TestCase
             'national_id_no' => false, 'address_house' => true, 'address_road' => true,
             'island_id' => true, 'postcode' => true, 'business_name' => true,
             'business_registration_no' => true, 'sector' => true, 'years_operating' => true,
-            'declared_annual_income' => false, 'created_at' => true, 'updated_at' => true,
+            'monthly_income' => true, 'monthly_debt_repayments' => true, 'employment_years' => true,
+            'housing' => true, 'open_credit_lines' => true, 'late_payments_2y' => true,
+            'public_records' => true, 'created_at' => true, 'updated_at' => true,
         ],
         'investor_profiles' => [
             'id' => false, 'user_id' => false, 'phone' => false, 'national_id_no' => false,
@@ -70,7 +72,7 @@ class SchemaMatchesErdTest extends TestCase
             'funded_at' => true, 'created_at' => true, 'updated_at' => true,
         ],
         'campaign_financials' => [
-            'id' => false, 'campaign_id' => false, 'annual_income' => false,
+            'id' => false, 'campaign_id' => false, 'monthly_income' => false,
             'monthly_debt_repayments' => false, 'employment_years' => false, 'housing' => false,
             'open_credit_lines' => false, 'late_payments_2y' => false, 'public_records' => false,
             'created_at' => true, 'updated_at' => true,
@@ -195,10 +197,12 @@ class SchemaMatchesErdTest extends TestCase
             ->all();
 
         $this->assertSame([
+            'borrower_profiles_employment_years_check',
+            'borrower_profiles_monthly_income_check',
             'borrower_profiles_postcode_check',
-            'campaign_financials_annual_income_check',
             'campaign_financials_employment_years_check',
             'campaign_financials_monthly_debt_check',
+            'campaign_financials_monthly_income_check',
             'campaigns_amount_requested_check',
             'campaigns_conventional_terms_check',
             'campaigns_mudarabah_terms_check',

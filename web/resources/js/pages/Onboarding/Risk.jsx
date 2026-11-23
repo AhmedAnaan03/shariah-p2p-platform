@@ -11,8 +11,8 @@ import { formatDate } from '../../lib/format';
  * wizard as its last step before review by PB-53). The text comes from the server
  * (App\Support\RiskAcknowledgement), so the audit log records the exact version shown.
  *
- * This step is never locked: pledging needs the acknowledgement, so an investor who was
- * verified before accepting it must still be able to. Hence `locked: false` for the frame.
+ * This step is never locked (OnboardingSteps::isLocked): pledging needs the acknowledgement, so
+ * an investor who was verified before accepting it must still be able to.
  */
 export default function OnboardingRisk({ wizard, acknowledgement, acknowledgedAt, acceptUrl }) {
     const form = useForm({ accepted: acknowledgedAt !== null });
@@ -23,7 +23,7 @@ export default function OnboardingRisk({ wizard, acknowledgement, acknowledgedAt
     }
 
     return (
-        <OnboardingFrame wizard={{ ...wizard, locked: false }} onSubmit={submit} processing={form.processing} continueLabel={acknowledgedAt ? 'Continue' : 'Accept and continue'}>
+        <OnboardingFrame wizard={wizard} onSubmit={submit} processing={form.processing} continueLabel={acknowledgedAt ? 'Continue' : 'Accept and continue'}>
             <Card title={acknowledgement.title} className="max-w-3xl">
                 <div className="space-y-6">
                     <BulletList items={acknowledgement.points} />

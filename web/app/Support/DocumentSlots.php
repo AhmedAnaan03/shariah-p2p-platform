@@ -11,7 +11,7 @@ use App\Models\User;
  * slot is required and holds one current document; uploading again replaces it. A type that
  * isn't one of the user's slots can't be uploaded at all.
  *
- *   individual borrower  national ID, proof of address
+ *   individual borrower  national ID, proof of address, salary slip (PB-58)
  *   SME borrower         national ID, business registration, proof of address, financial statement
  *   investor             national ID, proof of address
  *
@@ -36,6 +36,8 @@ final class DocumentSlots
         self::INDIVIDUAL => [
             'national_id' => ['label' => 'National ID card', 'description' => 'Both sides of your Maldivian national ID card, in one PDF or as one photo.'],
             'proof_of_address' => ['label' => 'Proof of address', 'description' => 'A utility bill, tenancy agreement or island council letter from the last 3 months, showing your name and address.'],
+            // PB-58: lets the administrator check the monthly income in the financial profile.
+            'salary_slip' => ['label' => 'Salary slip', 'description' => 'Your salary slips for the last 3 months, showing your monthly income before tax. One PDF can contain several months.'],
         ],
         self::SME => [
             'national_id' => ['label' => 'National ID card', 'description' => 'Both sides of the national ID card of the business owner or a director.'],

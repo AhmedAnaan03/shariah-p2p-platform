@@ -41,6 +41,7 @@ class KycDocument extends Model
         'proof_of_address' => 'Proof of address',
         'other' => 'Other document',
         self::TYPE_CREDIT_REPORT => 'MMA credit report',
+        'salary_slip' => 'Salary slip',
     ];
 
     /**

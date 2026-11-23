@@ -129,11 +129,13 @@ what they add together.
 ## Our applications, built the same way (PB-14)
 
 `ml.dataset.platform_features()` turns an application from the web app (its stored field
-names: `amount_requested`, `tenure_months`, `purpose`, `annual_income`,
+names: `amount_requested`, `tenure_months`, `purpose`, `monthly_income`,
 `monthly_debt_repayments`, `employment_years`, `housing`, `open_credit_lines`,
 `late_payments_2y`, `public_records`) into LendingClub's raw columns and then runs the same
-`build_features()` as training. Two conversions happen on the way:
+`build_features()` as training. Three conversions happen on the way:
 
+- annual income = monthly income × 12 (PB-58: borrowers declare a monthly figure in their
+  financial profile; the model was trained on LendingClub's annual income).
 - `dti` = monthly debt repayments (excluding housing) / (annual income / 12) × 100, which is
   how LendingClub defines it.
 - `housing`: rent → RENT, own → OWN, own with a home loan → MORTGAGE, family home → OTHER;

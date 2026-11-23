@@ -7,8 +7,6 @@ import DocumentList from '../../components/DocumentList';
 import OnboardingFrame from '../../components/OnboardingFrame';
 import { formatDate } from '../../lib/format';
 
-// Shown in mono so IDs and numbers line up.
-const MONO_FIELDS = ['Phone', 'National ID card number', 'Business registration number', 'Years operating', 'Declared annual income', 'Declared annual revenue'];
 
 /**
  * The last onboarding step, review and submit (PB-53): everything the administrator will check,
@@ -56,7 +54,7 @@ export default function OnboardingReview({ wizard, details, documents, complete,
                     }
                 >
                     {details ? (
-                        <DescriptionList items={details.map((item) => [item.label, item.value, MONO_FIELDS.includes(item.label)])} />
+                        <DescriptionList items={details.map((item) => [item.label, item.value, item.mono])} />
                     ) : (
                         <Alert tone="warning">You have not completed your details yet.</Alert>
                     )}

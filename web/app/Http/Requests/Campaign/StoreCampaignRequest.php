@@ -4,16 +4,15 @@ namespace App\Http\Requests\Campaign;
 
 use App\Http\Requests\Kyc\StoreKycDocumentRequest;
 use App\Models\Campaign;
-use App\Models\CampaignFinancials;
 use App\Models\KycDocument;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 /**
- * Validates a new financing request (PB-13) with its financial information and optional MMA
- * credit report (PB-14). Every field the risk model uses is required, so a request with any of
- * them missing can't be submitted (PB-14 acceptance criterion).
+ * Validates a new financing request (PB-13) and its optional MMA credit report (PB-14). The
+ * financial information the risk model uses comes from the borrower's verified financial profile
+ * since PB-58 (FinancialProfileRequest), copied into the request when it is submitted.
  *
  * Contract terms are two-way, like the CHECK constraints on campaigns: each term is required
  * for its own contract and prohibited for the other two. So a Murabahah or Mudarabah request
@@ -70,17 +69,6 @@ class StoreCampaignRequest extends FormRequest
                 'nullable', 'numeric', 'decimal:0,2', 'min:'.Campaign::MIN_PROFIT_SHARE, 'max:'.Campaign::MAX_PROFIT_SHARE,
             ],
 
-            // Financial information (PB-14)
-            'annual_income' => ['required', 'numeric', 'decimal:0,2', 'gt:0', 'max:'.CampaignFinancials::MAX_ANNUAL_INCOME],
-            'monthly_debt_repayments' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:'.CampaignFinancials::MAX_ANNUAL_INCOME],
-            'employment_years' => ['required', 'integer', 'min:0', 'max:'.CampaignFinancials::MAX_EMPLOYMENT_YEARS],
-            'housing' => ['required', 'string', Rule::in(array_keys(CampaignFinancials::HOUSING))],
-
-            // Self-declared credit history (PB-14)
-            'open_credit_lines' => ['required', 'integer', 'min:0', 'max:'.CampaignFinancials::MAX_COUNT],
-            'late_payments_2y' => ['required', 'integer', 'min:0', 'max:'.CampaignFinancials::MAX_COUNT],
-            'public_records' => ['required', 'integer', 'min:0', 'max:'.CampaignFinancials::MAX_COUNT],
-
             // Optional MMA credit report: the same checks as a KYC upload (PB-09).
             'credit_report' => ['nullable', 'file', "mimes:{$extensions}", "extensions:{$extensions}", 'max:'.KycDocument::MAX_KILOBYTES],
         ];
@@ -95,7 +83,6 @@ class StoreCampaignRequest extends FormRequest
     public function messages(): array
     {
         $amount = fn (int $value) => 'MVR '.number_format($value);
-        $count = 'Enter a whole number from 0 to '.CampaignFinancials::MAX_COUNT.'. Enter 0 if none.';
 
         return [
             'title.required' => 'Give your request a title.',
@@ -143,36 +130,6 @@ class StoreCampaignRequest extends FormRequest
             'investor_profit_share_percent.decimal' => 'Enter the profit share with at most 2 decimal places.',
             'investor_profit_share_percent.min' => 'The investors\' share must be between '.Campaign::MIN_PROFIT_SHARE.'% and '.Campaign::MAX_PROFIT_SHARE.'%, so both sides share the profit.',
             'investor_profit_share_percent.max' => 'The investors\' share must be between '.Campaign::MIN_PROFIT_SHARE.'% and '.Campaign::MAX_PROFIT_SHARE.'%, so both sides share the profit.',
-
-            'annual_income.required' => 'Enter your annual income before tax.',
-            'annual_income.numeric' => 'Enter your income as a number, like 480000.',
-            'annual_income.decimal' => 'Enter your income with at most 2 decimal places.',
-            'annual_income.gt' => 'Your annual income must be more than 0.',
-            'annual_income.max' => 'Check your annual income: it must be '.$amount(CampaignFinancials::MAX_ANNUAL_INCOME).' or less.',
-            'monthly_debt_repayments.required' => 'Enter what you repay each month on existing loans and cards. Enter 0 if nothing.',
-            'monthly_debt_repayments.numeric' => 'Enter the monthly repayments as a number, like 6000.',
-            'monthly_debt_repayments.decimal' => 'Enter the monthly repayments with at most 2 decimal places.',
-            'monthly_debt_repayments.min' => 'Monthly repayments can\'t be negative. Enter 0 if nothing.',
-            'monthly_debt_repayments.max' => 'Check your monthly repayments: they must be '.$amount(CampaignFinancials::MAX_ANNUAL_INCOME).' or less.',
-            'employment_years.required' => 'Choose how long you have been in your job or running the business.',
-            'employment_years.integer' => 'Choose how long you have been in your job or running the business.',
-            'employment_years.min' => 'Choose how long you have been in your job or running the business.',
-            'employment_years.max' => 'Choose how long you have been in your job or running the business.',
-            'housing.required' => 'Choose your housing situation.',
-            'housing.in' => 'Choose your housing situation from the list.',
-
-            'open_credit_lines.required' => 'Enter how many loans, financing facilities and credit cards you have open. Enter 0 if none.',
-            'open_credit_lines.integer' => $count,
-            'open_credit_lines.min' => $count,
-            'open_credit_lines.max' => $count,
-            'late_payments_2y.required' => 'Enter how many times a repayment was 30 or more days late in the past 2 years. Enter 0 if never.',
-            'late_payments_2y.integer' => $count,
-            'late_payments_2y.min' => $count,
-            'late_payments_2y.max' => $count,
-            'public_records.required' => 'Enter how many court judgments, bankruptcies or written-off debts you have had. Enter 0 if none.',
-            'public_records.integer' => $count,
-            'public_records.min' => $count,
-            'public_records.max' => $count,
 
             'credit_report.file' => 'Choose a file to upload.',
             'credit_report.uploaded' => 'The file could not be uploaded. '.StoreKycDocumentRequest::TOO_LARGE,

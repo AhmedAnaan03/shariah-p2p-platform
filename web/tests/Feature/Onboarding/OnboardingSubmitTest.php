@@ -29,7 +29,7 @@ class OnboardingSubmitTest extends TestCase
                 ->component('Onboarding/Review')
                 ->where('complete', true)
                 ->where('submittedAt', null)
-                ->has('documents', 2)
+                ->has('documents', 3)
                 ->where('details', fn ($details) => collect($details)->pluck('label')->contains('Address'))
                 ->where('editLinks.address', route('borrower.onboarding.show', 'address'))
                 ->where('submitUrl', route('borrower.onboarding.submit'))

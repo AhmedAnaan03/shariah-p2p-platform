@@ -12,7 +12,7 @@ use Tests\TestCase;
 
 /**
  * PB-09: the borrower / SME profile captures personal and business details, sector, years
- * operating and declared income or revenue. Since PB-53 it is step 1 of the onboarding wizard
+ * operating (income moved to the finance step in PB-58). Since PB-53 it is step 1 of the onboarding wizard
  * (/borrower/onboarding/profile); the address has its own step (AddressStepTest).
  */
 class BorrowerProfileTest extends TestCase
@@ -34,7 +34,6 @@ class BorrowerProfileTest extends TestCase
             'business_registration_no' => 'C-0123/2019',
             'sector' => 'fisheries',
             'years_operating' => '6',
-            'declared_annual_income' => '850000.50',
         ], $overrides);
     }
 
@@ -47,7 +46,6 @@ class BorrowerProfileTest extends TestCase
             'borrower_type' => 'individual',
             'phone' => '+9609876543',
             'national_id_no' => 'A654321',
-            'declared_annual_income' => '180000',
         ], $overrides);
     }
 
@@ -82,7 +80,6 @@ class BorrowerProfileTest extends TestCase
         $this->assertSame('C-0123/2019', $profile->business_registration_no);
         $this->assertSame('fisheries', $profile->sector);
         $this->assertSame(6, $profile->years_operating);
-        $this->assertSame('850000.50', $profile->declared_annual_income);
     }
 
     public function test_the_national_id_number_is_stored_encrypted(): void
@@ -156,7 +153,6 @@ class BorrowerProfileTest extends TestCase
     {
         $type = 'Choose whether you are borrowing as an individual or as a business (SME).';
         $years = 'Enter how many whole years the business has been operating, from 0 to 100.';
-        $income = 'Enter your declared annual income or revenue in MVR, like 250000 or 250000.50.';
 
         return [
             'blank borrower type' => [['borrower_type' => ''], 'borrower_type', $type],
@@ -178,11 +174,6 @@ class BorrowerProfileTest extends TestCase
             'years operating not a whole number' => [['years_operating' => '2.5'], 'years_operating', $years],
             'negative years operating' => [['years_operating' => '-1'], 'years_operating', $years],
             'years operating over 100' => [['years_operating' => '101'], 'years_operating', $years],
-            'blank income' => [['declared_annual_income' => ''], 'declared_annual_income', $income],
-            'income in words' => [['declared_annual_income' => 'a lot'], 'declared_annual_income', $income],
-            'income with 3 decimal places' => [['declared_annual_income' => '1000.555'], 'declared_annual_income', 'Enter the amount with at most 2 decimal places.'],
-            'negative income' => [['declared_annual_income' => '-5'], 'declared_annual_income', 'The amount can\'t be negative.'],
-            'income too large for the column' => [['declared_annual_income' => '10000000000000'], 'declared_annual_income', 'The amount is too large.'],
         ];
     }
 
@@ -210,8 +201,6 @@ class BorrowerProfileTest extends TestCase
         return [
             'zero years operating (a new business)' => [['years_operating' => '0']],
             '100 years operating' => [['years_operating' => '100']],
-            'zero income' => [['declared_annual_income' => '0']],
-            'largest income the column holds' => [['declared_annual_income' => '9999999999999.99']],
             'landline starting with 3' => [['phone' => '3301234']],
             'phone written with dashes' => [['phone' => '+960-777-1234']],
         ];

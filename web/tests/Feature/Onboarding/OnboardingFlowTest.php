@@ -25,7 +25,7 @@ class OnboardingFlowTest extends TestCase
     {
         $this->actingAs(User::factory()->borrower()->create())->get('/borrower/onboarding/profile')
             ->assertInertia(fn (Assert $page) => $page
-                ->where('wizard.steps', fn ($steps) => collect($steps)->pluck('key')->all() === ['profile', 'address', 'documents', 'review'])
+                ->where('wizard.steps', fn ($steps) => collect($steps)->pluck('key')->all() === ['profile', 'address', 'finances', 'documents', 'review'])
                 ->where('wizard.step', 'profile')
                 ->where('wizard.backUrl', null)
             );
@@ -98,7 +98,7 @@ class OnboardingFlowTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('wizard.locked', false)
                 ->where('wizard.steps.0.done', true)
-                ->where('wizard.steps.2.href', route('borrower.onboarding.show', 'documents'))
+                ->where('wizard.steps.3.href', route('borrower.onboarding.show', 'documents'))
             );
 
         $this->actingAs($borrower)->put('/borrower/onboarding/profile', [

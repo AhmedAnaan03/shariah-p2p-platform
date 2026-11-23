@@ -104,7 +104,7 @@ class VerificationQueueTest extends TestCase
             'national_id_no' => 'A111222',
             'business_name' => 'Island Bakes',
             'sector' => 'food_and_beverage',
-            'declared_annual_income' => '480000.00',
+            'monthly_income' => '40000.00',
             'address_house' => 'H. Coral Villa',
             'address_road' => 'Majeedhee Magu',
             'postcode' => '20026',
@@ -120,14 +120,14 @@ class VerificationQueueTest extends TestCase
                 ->where('applicant.name', 'Ahmed Rasheed')
                 ->where('applicant.status', 'pending_verification')
                 ->where('profile', fn ($profile) => collect($profile)->pluck('value', 'label')->only([
-                    'Borrowing as', 'National ID card number', 'Address', 'Business name', 'Sector', 'Declared annual revenue',
+                    'Borrowing as', 'National ID card number', 'Address', 'Business name', 'Sector', 'Monthly income',
                 ])->all() === [
                     'Borrowing as' => 'Business (SME)',
                     'National ID card number' => 'A111222', // decrypted for the admin to compare
                     'Address' => 'H. Coral Villa, Majeedhee Magu, Malé, Malé City 20026',
                     'Business name' => 'Island Bakes',
                     'Sector' => 'Food and beverage',
-                    'Declared annual revenue' => 'MVR 480,000.00',
+                    'Monthly income' => 'MVR 40,000.00',
                 ])
                 ->has('documents', 4)
                 ->where('documents.2.url', route('documents.show', $registration))

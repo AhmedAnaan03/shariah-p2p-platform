@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Campaign\StoreCampaignRequest;
 use App\Http\Requests\Kyc\StoreKycDocumentRequest;
 use App\Models\Campaign;
-use App\Models\CampaignFinancials;
 use App\Models\KycDocument;
 use App\Services\CampaignSubmissionService;
 use App\Support\CampaignPresenter;
@@ -78,22 +77,19 @@ class CampaignController extends Controller
             'canSubmit' => $permission->allowed(),
             'blockedReason' => $permission->message(),
             'isSme' => $profile?->isSme() ?? false,
-            // Pre-filled from the profile; the borrower can correct it for this request.
-            'declaredAnnualIncome' => $profile?->declared_annual_income,
+            // PB-58: the verified financial profile, shown read-only; it is copied into the
+            // request when it is submitted. Changing it is done in the profile.
+            'finances' => $profile?->hasFinancialProfile() ? CampaignPresenter::finances($profile) : null,
+            'creditHistory' => $profile?->hasFinancialProfile() ? CampaignPresenter::creditHistory($profile) : null,
+            'financesUrl' => route('borrower.onboarding.show', 'finances').'?'.http_build_query([ReturnUrl::PARAM => route('borrower.campaigns.create', [], false)]),
             'purposes' => self::options(Campaign::PURPOSES),
             'tenures' => array_map(fn (int $months) => ['value' => (string) $months, 'label' => "{$months} months"], Campaign::TENURES),
-            'housing' => self::options(CampaignFinancials::HOUSING),
-            'employmentYears' => array_map(
-                fn (int $years) => ['value' => (string) $years, 'label' => CampaignFinancials::employmentLabel($years)],
-                range(0, CampaignFinancials::MAX_EMPLOYMENT_YEARS),
-            ),
             'limits' => [
                 'minAmount' => Campaign::MIN_AMOUNT,
                 'maxAmount' => Campaign::MAX_AMOUNT,
                 'maxInterestRate' => Campaign::MAX_INTEREST_RATE,
                 'minProfitShare' => Campaign::MIN_PROFIT_SHARE,
                 'maxProfitShare' => Campaign::MAX_PROFIT_SHARE,
-                'maxCount' => CampaignFinancials::MAX_COUNT,
             ],
             'maxBytes' => KycDocument::MAX_KILOBYTES * 1024,
             'tooLargeMessage' => StoreKycDocumentRequest::TOO_LARGE,

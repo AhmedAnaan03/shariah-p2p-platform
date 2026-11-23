@@ -68,7 +68,7 @@ final class RiskFeatures
             'tenure_months' => $campaign->tenure_months,
             'purpose' => $campaign->purpose,
             ...$campaign->financials->only([
-                'annual_income', 'monthly_debt_repayments', 'employment_years', 'housing',
+                'monthly_income', 'monthly_debt_repayments', 'employment_years', 'housing',
                 'open_credit_lines', 'late_payments_2y', 'public_records',
             ]),
         ]);
@@ -85,12 +85,14 @@ final class RiskFeatures
     {
         $amount = (float) $application['amount_requested'];
         $tenure = (int) $application['tenure_months'];
-        $monthlyIncome = (float) $application['annual_income'] / 12;
+        // Borrowers declare monthly income (PB-58); the model was trained on annual income.
+        $monthlyIncome = (float) $application['monthly_income'];
+        $annualIncome = CampaignFinancials::annualIncome($monthlyIncome);
 
         return [
             'term_months' => $tenure,
             'purpose_group' => self::PURPOSE_GROUPS[$application['purpose']],
-            'loan_to_income' => $amount / (float) $application['annual_income'],
+            'loan_to_income' => $amount / $annualIncome,
             'repayment_burden' => ($amount / $tenure) / $monthlyIncome,
             // LendingClub's dti: monthly debt repayments (excluding housing and the new
             // request) as a percentage of monthly income.

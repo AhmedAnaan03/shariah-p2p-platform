@@ -26,17 +26,17 @@ class VerificationChecklistTest extends TestCase
         $checklist = VerificationChecklist::for(User::factory()->borrower()->create());
 
         $this->assertFalse($checklist->hasProfile());
-        $this->assertSame(['national_id', 'proof_of_address'], $checklist->missingDocumentTypes());
+        $this->assertSame(['national_id', 'proof_of_address', 'salary_slip'], $checklist->missingDocumentTypes());
         $this->assertFalse($checklist->isReadyForReview());
     }
 
-    public function test_an_individual_borrower_needs_an_id_card_and_proof_of_address(): void
+    public function test_an_individual_borrower_needs_an_id_card_proof_of_address_and_salary_slip(): void
     {
         $borrower = $this->onboardedBorrower();
 
         $checklist = VerificationChecklist::for($borrower);
 
-        $this->assertSame(['national_id', 'proof_of_address'], $checklist->requiredDocumentTypes());
+        $this->assertSame(['national_id', 'proof_of_address', 'salary_slip'], $checklist->requiredDocumentTypes());
         $this->assertTrue($checklist->isReadyForReview());
     }
 

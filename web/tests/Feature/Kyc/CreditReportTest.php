@@ -58,7 +58,7 @@ class CreditReportTest extends TestCase
 
         $this->actingAs($this->borrower)->get('/borrower/onboarding/documents')
             ->assertInertia(fn (Assert $page) => $page
-                ->has('slots', 2)
+                ->has('slots', 3)
                 ->where('slots.0.document.id', $id)
                 ->where('slots.1.document', null)
             );
@@ -71,7 +71,7 @@ class CreditReportTest extends TestCase
         $this->actingAs($admin)->get("/admin/verifications/{$this->borrower->id}")
             ->assertInertia(fn (Assert $page) => $page
                 ->has('documents', 0)
-                ->where('missingDocuments', ['National ID card', 'Proof of address'])
+                ->where('missingDocuments', ['National ID card', 'Proof of address', 'Salary slip'])
             );
     }
 

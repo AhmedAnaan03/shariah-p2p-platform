@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
- * Submits a borrower's financing request (PB-13) with its financial information and optional
- * credit report (PB-14), all or nothing.
+ * Submits a borrower's financing request (PB-13) with a snapshot of their financial profile
+ * (PB-14, from the profile since PB-58) and optional credit report, all or nothing.
  */
 class CampaignSubmissionService
 {
@@ -36,7 +36,9 @@ class CampaignSubmissionService
                 $campaign->submitted_at = now();
                 $campaign->save();
 
-                $campaign->financials()->create($data);
+                // PB-58: a snapshot of the verified financial profile, so this request is scored
+                // on what was true when it was made, even if the profile changes later.
+                $campaign->financials()->create($borrower->borrowerProfile->financialProfile());
 
                 if ($creditReport !== null) {
                     $stored = $this->documents->store($borrower, $creditReport, KycDocument::TYPE_CREDIT_REPORT, $campaign);

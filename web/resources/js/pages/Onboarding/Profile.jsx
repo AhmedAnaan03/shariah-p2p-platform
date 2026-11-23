@@ -9,7 +9,7 @@ const TYPE_ICONS = { individual: 'user', sme: 'storefront' };
 
 /**
  * Onboarding step 1, "Your details" (PB-53; the fields are PB-09's borrower profile and PB-10's
- * investor profile). `profile` is null until it is first saved. A borrower also chooses
+ * investor profile; income moved to the finance step in PB-58). `profile` is null until it is first saved. A borrower also chooses
  * individual or SME, which decides their business fields here and their document slots later.
  */
 export default function OnboardingProfile({ wizard, profile, borrowerTypes, sectors }) {
@@ -24,7 +24,6 @@ export default function OnboardingProfile({ wizard, profile, borrowerTypes, sect
                   business_registration_no: profile?.business_registration_no ?? '',
                   sector: profile?.sector ?? '',
                   years_operating: profile?.years_operating ?? '',
-                  declared_annual_income: profile?.declared_annual_income ?? '',
               }
             : { phone: profile?.phone ?? '', national_id_no: profile?.national_id_no ?? '' },
     );
@@ -87,18 +86,6 @@ export default function OnboardingProfile({ wizard, profile, borrowerTypes, sect
                 </Card>
             )}
 
-            {borrower && (
-                <Card title={isSme ? 'Revenue' : 'Income'}>
-                    <Input
-                        {...field('declared_annual_income')}
-                        inputMode="decimal"
-                        prefix="MVR"
-                        label={isSme ? 'Declared annual revenue' : 'Declared annual income'}
-                        hint="Your own figure before tax. It is used in the risk assessment."
-                        className="max-w-sm"
-                    />
-                </Card>
-            )}
         </OnboardingFrame>
     );
 }

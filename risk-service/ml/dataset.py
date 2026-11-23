@@ -386,9 +386,10 @@ def platform_raw_frame(applications):
     """Our applications (dicts with the web app's field names) as raw LendingClub columns.
 
     LendingClub's `dti` is monthly debt repayments (excluding housing) / monthly income x 100;
-    our form asks for the repayments and the annual income, so it is worked out here."""
+    our financial profile asks for the repayments and the monthly income (PB-58), so annual
+    income (monthly x 12, as the model was trained on) and dti are worked out here."""
     apps = pd.DataFrame(list(applications))
-    annual_income = pd.Series(apps["annual_income"], dtype="float64")
+    annual_income = pd.Series(apps["monthly_income"], dtype="float64") * 12
     monthly_debt = pd.Series(apps["monthly_debt_repayments"], dtype="float64")
     raw = pd.DataFrame(
         {

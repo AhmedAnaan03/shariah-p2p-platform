@@ -88,7 +88,8 @@ class VerificationController extends Controller
             'missingDocuments' => array_map(fn ($type) => DocumentSlots::labelFor($user, $type), $checklist->missingDocumentTypes()),
             // Anything else the user hasn't finished (PB-53), so the admin knows why Approve is off.
             'missingSteps' => array_values(array_filter([
-                $checklist->hasProfile() && ! $checklist->hasCompleteAddress() ? 'The address has not been completed or checked.' : null,
+                $checklist->hasProfile() && ! $checklist->hasCompleteAddress() ? 'The address has not been completed.' : null,
+                $checklist->hasProfile() && ! $checklist->hasFinancialProfile() ? 'The financial profile has not been completed.' : null,
                 ! $checklist->hasAcceptedRisk() ? 'The risk acknowledgement has not been accepted.' : null,
                 $user->isPending() && ! $checklist->isSubmitted() ? 'The account has not been submitted for verification.' : null,
             ])),

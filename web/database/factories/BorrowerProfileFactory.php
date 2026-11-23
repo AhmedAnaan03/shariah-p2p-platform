@@ -32,7 +32,14 @@ class BorrowerProfileFactory extends Factory
             'business_registration_no' => 'SP-'.fake()->numerify('#####'),
             'sector' => fake()->randomElement(['retail', 'fisheries', 'tourism', 'agriculture']),
             'years_operating' => fake()->numberBetween(1, 15),
-            'declared_annual_income' => fake()->numberBetween(100_000, 2_000_000),
+            // The financial profile (PB-58).
+            'monthly_income' => fake()->numberBetween(15, 120) * 1000,
+            'monthly_debt_repayments' => fake()->randomElement([0, 2500, 4000, 6000]),
+            'employment_years' => fake()->numberBetween(1, 10),
+            'housing' => fake()->randomElement(['rent', 'own', 'own_with_home_loan', 'family_home']),
+            'open_credit_lines' => fake()->numberBetween(0, 4),
+            'late_payments_2y' => 0,
+            'public_records' => 0,
         ];
     }
 
@@ -45,6 +52,14 @@ class BorrowerProfileFactory extends Factory
             'sector' => null,
             'years_operating' => null,
         ]);
+    }
+
+    /**
+     * A profile whose finance step (PB-58) hasn't been done yet.
+     */
+    public function withoutFinances(): static
+    {
+        return $this->state(fn () => array_fill_keys(BorrowerProfile::FINANCIAL_FIELDS, null));
     }
 
     /**
