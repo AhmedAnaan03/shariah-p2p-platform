@@ -33,12 +33,6 @@ final class ProfilePresenter
             ['label' => 'Address', 'value' => $profile->hasCompleteAddress() ? $profile->addressLine() : 'Not completed yet'],
         ];
 
-        // A profile from before PB-53 that the user hasn't checked yet keeps its original text
-        // on show, so nobody has to guess what the old address said.
-        if ($profile->address_needs_review && $profile->address_legacy !== null) {
-            $details[] = ['label' => 'Address as first entered', 'value' => $profile->address_legacy];
-        }
-
         if ($profile instanceof BorrowerProfile) {
             $details = [
                 ['label' => 'Borrowing as', 'value' => BorrowerProfile::TYPES[$profile->borrower_type]],

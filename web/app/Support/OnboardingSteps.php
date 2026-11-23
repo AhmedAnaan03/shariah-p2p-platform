@@ -93,8 +93,7 @@ final class OnboardingSteps
     public function current(): string
     {
         // A verified account is locked: every step is open to read, and the wizard opens on the
-        // review step, even if an older profile still has a migrated address the user can no
-        // longer change (decided in PB-53: verified users are not asked to complete it).
+        // review step.
         if ($this->user->status === 'verified') {
             return self::REVIEW;
         }

@@ -35,15 +35,13 @@ class SchemaMatchesErdTest extends TestCase
         'borrower_profiles' => [
             'id' => false, 'user_id' => false, 'borrower_type' => false, 'phone' => false,
             'national_id_no' => false, 'address_house' => true, 'address_road' => true,
-            'island_id' => true, 'postcode' => true, 'address_legacy' => true,
-            'address_needs_review' => false, 'business_name' => true,
+            'island_id' => true, 'postcode' => true, 'business_name' => true,
             'business_registration_no' => true, 'sector' => true, 'years_operating' => true,
             'declared_annual_income' => false, 'created_at' => true, 'updated_at' => true,
         ],
         'investor_profiles' => [
             'id' => false, 'user_id' => false, 'phone' => false, 'national_id_no' => false,
             'address_house' => true, 'address_road' => true, 'island_id' => true, 'postcode' => true,
-            'address_legacy' => true, 'address_needs_review' => false,
             'risk_acknowledged_at' => true, 'shariah_only' => false,
             'created_at' => true, 'updated_at' => true,
         ],

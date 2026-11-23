@@ -67,7 +67,7 @@ class AddressStepTest extends TestCase
                 ->where('atolls.0.label', 'Haa Alif (HA)')
                 ->where('atolls.0.islands', fn ($islands) => count($islands) === Atoll::where('code', 'HA')->sole()->islands()->count())
                 ->where('address.island_id', '')
-                ->where('legacyAddress', null)
+                ->missing('legacyAddress')
             );
     }
 
@@ -154,41 +154,6 @@ class AddressStepTest extends TestCase
     public function test_boundary_values_are_accepted(array $change): void
     {
         $this->save($this->input($change))->assertSessionHasNoErrors();
-    }
-
-    public function test_a_migrated_address_shows_the_original_text_until_the_user_saves_it(): void
-    {
-        $borrower = User::factory()->borrower()->create();
-        $profile = BorrowerProfile::factory()->individual()->legacyAddress('M. Blue Lagoon, Malé', [
-            'address_house' => 'M. Blue Lagoon',
-            'island_id' => Island::idFor('Malé City', 'Malé'),
-        ])->for($borrower)->create();
-
-        $this->actingAs($borrower)->get('/borrower/onboarding/address')
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('legacyAddress', 'M. Blue Lagoon, Malé')
-                ->where('address.address_house', 'M. Blue Lagoon')
-                ->where('address.island_id', (string) $profile->island_id)
-                ->where('address.atoll_id', (string) $profile->island->atoll_id)
-            );
-        $this->assertFalse($profile->hasCompleteAddress(), 'Not complete until checked, even with fields filled in.');
-
-        $this->borrower = $borrower;
-        $this->save($this->input())->assertSessionHasNoErrors();
-
-        $profile->refresh();
-        $this->assertFalse($profile->address_needs_review);
-        $this->assertSame('M. Blue Lagoon, Malé', $profile->address_legacy, 'The original text is kept for the record.');
-        $this->assertTrue($profile->hasCompleteAddress());
-    }
-
-    public function test_the_legacy_text_and_review_flag_cannot_be_set_from_the_form(): void
-    {
-        $this->save($this->input(['address_legacy' => 'Injected', 'address_needs_review' => '1']))->assertSessionHasNoErrors();
-
-        $profile = $this->borrower->fresh()->borrowerProfile;
-        $this->assertNull($profile->address_legacy);
-        $this->assertFalse($profile->address_needs_review);
     }
 
     public function test_investors_use_the_same_address_step(): void

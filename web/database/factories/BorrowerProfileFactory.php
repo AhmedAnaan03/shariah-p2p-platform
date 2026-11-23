@@ -28,8 +28,6 @@ class BorrowerProfileFactory extends Factory
             'address_road' => fake()->randomElement(['Majeedhee Magu', 'Ameenee Magu', 'Orchid Magu', 'Lily Magu']),
             'island_id' => fn () => Island::idFor('Malé City', 'Malé'),
             'postcode' => '2'.fake()->numerify('####'),
-            'address_legacy' => null,
-            'address_needs_review' => false,
             'business_name' => fake()->company(),
             'business_registration_no' => 'SP-'.fake()->numerify('#####'),
             'sector' => fake()->randomElement(['retail', 'fisheries', 'tourism', 'agriculture']),
@@ -50,27 +48,12 @@ class BorrowerProfileFactory extends Factory
     }
 
     /**
-     * A profile from before PB-53: the old single-line address kept in address_legacy and
-     * flagged for the user to check, with nothing (or only a guess) in the new fields.
-     */
-    public function legacyAddress(string $text = 'M. Blue Lagoon, Malé', array $guess = []): static
-    {
-        return $this->state(fn () => [
-            'address_house' => null, 'address_road' => null, 'island_id' => null, 'postcode' => null,
-            ...$guess,
-            'address_legacy' => $text,
-            'address_needs_review' => true,
-        ]);
-    }
-
-    /**
      * A profile saved in onboarding step 1, before the address step.
      */
     public function withoutAddress(): static
     {
         return $this->state(fn () => [
             'address_house' => null, 'address_road' => null, 'island_id' => null, 'postcode' => null,
-            'address_legacy' => null, 'address_needs_review' => false,
         ]);
     }
 }

@@ -105,9 +105,6 @@ class OnboardingController extends Controller
 
         $profile = VerificationChecklist::for($user)->profile();
         $profile->fill($request->addressData());
-        // Saved by the user, so a migrated address now counts as checked (PB-53). The original
-        // single-line text stays in address_legacy for the record.
-        $profile->address_needs_review = false;
         $profile->save();
 
         return $this->continueFrom($user, OnboardingSteps::ADDRESS, 'Your address has been saved.');
@@ -267,9 +264,6 @@ class OnboardingController extends Controller
                 'island_id' => $profile->island_id ? (string) $profile->island_id : '',
                 'postcode' => $profile->postcode ?? '',
             ],
-            // The single-line address from before PB-53, while the user still has to check
-            // the fields filled in from it.
-            'legacyAddress' => $profile->address_needs_review ? $profile->address_legacy : null,
             'atolls' => Atoll::options(),
         ];
     }

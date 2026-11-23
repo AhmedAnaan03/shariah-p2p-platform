@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 /**
  * PB-09 to PB-11, extended by PB-53: what an account needs before an administrator can review
- * it. A profile, a complete (and, if migrated, checked) address, every document slot filled,
+ * it. A profile, a complete address, every document slot filled,
  * the risk acknowledgement for investors, and the explicit submission.
  */
 class VerificationChecklistTest extends TestCase
@@ -99,13 +99,12 @@ class VerificationChecklistTest extends TestCase
     {
         return [
             'no address yet (blank)' => ['withoutAddress', false],
-            'migrated, not yet checked' => ['legacyAddress', false],
             'every field filled and checked' => ['individual', true],
         ];
     }
 
     #[DataProvider('addressStates')]
-    public function test_the_address_counts_only_when_complete_and_checked(string $state, bool $complete): void
+    public function test_the_address_counts_only_when_complete(string $state, bool $complete): void
     {
         $borrower = User::factory()->borrower()->submitted()->create();
         BorrowerProfile::factory()->individual()->{$state}()->for($borrower)->create();

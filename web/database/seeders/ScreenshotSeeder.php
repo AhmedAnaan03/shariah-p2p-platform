@@ -30,14 +30,9 @@ class ScreenshotSeeder extends Seeder
 
         User::factory()->admin()->create(['name' => 'Demo Admin', 'email' => 'admin@example.com', 'password' => $password]);
 
-        // Borrower part-way through onboarding (PB-53): profile saved before addresses were
-        // structured, so the address still has to be checked; ID and business certificate
-        // uploaded, proof of address and financial statement still missing.
+        // Borrower part-way through onboarding: details saved, no address yet.
         $borrower = User::factory()->borrower()->create(['name' => 'Ibrahim Waheed', 'email' => 'borrower@example.com', 'password' => $password]);
-        BorrowerProfile::factory()->legacyAddress('M. Blue Lagoon, Malé', [
-            'address_house' => 'M. Blue Lagoon',
-            'island_id' => Island::idFor('Malé City', 'Malé'),
-        ])->for($borrower)->create([
+        BorrowerProfile::factory()->withoutAddress()->for($borrower)->create([
             'business_name' => 'Coral Cove Trading',
             'business_registration_no' => 'C-0412/2021',
             'sector' => 'fisheries',

@@ -47,7 +47,6 @@ class OnboardingFlowTest extends TestCase
         return [
             'nothing saved yet (blank)' => ['nothing', 'profile'],
             'details saved, no address' => ['profile', 'address'],
-            'migrated address not yet checked' => ['legacy', 'address'],
             'address saved, documents missing' => ['address', 'documents'],
             'documents uploaded, not submitted' => ['documents', 'review'],
             'submitted' => ['submitted', 'review'],
@@ -146,15 +145,6 @@ class OnboardingFlowTest extends TestCase
         $this->actingAs($borrower)->post('/borrower/onboarding/submit')->assertForbidden();
     }
 
-    public function test_a_verified_user_with_a_migrated_address_is_not_asked_to_complete_it(): void
-    {
-        $borrower = User::factory()->borrower()->verified()->create();
-        BorrowerProfile::factory()->individual()->legacyAddress('H. Old House, Malé')->for($borrower)->create();
-
-        $this->actingAs($borrower)->get('/borrower/onboarding')->assertRedirect('/borrower/onboarding/review');
-        $this->actingAs($borrower)->get('/borrower/onboarding/review')->assertOk();
-    }
-
     public function test_the_risk_step_does_not_exist_for_borrowers(): void
     {
         $this->actingAs($this->borrowerAt('documents'))->get('/borrower/onboarding/risk')->assertNotFound();
@@ -240,7 +230,6 @@ class OnboardingFlowTest extends TestCase
         $profile = match ($progress) {
             'nothing' => null,
             'profile' => BorrowerProfile::factory()->individual()->withoutAddress(),
-            'legacy' => BorrowerProfile::factory()->individual()->legacyAddress(),
             'address' => BorrowerProfile::factory()->individual(),
         };
         $profile?->for($borrower)->create();

@@ -87,8 +87,6 @@ erDiagram
         varchar address_road "nullable, the magu"
         bigint island_id FK "nullable, islands.id (implies the atoll)"
         char postcode "nullable, 5 digits (CHECK)"
-        text address_legacy "nullable, the single-line address from before PB-53"
-        boolean address_needs_review "set by the PB-53 migration until the user checks the fields"
         varchar business_name "nullable (individuals)"
         varchar business_registration_no "nullable"
         varchar sector "nullable"
@@ -105,8 +103,6 @@ erDiagram
         varchar address_road "nullable, the magu"
         bigint island_id FK "nullable, islands.id (implies the atoll)"
         char postcode "nullable, 5 digits (CHECK)"
-        text address_legacy "nullable, the single-line address from before PB-53"
-        boolean address_needs_review "set by the PB-53 migration until the user checks the fields"
         timestamp risk_acknowledged_at "nullable, set when accepted"
         boolean shariah_only "default false"
     }

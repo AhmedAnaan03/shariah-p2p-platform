@@ -7,8 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * The structured address both profiles share (PB-53): house/building name, road (magu),
- * island (and through it the atoll) and postcode. address_legacy holds the single-line text
- * an older profile had; address_needs_review is set until the user has checked the fields.
+ * island (and through it the atoll) and postcode.
  */
 trait HasStructuredAddress
 {
@@ -21,7 +20,7 @@ trait HasStructuredAddress
     }
 
     /**
-     * Every field filled in and, for a migrated address, checked by the user.
+     * Every address field filled in.
      */
     public function hasCompleteAddress(): bool
     {
@@ -31,17 +30,17 @@ trait HasStructuredAddress
             }
         }
 
-        return ! $this->address_needs_review;
+        return true;
     }
 
     /**
-     * One line for reading: "H. Sea Breeze, Majeedhee Magu, Malé, Malé City 20026". Falls back
-     * to the legacy text while the address hasn't been completed.
+     * One line for reading: "H. Sea Breeze, Majeedhee Magu, Malé, Malé City 20026", or null
+     * while the address hasn't been completed.
      */
     public function addressLine(): ?string
     {
         if (! $this->hasCompleteAddress()) {
-            return $this->address_legacy;
+            return null;
         }
 
         $island = $this->island;

@@ -10,8 +10,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// address_legacy and address_needs_review are set by the migration and the address step's
-// code (PB-53), never mass-assigned from a form.
 #[Fillable([
     'borrower_type', 'phone', 'national_id_no', 'address_house', 'address_road', 'island_id', 'postcode',
     'business_name', 'business_registration_no', 'sector', 'years_operating', 'declared_annual_income',
@@ -64,7 +62,6 @@ class BorrowerProfile extends Model
             'national_id_no' => 'encrypted',
             'years_operating' => 'integer',
             'declared_annual_income' => 'decimal:2',
-            'address_needs_review' => 'boolean',
         ];
     }
 
