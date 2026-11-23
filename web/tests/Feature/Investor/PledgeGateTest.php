@@ -88,28 +88,31 @@ class PledgeGateTest extends TestCase
         $this->actingAs($investor->fresh())->post('/test-only/pledge')->assertOk()->assertSee('pledged');
     }
 
-    public function test_the_investor_portal_shows_why_pledging_is_locked(): void
+    public function test_the_marketplace_shows_why_pledging_is_locked_and_the_overview_does_not(): void
     {
+        // PB-57: the warning is shown where pledging happens, not on the portal overview.
         $investor = self::investor(verified: true, hasProfile: true, acknowledged: false);
 
+        $this->actingAs($investor)->get('/investor/campaigns')
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Investor/Campaigns/Index')
+                ->where('pledge.allowed', false)
+                ->where('pledge.reason', self::NEEDS_ACKNOWLEDGEMENT)
+            );
         $this->actingAs($investor)->get('/investor')
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Investor/Portal')
-                ->where('pledge.allowed', false)
-                ->where('pledge.reason', self::NEEDS_ACKNOWLEDGEMENT)
+                ->missing('pledge')
                 ->where('onboarding.steps.3.key', 'risk')
                 ->where('onboarding.steps.3.done', false)
             );
     }
 
-    public function test_the_investor_portal_shows_pledging_unlocked_once_everything_is_done(): void
+    public function test_the_marketplace_shows_pledging_unlocked_once_everything_is_done(): void
     {
         $investor = self::investor(verified: true, hasProfile: true, acknowledged: true);
 
-        $this->actingAs($investor)->get('/investor')
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('pledge.allowed', true)
-                ->where('onboarding.steps.3.done', true)
-            );
+        $this->actingAs($investor)->get('/investor/campaigns')
+            ->assertInertia(fn (Assert $page) => $page->where('pledge.allowed', true));
     }
 }

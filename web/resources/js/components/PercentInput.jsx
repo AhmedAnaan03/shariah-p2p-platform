@@ -22,7 +22,7 @@ export default function PercentInput({ id, label, hint, error, optional, value, 
             inputMode="decimal"
             autoComplete="off"
             invalid={Boolean(error)}
-            inputClassName="font-mono"
+            figures
             {...describedBy(id, { hint, error })}
             {...inputProps}
             className={label ? '' : className}

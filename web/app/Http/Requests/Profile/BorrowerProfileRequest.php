@@ -44,8 +44,6 @@ class BorrowerProfileRequest extends FormRequest
             'business_registration_no' => [$smeOnly, 'required', 'string', 'max:50', 'regex:/^[A-Za-z0-9\/-]+$/'],
             'sector' => [$smeOnly, 'required', 'string', Rule::in(array_keys(BorrowerProfile::SECTORS))],
             'years_operating' => [$smeOnly, 'required', 'integer', 'min:0', 'max:100'],
-            // decimal(15,2) in the database: at most 13 digits before the point and 2 after.
-            'declared_annual_income' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999999.99'],
         ];
     }
 
@@ -56,7 +54,6 @@ class BorrowerProfileRequest extends FormRequest
     {
         $type = 'Choose whether you are borrowing as an individual or as a business (SME).';
         $years = 'Enter how many whole years the business has been operating, from 0 to 100.';
-        $income = 'Enter your declared annual income or revenue in MVR, like 250000 or 250000.50.';
 
         return [
             'borrower_type.required' => $type,
@@ -77,11 +74,6 @@ class BorrowerProfileRequest extends FormRequest
             'years_operating.integer' => $years,
             'years_operating.min' => $years,
             'years_operating.max' => $years,
-            'declared_annual_income.required' => $income,
-            'declared_annual_income.numeric' => $income,
-            'declared_annual_income.decimal' => 'Enter the amount with at most 2 decimal places.',
-            'declared_annual_income.min' => 'The amount can\'t be negative.',
-            'declared_annual_income.max' => 'The amount is too large.',
         ];
     }
 

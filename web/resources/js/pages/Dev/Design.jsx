@@ -177,7 +177,7 @@ function Forms() {
                 <Input id="d-empty" label="Business name" optional placeholder="Coral Cove Trading" hint="As it appears on your registration certificate." />
                 <Input id="d-error" label="Business registration number" value="C 0412 2021" onChange={() => {}} error="Enter the number in the format C-0412/2021." />
                 <Input id="d-disabled" label="National ID card number" value="A123456" disabled onChange={() => {}} />
-                <Input id="d-money" label="Amount" prefix="MVR" inputMode="decimal" placeholder="5,000.00" />
+                <Input id="d-money" label="Amount" prefix="MVR" inputMode="decimal" placeholder="5,000.00" figures />
                 <div className="flex flex-col gap-3">
                     <TextInput size="sm" icon="magnifying-glass" placeholder="Search, small" aria-label="Search" />
                     <TextInput size="lg" placeholder="Large input" aria-label="Large input" />
@@ -520,7 +520,7 @@ function Shell({ mode, setMode }) {
                     <Breadcrumbs items={[{ label: 'Campaign review', href: '/dev/design' }, { label: 'Ibrahim Waheed' }]} />
                     <Row>
                         <ThemeToggle save={false} />
-                        <ThemeToggle save={false} compact />
+                        <ThemeToggle save={false} vertical />
                     </Row>
                     <Row>
                         <ModeSwitch mode={mode} onChange={setMode} compactLabel={false} />

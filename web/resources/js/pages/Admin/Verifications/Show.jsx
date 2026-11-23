@@ -18,8 +18,6 @@ const DECISIONS = [
     { value: 'reject', label: 'Reject', icon: 'x-circle', description: 'Something is wrong or missing. The user sees your reason.' },
 ];
 
-// Shown in mono so IDs and numbers line up.
-const MONO_FIELDS = ['Phone', 'National ID card number', 'Business registration number', 'Years operating', 'Declared annual income', 'Declared annual revenue'];
 
 /**
  * Review one account (PB-11): profile, documents (opened through the protected document route)
@@ -70,7 +68,7 @@ export default function VerificationShow({ applicant, profile, documents, missin
             <div className="grid gap-6 @bp-lg/shell:grid-cols-2">
                 <Card title="Profile">
                     {profile ? (
-                        <DescriptionList items={profile.map((item) => [item.label, item.value, MONO_FIELDS.includes(item.label)])} />
+                        <DescriptionList items={profile.map((item) => [item.label, item.value, item.mono])} />
                     ) : (
                         <Alert tone="warning">This user has not completed a profile.</Alert>
                     )}

@@ -93,6 +93,9 @@ Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('b
 
     $onboardingRoutes(Role::BORROWER);
 
+    // The financial profile is the borrower's own onboarding step (PB-58).
+    Route::put('/onboarding/finances', [OnboardingController::class, 'saveFinances'])->name('onboarding.finances');
+
     // Financing requests (PB-13, PB-14). Any borrower can open the pages; only a verified one
     // can submit (CampaignPolicy), and each borrower sees only their own requests.
     Route::get('/campaigns', [BorrowerCampaignController::class, 'index'])->name('campaigns.index');

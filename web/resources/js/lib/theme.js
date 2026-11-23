@@ -1,51 +1,71 @@
 /**
- * The light / dark / system theme in the browser (PB-55). Like the mode (lib/mode.js), it lives
- * on <html>: data-theme is what the CSS uses ("light" or "dark"), data-theme-preference is what
- * the user chose ("light", "dark" or "system"). The server writes both on the first paint
- * (app.blade.php); these helpers keep them right afterwards.
+ * The light / dark theme in the browser (PB-55; a two-way switch with "the most recent change
+ * wins" since PB-57). data-theme on <html> is what the CSS uses. The server sends the user's
+ * last choice (light, dark, or null for none) and the device's setting when they made it; the
+ * head script in app.blade.php and these helpers apply the same rule:
+ *
+ *   no choice, or the device's setting has changed since the choice  → follow the device
+ *   otherwise                                                         → keep the choice
+ *
+ * While a page is open, a change of the device's setting is followed at once (it is the most
+ * recent change). Using the switch makes a new choice, saved with the device's setting then.
  */
-export const THEMES = ['light', 'dark', 'system'];
+import { useEffect, useState } from 'react';
+
+export const THEMES = ['light', 'dark'];
 
 export const DARK_QUERY = '(prefers-color-scheme: dark)';
 
-/** A known preference, or "system". */
-export function normaliseTheme(value) {
-    return THEMES.includes(value) ? value : 'system';
-}
-
-/** The theme to show: the user's choice, or the device's for "system". */
-export function resolveTheme(preference, prefersDark) {
-    const choice = normaliseTheme(preference);
-    if (choice === 'system') {
-        return prefersDark ? 'dark' : 'light';
-    }
-    return choice;
-}
-
-function prefersDark(win = globalThis.window) {
-    return Boolean(win?.matchMedia?.(DARK_QUERY).matches);
-}
-
-/** Put a preference on <html>. The palette cross-fades through the @property registrations. */
-export function applyTheme(preference, doc = globalThis.document, win = globalThis.window) {
-    if (!doc) {
-        return;
-    }
-    const choice = normaliseTheme(preference);
-    doc.documentElement.dataset.themePreference = choice;
-    doc.documentElement.dataset.theme = resolveTheme(choice, prefersDark(win));
+/** "light" or "dark": the device's own setting. */
+export function systemTheme(win = globalThis.window) {
+    return win?.matchMedia?.(DARK_QUERY).matches ? 'dark' : 'light';
 }
 
 /**
- * While the preference is "system", follow the device when its setting changes (e.g. the OS
- * switching to dark at sunset). Returns a function that stops listening.
+ * The theme to show for a saved { choice, systemAtChoice } on a device currently set to `system`.
  */
-export function followSystemTheme(preference, doc = globalThis.document, win = globalThis.window) {
-    if (normaliseTheme(preference) !== 'system' || !win?.matchMedia) {
+export function resolveTheme(saved, system) {
+    const choice = THEMES.includes(saved?.choice) ? saved.choice : null;
+    const atChoice = THEMES.includes(saved?.systemAtChoice) ? saved.systemAtChoice : null;
+
+    if (choice === null) {
+        return system;
+    }
+    return atChoice === null || atChoice === system ? choice : system;
+}
+
+/** Put a theme on <html>. The palette cross-fades through the @property registrations. */
+export function applyTheme(theme, doc = globalThis.document) {
+    if (doc && THEMES.includes(theme)) {
+        doc.documentElement.dataset.theme = theme;
+    }
+}
+
+/**
+ * Call `onChange(theme)` whenever the device's setting changes. Returns a function that stops
+ * listening.
+ */
+export function onSystemThemeChange(onChange, win = globalThis.window) {
+    if (!win?.matchMedia) {
         return () => {};
     }
     const query = win.matchMedia(DARK_QUERY);
-    const update = () => applyTheme('system', doc, win);
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
+    const listener = () => onChange(systemTheme(win));
+    query.addEventListener('change', listener);
+    return () => query.removeEventListener('change', listener);
+}
+
+/** The theme on <html> right now, kept in step as it changes. */
+export function useDocumentTheme() {
+    const read = () => (globalThis.document?.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
+    const [theme, setTheme] = useState(read);
+
+    useEffect(() => {
+        const observer = new MutationObserver(() => setTheme(read()));
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        setTheme(read());
+        return () => observer.disconnect();
+    }, []);
+
+    return theme;
 }

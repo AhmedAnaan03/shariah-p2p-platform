@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\BorrowerProfile;
+use App\Models\InvestorProfile;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -17,28 +19,57 @@ class DatabaseSeeder extends Seeder
     public const DEMO_PASSWORD = 'Demo#2026';
 
     /**
-     * One demo account per role, for trying the portals locally (`php artisan db:seed`).
-     * The admin account is the only way to get an administrator: the public registration form
-     * never offers that role.
+     * Demo accounts for trying the portals locally (`php artisan migrate:fresh --seed`), each
+     * with complete, realistic dummy data (PB-59): a structured address, a financial profile for
+     * borrowers, and a demo PDF in every document slot (DemoData).
+     *
+     *   admin@example.com             administrator (the only way to get one: registration never offers the role)
+     *   borrower@example.com          verified individual borrower
+     *   sme@example.com               verified SME borrower
+     *   investor@example.com          verified investor, risk acknowledged
+     *   pending-borrower@example.com  individual borrower who has submitted and is waiting in the admin queue
+     *   new-investor@example.com      investor who has only registered (onboarding from the start)
      */
     public function run(): void
     {
-        User::factory()->borrower()->create([
-            'name' => 'Demo Borrower',
-            'email' => 'borrower@example.com',
-            'password' => self::DEMO_PASSWORD,
-        ]);
+        $password = self::DEMO_PASSWORD;
 
-        User::factory()->investor()->create([
-            'name' => 'Demo Investor',
-            'email' => 'investor@example.com',
-            'password' => self::DEMO_PASSWORD,
-        ]);
+        User::factory()->admin()->create(['name' => 'Aminath Nashwa', 'email' => 'admin@example.com', 'password' => $password]);
 
-        User::factory()->admin()->create([
-            'name' => 'Demo Admin',
-            'email' => 'admin@example.com',
-            'password' => self::DEMO_PASSWORD,
+        $borrower = User::factory()->borrower()->verified()->submitted()->create(['name' => 'Ahmed Shiyam', 'email' => 'borrower@example.com', 'password' => $password]);
+        BorrowerProfile::factory()->individual()->for($borrower)->create([
+            'phone' => '+960 7712345', 'national_id_no' => 'A142857',
+            ...DemoData::address('male'),
+            ...DemoData::finances(monthlyIncome: 28_500, repayments: 3_200, years: 6, housing: 'rent', openLines: 2),
         ]);
+        DemoData::documents($borrower, 'approved');
+
+        $sme = User::factory()->borrower()->verified()->submitted()->create(['name' => 'Mariyam Zoona', 'email' => 'sme@example.com', 'password' => $password]);
+        BorrowerProfile::factory()->for($sme)->create([
+            'phone' => '+960 7798102', 'national_id_no' => 'A205118',
+            'business_name' => 'Reef Breeze Guest House', 'business_registration_no' => 'SP-0217/2018',
+            'sector' => 'tourism', 'years_operating' => 7,
+            ...DemoData::address('fuvahmulah'),
+            ...DemoData::finances(monthlyIncome: 95_000, repayments: 18_000, years: 7, housing: 'own_with_home_loan', openLines: 3, late: 1),
+        ]);
+        DemoData::documents($sme, 'approved');
+
+        $investor = User::factory()->investor()->verified()->submitted()->create(['name' => 'Ibrahim Rasheed', 'email' => 'investor@example.com', 'password' => $password]);
+        InvestorProfile::factory()->for($investor)->create([
+            'phone' => '+960 9605511', 'national_id_no' => 'A318009',
+            ...DemoData::address('hulhumale'),
+            'risk_acknowledged_at' => now()->subDays(5),
+        ]);
+        DemoData::documents($investor, 'approved');
+
+        $pending = User::factory()->borrower()->submitted()->create(['name' => 'Fathimath Shaheema', 'email' => 'pending-borrower@example.com', 'password' => $password]);
+        BorrowerProfile::factory()->individual()->for($pending)->create([
+            'phone' => '+960 7920334', 'national_id_no' => 'A271644',
+            ...DemoData::address('addu'),
+            ...DemoData::finances(monthlyIncome: 18_000, repayments: 0, years: 2, housing: 'family_home', openLines: 0),
+        ]);
+        DemoData::documents($pending);
+
+        User::factory()->investor()->create(['name' => 'Hassan Nizam', 'email' => 'new-investor@example.com', 'password' => $password]);
     }
 }

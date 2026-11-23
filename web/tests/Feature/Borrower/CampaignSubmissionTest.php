@@ -37,13 +37,17 @@ class CampaignSubmissionTest extends TestCase
         Carbon::setTestNow('2026-11-18 10:00:00');
         Storage::fake(KycDocumentStore::DISK);
 
-        $this->borrower = BorrowerProfile::factory()->create(['declared_annual_income' => 480_000])->user;
+        // The financial profile (PB-58): the first applicant in the shared feature fixture.
+        $this->borrower = BorrowerProfile::factory()->create([
+            'monthly_income' => 40_000, 'monthly_debt_repayments' => 6_000, 'employment_years' => 7,
+            'housing' => 'own_with_home_loan', 'open_credit_lines' => 3, 'late_payments_2y' => 1, 'public_records' => 0,
+        ])->user;
         $this->borrower->forceFill(['status' => 'verified'])->save();
     }
 
     /**
-     * A complete, valid conventional request: the first applicant in the shared feature
-     * fixture, plus the request details.
+     * A complete, valid conventional request. The financial information comes from the
+     * borrower's profile since PB-58, not from this form.
      *
      * @return array<string, mixed>
      */
@@ -58,13 +62,6 @@ class CampaignSubmissionTest extends TestCase
             'tenure_months' => '36',
             'contract_type' => 'conventional',
             'interest_rate_percent' => '8.5',
-            'annual_income' => '480000',
-            'monthly_debt_repayments' => '6000',
-            'employment_years' => '7',
-            'housing' => 'own_with_home_loan',
-            'open_credit_lines' => '3',
-            'late_payments_2y' => '1',
-            'public_records' => '0',
         ], $overrides);
     }
 
@@ -151,7 +148,7 @@ class CampaignSubmissionTest extends TestCase
 
     // ---- The form (PB-13) ------------------------------------------------------------------
 
-    public function test_the_form_offers_the_four_purposes_and_prefills_the_income_from_the_profile(): void
+    public function test_the_form_offers_the_four_purposes_and_shows_the_financial_profile_read_only(): void
     {
         $this->actingAs($this->borrower)->get('/borrower/campaigns/create')
             ->assertInertia(fn (Assert $page) => $page
@@ -163,10 +160,11 @@ class CampaignSubmissionTest extends TestCase
                     ['value' => 'education', 'label' => 'Education'],
                     ['value' => 'personal', 'label' => 'Personal'],
                 ])
-                ->where('declaredAnnualIncome', '480000.00')
                 ->has('tenures', count(Campaign::TENURES))
-                ->has('housing', 4)
-                ->has('employmentYears', 11)
+                ->where('finances.0', ['label' => 'Monthly income', 'value' => 'MVR 40,000.00', 'mono' => true])
+                ->where('finances.1.value', 'MVR 480,000.00')
+                ->has('creditHistory', 3)
+                ->where('financesUrl', route('borrower.onboarding.show', 'finances').'?return_to=%2Fborrower%2Fcampaigns%2Fcreate')
                 ->where('limits.minAmount', Campaign::MIN_AMOUNT)
                 ->where('limits.maxAmount', Campaign::MAX_AMOUNT)
             );
@@ -265,8 +263,6 @@ class CampaignSubmissionTest extends TestCase
      */
     public static function invalidInputs(): array
     {
-        $count = 'Enter a whole number from 0 to 99. Enter 0 if none.';
-
         return [
             // PB-13: the request
             'title blank' => [['title' => ''], 'title', 'Give your request a title.'],
@@ -298,26 +294,6 @@ class CampaignSubmissionTest extends TestCase
             'profit share blank on mudarabah' => [['contract_type' => 'mudarabah', 'interest_rate_percent' => null], 'investor_profit_share_percent', 'Enter the share of the profit that goes to investors.'],
             'profit share 0%' => [['contract_type' => 'mudarabah', 'interest_rate_percent' => null, 'investor_profit_share_percent' => '0'], 'investor_profit_share_percent', 'The investors\' share must be between 1% and 99%, so both sides share the profit.'],
             'profit share 100%' => [['contract_type' => 'mudarabah', 'interest_rate_percent' => null, 'investor_profit_share_percent' => '100'], 'investor_profit_share_percent', 'The investors\' share must be between 1% and 99%, so both sides share the profit.'],
-
-            // PB-14: financial information
-            'income blank' => [['annual_income' => ''], 'annual_income', 'Enter your annual income before tax.'],
-            'income zero' => [['annual_income' => '0'], 'annual_income', 'Your annual income must be more than 0.'],
-            'income not a number' => [['annual_income' => 'a lot'], 'annual_income', 'Enter your income as a number, like 480000.'],
-            'monthly repayments blank' => [['monthly_debt_repayments' => ''], 'monthly_debt_repayments', 'Enter what you repay each month on existing loans and cards. Enter 0 if nothing.'],
-            'monthly repayments negative' => [['monthly_debt_repayments' => '-50'], 'monthly_debt_repayments', 'Monthly repayments can\'t be negative. Enter 0 if nothing.'],
-            'employment blank' => [['employment_years' => ''], 'employment_years', 'Choose how long you have been in your job or running the business.'],
-            'employment 11 years' => [['employment_years' => '11'], 'employment_years', 'Choose how long you have been in your job or running the business.'],
-            'housing blank' => [['housing' => ''], 'housing', 'Choose your housing situation.'],
-            'housing not offered' => [['housing' => 'castle'], 'housing', 'Choose your housing situation from the list.'],
-
-            // PB-14: self-declared credit history
-            'open credit lines blank' => [['open_credit_lines' => ''], 'open_credit_lines', 'Enter how many loans, financing facilities and credit cards you have open. Enter 0 if none.'],
-            'open credit lines negative' => [['open_credit_lines' => '-1'], 'open_credit_lines', $count],
-            'open credit lines 1.5' => [['open_credit_lines' => '1.5'], 'open_credit_lines', $count],
-            'late payments blank' => [['late_payments_2y' => ''], 'late_payments_2y', 'Enter how many times a repayment was 30 or more days late in the past 2 years. Enter 0 if never.'],
-            'late payments 100' => [['late_payments_2y' => '100'], 'late_payments_2y', $count],
-            'public records blank' => [['public_records' => ''], 'public_records', 'Enter how many court judgments, bankruptcies or written-off debts you have had. Enter 0 if none.'],
-            'public records text' => [['public_records' => 'none'], 'public_records', $count],
         ];
     }
 
@@ -336,8 +312,6 @@ class CampaignSubmissionTest extends TestCase
     {
         $this->submit([])->assertSessionHasErrors([
             'title', 'purpose', 'description', 'amount_requested', 'tenure_months', 'contract_type',
-            'annual_income', 'monthly_debt_repayments', 'employment_years', 'housing',
-            'open_credit_lines', 'late_payments_2y', 'public_records',
         ]);
 
         $this->assertSame(0, Campaign::count());
@@ -358,12 +332,6 @@ class CampaignSubmissionTest extends TestCase
             'longest tenure (60 months)' => [['tenure_months' => '60']],
             '0% rate' => [['interest_rate_percent' => '0']],
             '30% rate' => [['interest_rate_percent' => '30']],
-            'no existing repayments' => [['monthly_debt_repayments' => '0']],
-            'less than a year in the job' => [['employment_years' => '0']],
-            'ten years or more in the job' => [['employment_years' => '10']],
-            'family home' => [['housing' => 'family_home']],
-            'all counts zero' => [['open_credit_lines' => '0', 'late_payments_2y' => '0', 'public_records' => '0']],
-            'counts at 99' => [['open_credit_lines' => '99', 'late_payments_2y' => '99', 'public_records' => '99']],
             'no business background' => [['business_background' => '']],
             'profit share 1%' => [['contract_type' => 'mudarabah', 'interest_rate_percent' => null, 'investor_profit_share_percent' => '1']],
             'profit share 99%' => [['contract_type' => 'mudarabah', 'interest_rate_percent' => null, 'investor_profit_share_percent' => '99']],
@@ -381,21 +349,51 @@ class CampaignSubmissionTest extends TestCase
 
     // ---- Structured financial information (PB-14) ------------------------------------------
 
-    public function test_the_scoring_fields_are_stored_as_structured_values(): void
+    public function test_the_request_stores_a_snapshot_of_the_financial_profile(): void
     {
-        $this->submit(self::validInput(['annual_income' => '500000']))->assertSessionHasNoErrors();
+        $this->submit(self::validInput())->assertSessionHasNoErrors();
 
         $financials = Campaign::sole()->financials;
-        $this->assertSame('500000.00', $financials->annual_income);
+        $this->assertSame('40000.00', $financials->monthly_income);
         $this->assertSame('6000.00', $financials->monthly_debt_repayments);
         $this->assertSame(7, $financials->employment_years);
         $this->assertSame('own_with_home_loan', $financials->housing);
         $this->assertSame(3, $financials->open_credit_lines);
         $this->assertSame(1, $financials->late_payments_2y);
         $this->assertSame(0, $financials->public_records);
+    }
 
-        // The profile keeps its own figure; the request has a snapshot.
-        $this->assertSame('480000.00', $this->borrower->borrowerProfile->fresh()->declared_annual_income);
+    public function test_financial_fields_sent_with_the_request_are_ignored(): void
+    {
+        $this->submit(self::validInput(['monthly_income' => '999999', 'annual_income' => '1', 'public_records' => '9']))->assertSessionHasNoErrors();
+
+        $financials = Campaign::sole()->financials;
+        $this->assertSame('40000.00', $financials->monthly_income);
+        $this->assertSame(0, $financials->public_records);
+    }
+
+    public function test_a_later_profile_change_does_not_change_an_earlier_requests_snapshot(): void
+    {
+        $this->submit(self::validInput())->assertSessionHasNoErrors();
+
+        $this->borrower->borrowerProfile->update(['monthly_income' => 55_000, 'late_payments_2y' => 4]);
+
+        $financials = Campaign::sole()->financials->fresh();
+        $this->assertSame('40000.00', $financials->monthly_income);
+        $this->assertSame(1, $financials->late_payments_2y);
+    }
+
+    public function test_a_verified_borrower_without_a_financial_profile_must_complete_it_first(): void
+    {
+        $this->borrower->borrowerProfile->update(array_fill_keys(BorrowerProfile::FINANCIAL_FIELDS, null));
+
+        $this->submit(self::validInput())->assertForbidden();
+        $this->actingAs($this->borrower)->get('/borrower/campaigns/create')
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('canSubmit', false)
+                ->where('blockedReason', 'Complete your financial profile in account setup before you submit a financing request.')
+            );
+        $this->assertSame(0, Campaign::count());
     }
 
     public function test_submitting_writes_an_audit_entry(): void
@@ -502,7 +500,7 @@ class CampaignSubmissionTest extends TestCase
                 ->component('Borrower/Campaigns/Show')
                 ->where('campaign.id', $campaign->id)
                 ->where('campaign.status', 'submitted')
-                ->has('finances', 4)
+                ->has('finances', 5)
                 ->has('creditHistory', 3)
                 ->where('creditReport', null)
             );

@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\BorrowerProfile;
 use App\Models\Campaign;
 use App\Models\CampaignFinancials;
 
@@ -62,14 +63,17 @@ final class CampaignPresenter
     }
 
     /**
-     * The borrower's finances as label / value / mono rows (PB-14).
+     * The borrower's finances as label / value / mono rows (PB-14): a request's snapshot, or
+     * since PB-58 the borrower's financial profile itself (the same field names). Annual income
+     * is shown too, as the risk model uses it (monthly × 12).
      *
      * @return list<array{label: string, value: string, mono: bool}>
      */
-    public static function finances(CampaignFinancials $financials): array
+    public static function finances(CampaignFinancials|BorrowerProfile $financials): array
     {
         return [
-            ['label' => 'Annual income', 'value' => self::money($financials->annual_income), 'mono' => true],
+            ['label' => 'Monthly income', 'value' => self::money($financials->monthly_income), 'mono' => true],
+            ['label' => 'Annual income (monthly × 12)', 'value' => self::money(CampaignFinancials::annualIncome($financials->monthly_income)), 'mono' => true],
             ['label' => 'Monthly repayments on existing loans and cards', 'value' => self::money($financials->monthly_debt_repayments), 'mono' => true],
             ['label' => 'Time in current job or business', 'value' => CampaignFinancials::employmentLabel($financials->employment_years), 'mono' => false],
             ['label' => 'Housing', 'value' => CampaignFinancials::HOUSING[$financials->housing], 'mono' => false],
@@ -82,7 +86,7 @@ final class CampaignPresenter
      *
      * @return list<array{label: string, value: string, mono: bool}>
      */
-    public static function creditHistory(CampaignFinancials $financials): array
+    public static function creditHistory(CampaignFinancials|BorrowerProfile $financials): array
     {
         return [
             ['label' => 'Open loans, financing facilities and credit cards', 'value' => (string) $financials->open_credit_lines, 'mono' => true],

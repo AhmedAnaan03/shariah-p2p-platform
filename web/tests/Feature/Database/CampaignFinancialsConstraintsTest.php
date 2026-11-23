@@ -28,13 +28,13 @@ class CampaignFinancialsConstraintsTest extends TestCase
             'valid row' => [[], null],
             'no existing debt' => [['monthly_debt_repayments' => 0], null],
             'ten years or more' => [['employment_years' => 10], null],
-            'zero income' => [['annual_income' => 0], "Check constraint 'campaign_financials_annual_income_check' is violated"],
-            'negative income' => [['annual_income' => -1], "Check constraint 'campaign_financials_annual_income_check' is violated"],
+            'zero income' => [['monthly_income' => 0], "Check constraint 'campaign_financials_monthly_income_check' is violated"],
+            'negative income' => [['monthly_income' => -1], "Check constraint 'campaign_financials_monthly_income_check' is violated"],
             'negative monthly debt' => [['monthly_debt_repayments' => -1], "Check constraint 'campaign_financials_monthly_debt_check' is violated"],
             '11 years in the job' => [['employment_years' => 11], "Check constraint 'campaign_financials_employment_years_check' is violated"],
             'negative count' => [['late_payments_2y' => -1], 'Out of range value'],
             'unknown housing' => [['housing' => 'castle'], 'Data truncated'],
-            'blank income' => [['annual_income' => null], 'cannot be null'],
+            'blank income' => [['monthly_income' => null], 'cannot be null'],
         ];
     }
 

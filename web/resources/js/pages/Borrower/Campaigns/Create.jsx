@@ -12,6 +12,7 @@ import PercentInput from '../../../components/PercentInput';
 import RadioCards from '../../../components/RadioCards';
 import Select from '../../../components/Select';
 import Term from '../../../components/Term';
+import TextLink from '../../../components/TextLink';
 import Textarea from '../../../components/Textarea';
 import { CONVENTIONAL, DEFINITIONS, fillLimits, isShariahContract, modeForContract, MUDARABAH, MURABAHAH, SHARIAH_DISCLAIMER, TERM_FIELDS } from '../../../lib/contracts';
 import { formatPercent, toNumber } from '../../../lib/format';
@@ -35,7 +36,7 @@ const ALL_TERMS = Object.values(TERMS_BY_CONTRACT).flat();
  *
  * Picking Murabahah or Mudarabah puts the page in Shariah mode straight away (README, "Modes").
  */
-export default function CampaignCreate({ canSubmit, blockedReason, isSme, declaredAnnualIncome, purposes, tenures, housing, employmentYears, limits, maxBytes, tooLargeMessage }) {
+export default function CampaignCreate({ canSubmit, blockedReason, isSme, finances, creditHistory, financesUrl, purposes, tenures, limits, maxBytes, tooLargeMessage }) {
     const form = useForm({
         title: '',
         purpose: '',
@@ -48,13 +49,6 @@ export default function CampaignCreate({ canSubmit, blockedReason, isSme, declar
         asset_description: '',
         markup_amount: null,
         investor_profit_share_percent: '',
-        annual_income: toNumber(declaredAnnualIncome),
-        monthly_debt_repayments: null,
-        employment_years: '',
-        housing: '',
-        open_credit_lines: '',
-        late_payments_2y: '',
-        public_records: '',
         credit_report: null,
     });
 
@@ -100,14 +94,6 @@ export default function CampaignCreate({ canSubmit, blockedReason, isSme, declar
         value: form.data[name],
         onValueChange: (amount) => form.setData(name, amount),
         error: form.errors[name],
-    });
-    // Whole numbers only (counts): anything but digits is dropped as it is typed.
-    const count = (name) => ({
-        ...text(name),
-        inputMode: 'numeric',
-        autoComplete: 'off',
-        onChange: (e) => form.setData(name, e.target.value.replace(/\D/g, '')),
-        controlClassName: 'max-w-40',
     });
     const field = (contractType, name) => TERM_FIELDS[contractType][name];
     const errorCount = Object.keys(form.errors).length;
@@ -223,39 +209,23 @@ export default function CampaignCreate({ canSubmit, blockedReason, isSme, declar
                 </div>
             </Card>
 
-            <Card title="Your finances" description="Used to assess your request fairly. Investors don’t see these figures.">
-                <div className="grid gap-5 @bp-sm/shell:grid-cols-2">
-                    <MoneyInput {...money('annual_income')} label="Annual income" hint="Before tax. Filled in from your profile; change it if it is out of date." />
-                    <MoneyInput {...money('monthly_debt_repayments')} label="Monthly repayments on existing loans and cards" hint="Don’t include rent or a home loan. Enter 0 if you have none." />
-                    <Select
-                        id="employment_years"
-                        label={isSme ? 'Time running the business' : 'Time in your current job'}
-                        placeholder="Choose how long"
-                        options={employmentYears}
-                        value={form.data.employment_years}
-                        onChange={(value) => form.setData('employment_years', value)}
-                        error={form.errors.employment_years}
-                    />
-                    <RadioCards
-                        name="housing"
-                        legend="Housing"
-                        options={housing}
-                        value={form.data.housing}
-                        onChange={(value) => form.setData('housing', value)}
-                        error={form.errors.housing}
-                        className="@bp-sm/shell:col-span-2"
-                    />
-                </div>
-            </Card>
-
+            {/* PB-58: the verified financial profile, read-only. It is copied into the request when it
+                is submitted, so the request is scored on these figures. */}
             <Card
-                title="Your credit history"
-                description="Answer from your MMA Credit Information System report. An administrator checks your answers against the report if you attach it below."
+                title="Your finances"
+                description="From your verified financial profile. They are saved with this request. Investors don’t see these figures."
+                actions={
+                    <TextLink href={financesUrl} icon="pencil-simple">
+                        Update in your profile
+                    </TextLink>
+                }
             >
                 <div className="space-y-5">
-                    <Input {...count('open_credit_lines')} label="How many loans, financing facilities and credit cards do you have open?" hint="Count each one separately. Enter 0 if none." />
-                    <Input {...count('late_payments_2y')} label="In the past 2 years, how many times was a repayment 30 or more days late?" hint="Across all your loans and cards. Enter 0 if never." />
-                    <Input {...count('public_records')} label="How many court judgments, bankruptcies or debts written off have you had?" hint="Enter 0 if none." />
+                    <DescriptionList items={finances.map((row) => [row.label, row.value, row.mono])} />
+                    <DescriptionList items={creditHistory.map((row) => [row.label, row.value, row.mono])} />
+                    <p className="max-w-prose text-body-sm text-text-muted">
+                        Changing them sends your account to an administrator to check again before you can submit a request.
+                    </p>
                 </div>
             </Card>
 

@@ -28,13 +28,18 @@ class BorrowerProfileFactory extends Factory
             'address_road' => fake()->randomElement(['Majeedhee Magu', 'Ameenee Magu', 'Orchid Magu', 'Lily Magu']),
             'island_id' => fn () => Island::idFor('Malé City', 'Malé'),
             'postcode' => '2'.fake()->numerify('####'),
-            'address_legacy' => null,
-            'address_needs_review' => false,
             'business_name' => fake()->company(),
             'business_registration_no' => 'SP-'.fake()->numerify('#####'),
             'sector' => fake()->randomElement(['retail', 'fisheries', 'tourism', 'agriculture']),
             'years_operating' => fake()->numberBetween(1, 15),
-            'declared_annual_income' => fake()->numberBetween(100_000, 2_000_000),
+            // The financial profile (PB-58).
+            'monthly_income' => fake()->numberBetween(15, 120) * 1000,
+            'monthly_debt_repayments' => fake()->randomElement([0, 2500, 4000, 6000]),
+            'employment_years' => fake()->numberBetween(1, 10),
+            'housing' => fake()->randomElement(['rent', 'own', 'own_with_home_loan', 'family_home']),
+            'open_credit_lines' => fake()->numberBetween(0, 4),
+            'late_payments_2y' => 0,
+            'public_records' => 0,
         ];
     }
 
@@ -50,17 +55,11 @@ class BorrowerProfileFactory extends Factory
     }
 
     /**
-     * A profile from before PB-53: the old single-line address kept in address_legacy and
-     * flagged for the user to check, with nothing (or only a guess) in the new fields.
+     * A profile whose finance step (PB-58) hasn't been done yet.
      */
-    public function legacyAddress(string $text = 'M. Blue Lagoon, Malé', array $guess = []): static
+    public function withoutFinances(): static
     {
-        return $this->state(fn () => [
-            'address_house' => null, 'address_road' => null, 'island_id' => null, 'postcode' => null,
-            ...$guess,
-            'address_legacy' => $text,
-            'address_needs_review' => true,
-        ]);
+        return $this->state(fn () => array_fill_keys(BorrowerProfile::FINANCIAL_FIELDS, null));
     }
 
     /**
@@ -70,7 +69,6 @@ class BorrowerProfileFactory extends Factory
     {
         return $this->state(fn () => [
             'address_house' => null, 'address_road' => null, 'island_id' => null, 'postcode' => null,
-            'address_legacy' => null, 'address_needs_review' => false,
         ]);
     }
 }

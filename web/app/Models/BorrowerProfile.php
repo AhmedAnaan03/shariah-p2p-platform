@@ -10,11 +10,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// address_legacy and address_needs_review are set by the migration and the address step's
-// code (PB-53), never mass-assigned from a form.
 #[Fillable([
     'borrower_type', 'phone', 'national_id_no', 'address_house', 'address_road', 'island_id', 'postcode',
-    'business_name', 'business_registration_no', 'sector', 'years_operating', 'declared_annual_income',
+    'business_name', 'business_registration_no', 'sector', 'years_operating',
+    // The financial profile (PB-58).
+    'monthly_income', 'monthly_debt_repayments', 'employment_years', 'housing',
+    'open_credit_lines', 'late_payments_2y', 'public_records',
 ])]
 // Kept out of arrays/JSON (and so out of React page props) unless a page asks for it.
 #[Hidden(['national_id_no'])]
@@ -52,6 +53,37 @@ class BorrowerProfile extends Model
      */
     public const BUSINESS_FIELDS = ['business_name', 'business_registration_no', 'sector', 'years_operating'];
 
+    /**
+     * The financial profile (PB-58): what the risk model needs, declared once in the onboarding
+     * wizard's finance step, checked by an administrator, and copied into each financing
+     * request when it is submitted (CampaignFinancials).
+     */
+    public const FINANCIAL_FIELDS = [
+        'monthly_income', 'monthly_debt_repayments', 'employment_years', 'housing',
+        'open_credit_lines', 'late_payments_2y', 'public_records',
+    ];
+
+    public function hasFinancialProfile(): bool
+    {
+        foreach (self::FINANCIAL_FIELDS as $field) {
+            if ($this->{$field} === null) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * The financial profile as stored, for a request's snapshot.
+     *
+     * @return array<string, mixed>
+     */
+    public function financialProfile(): array
+    {
+        return $this->only(self::FINANCIAL_FIELDS);
+    }
+
     public function isSme(): bool
     {
         return $this->borrower_type === 'sme';
@@ -63,8 +95,12 @@ class BorrowerProfile extends Model
             // Encrypted with APP_KEY on save, decrypted on read: the database only holds ciphertext.
             'national_id_no' => 'encrypted',
             'years_operating' => 'integer',
-            'declared_annual_income' => 'decimal:2',
-            'address_needs_review' => 'boolean',
+            'monthly_income' => 'decimal:2',
+            'monthly_debt_repayments' => 'decimal:2',
+            'employment_years' => 'integer',
+            'open_credit_lines' => 'integer',
+            'late_payments_2y' => 'integer',
+            'public_records' => 'integer',
         ];
     }
 

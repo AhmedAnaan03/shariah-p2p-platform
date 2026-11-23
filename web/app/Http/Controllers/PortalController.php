@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Support\OnboardingSteps;
 use App\Support\VerificationChecklist;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,14 +28,8 @@ class PortalController extends Controller
 
     public function investor(Request $request): Response
     {
-        $user = $request->user();
-        // inspect() runs the 'pledge' gate and returns its answer with the reason, without
-        // throwing, so the page can show why pledging is still locked.
-        $pledge = Gate::forUser($user)->inspect('pledge');
-
         return Inertia::render('Investor/Portal', [
-            'onboarding' => self::onboarding($user),
-            'pledge' => ['allowed' => $pledge->allowed(), 'reason' => $pledge->message()],
+            'onboarding' => self::onboarding($request->user()),
         ]);
     }
 

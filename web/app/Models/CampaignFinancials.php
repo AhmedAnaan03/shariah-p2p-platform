@@ -12,9 +12,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * The borrower's financial information for one financing request (PB-14): the fields the risk
  * model uses, as structured values rather than files. RiskFeatures turns them, with the
  * request's amount, tenure and purpose, into the model's features.
+ *
+ * Since PB-58 it is a snapshot of the borrower's verified financial profile, copied when the
+ * request is submitted, so the request is scored on what was true at the time even if the
+ * profile changes later. Income is stored monthly, as declared; RiskFeatures works out the
+ * annual figure the model was trained on.
  */
 #[Fillable([
-    'annual_income', 'monthly_debt_repayments', 'employment_years', 'housing',
+    'monthly_income', 'monthly_debt_repayments', 'employment_years', 'housing',
     'open_credit_lines', 'late_payments_2y', 'public_records',
 ])]
 class CampaignFinancials extends Model
@@ -44,14 +49,14 @@ class CampaignFinancials extends Model
     /**
      * Upper limits that catch typing mistakes, not real rules.
      */
-    public const MAX_ANNUAL_INCOME = 100_000_000;
+    public const MAX_MONTHLY_INCOME = 10_000_000;
 
     public const MAX_COUNT = 99;
 
     protected function casts(): array
     {
         return [
-            'annual_income' => 'decimal:2',
+            'monthly_income' => 'decimal:2',
             'monthly_debt_repayments' => 'decimal:2',
             'employment_years' => 'integer',
             'open_credit_lines' => 'integer',
@@ -71,6 +76,14 @@ class CampaignFinancials extends Model
             $years >= self::MAX_EMPLOYMENT_YEARS => self::MAX_EMPLOYMENT_YEARS.' years or more',
             default => "{$years} years",
         };
+    }
+
+    /**
+     * Annual income for the risk model: the declared monthly income × 12.
+     */
+    public static function annualIncome(float|string $monthlyIncome): float
+    {
+        return (float) $monthlyIncome * 12;
     }
 
     public function campaign(): BelongsTo

@@ -119,7 +119,7 @@ class CampaignReviewTest extends TestCase
                 ->where('creditReport.type_label', 'MMA credit report')
                 ->where('creditReport.url', route('documents.show', $report))
                 ->missing('creditReport.storage_path')
-                ->has('finances', 4)
+                ->has('finances', 5)
                 ->has('ratios', 3)
                 ->where('decisions', ['approve', 'reject'])
                 ->where('fundingDays', 30)

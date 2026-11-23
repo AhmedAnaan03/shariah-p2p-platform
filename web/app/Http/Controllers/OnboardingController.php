@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Investor\RiskAcknowledgementRequest;
 use App\Http\Requests\Kyc\StoreKycDocumentRequest;
 use App\Http\Requests\Onboarding\AddressRequest;
+use App\Http\Requests\Onboarding\FinancialProfileRequest;
 use App\Http\Requests\Profile\BorrowerProfileRequest;
 use App\Http\Requests\Profile\InvestorProfileRequest;
 use App\Models\Atoll;
 use App\Models\AuditLog;
 use App\Models\BorrowerProfile;
+use App\Models\CampaignFinancials;
 use App\Models\KycDocument;
 use App\Models\Role;
 use App\Models\User;
@@ -17,6 +19,7 @@ use App\Services\KycDocumentStore;
 use App\Support\DocumentSlots;
 use App\Support\OnboardingSteps;
 use App\Support\ProfilePresenter;
+use App\Support\ReturnUrl;
 use App\Support\RiskAcknowledgement;
 use App\Support\VerificationChecklist;
 use Illuminate\Http\RedirectResponse;
@@ -66,12 +69,13 @@ class OnboardingController extends Controller
                 'step' => $step,
                 'backUrl' => ($previous = $steps->previous($step)) ? $steps->url($previous) : null,
                 'nextUrl' => ($next = $steps->next($step)) && $steps->canOpen($next) ? $steps->url($next) : null,
-                'locked' => ! $user->canEditVerificationDetails(),
+                'locked' => $steps->isLocked($step),
                 'role' => $user->role->name,
             ],
             ...match ($step) {
                 OnboardingSteps::PROFILE => $this->profileProps($user),
                 OnboardingSteps::ADDRESS => $this->addressProps($user),
+                OnboardingSteps::FINANCES => $this->financeProps($user, $request),
                 OnboardingSteps::DOCUMENTS => $this->documentProps($user),
                 OnboardingSteps::RISK => $this->riskProps($user),
                 OnboardingSteps::REVIEW => $this->reviewProps($user),
@@ -105,12 +109,59 @@ class OnboardingController extends Controller
 
         $profile = VerificationChecklist::for($user)->profile();
         $profile->fill($request->addressData());
-        // Saved by the user, so a migrated address now counts as checked (PB-53). The original
-        // single-line text stays in address_legacy for the record.
-        $profile->address_needs_review = false;
         $profile->save();
 
         return $this->continueFrom($user, OnboardingSteps::ADDRESS, 'Your address has been saved.');
+    }
+
+    /**
+     * The borrower's financial profile (PB-58). Open even after verification: if a verified
+     * borrower changes it, the account goes straight back to the administrator (pending and
+     * submitted, since every other step is done) and can't raise new requests until approved
+     * again. Requests already made keep their own snapshot (CampaignFinancials).
+     */
+    public function saveFinances(FinancialProfileRequest $request): RedirectResponse
+    {
+        $user = self::user($request);
+        if ($redirect = $this->unlessReached($user, OnboardingSteps::FINANCES)) {
+            return $redirect;
+        }
+
+        $profile = $user->borrowerProfile;
+        $before = $profile->financialProfile();
+        $profile->fill($request->financialData());
+        $changed = $profile->isDirty(BorrowerProfile::FINANCIAL_FIELDS);
+        $backToVerification = $changed && $user->status === 'verified';
+
+        DB::transaction(function () use ($user, $profile, $before, $backToVerification) {
+            $profile->save();
+
+            if ($backToVerification) {
+                // Not mass-assignable: set one by one.
+                $user->status = 'pending_verification';
+                $user->status_reason = null;
+                $user->verification_submitted_at = now();
+                $user->save();
+
+                AuditLog::record('user.financial_profile_changed', $user, [
+                    'before' => $before,
+                    'after' => $profile->financialProfile(),
+                ]);
+            }
+        });
+
+        if ($backToVerification) {
+            return redirect(OnboardingSteps::for($user->unsetRelations())->url(OnboardingSteps::REVIEW))
+                ->with('status', 'Your financial profile has been saved. Because it changed, an administrator will check it again before you can submit new financing requests.');
+        }
+
+        // Opened from the financing request form and nothing changed: go back there.
+        $returnTo = ReturnUrl::sanitize($request->input(ReturnUrl::PARAM));
+        if ($returnTo !== null && $user->status === 'verified') {
+            return redirect($returnTo)->with('status', 'Your financial profile has been saved.');
+        }
+
+        return $this->continueFrom($user, OnboardingSteps::FINANCES, 'Your financial profile has been saved.');
     }
 
     /**
@@ -244,7 +295,7 @@ class OnboardingController extends Controller
             // The owner sees their own ID number to edit it, so it is made visible here only.
             'profile' => $user->borrowerProfile?->makeVisible('national_id_no')->only([
                 'borrower_type', 'phone', 'national_id_no', 'business_name', 'business_registration_no',
-                'sector', 'years_operating', 'declared_annual_income',
+                'sector', 'years_operating',
             ]),
             'borrowerTypes' => self::options(BorrowerProfile::TYPES),
             'sectors' => self::options(BorrowerProfile::SECTORS),
@@ -267,10 +318,32 @@ class OnboardingController extends Controller
                 'island_id' => $profile->island_id ? (string) $profile->island_id : '',
                 'postcode' => $profile->postcode ?? '',
             ],
-            // The single-line address from before PB-53, while the user still has to check
-            // the fields filled in from it.
-            'legacyAddress' => $profile->address_needs_review ? $profile->address_legacy : null,
             'atolls' => Atoll::options(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function financeProps(User $user, Request $request): array
+    {
+        $profile = $user->borrowerProfile;
+
+        return [
+            'finances' => array_map(
+                fn ($value) => $value === null ? '' : (string) $value,
+                $profile->financialProfile(),
+            ),
+            'isSme' => $profile->isSme(),
+            'housing' => self::options(CampaignFinancials::HOUSING),
+            'employmentYears' => array_map(
+                fn (int $years) => ['value' => (string) $years, 'label' => CampaignFinancials::employmentLabel($years)],
+                range(0, CampaignFinancials::MAX_EMPLOYMENT_YEARS),
+            ),
+            'maxCount' => CampaignFinancials::MAX_COUNT,
+            'verified' => $user->status === 'verified',
+            // Opened from the financing request form: a way back there (PB-54).
+            'returnTo' => ReturnUrl::sanitize($request->query(ReturnUrl::PARAM)),
         ];
     }
 

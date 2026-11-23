@@ -7,6 +7,7 @@ use App\Models\Campaign;
 use App\Support\CampaignPresenter;
 use App\Support\ListFilters;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,7 +30,13 @@ class CampaignController extends Controller
         // An individual borrower's name is never shown to investors, so it isn't searched either.
         $filters->applySearch($query, ['title', 'borrower.borrowerProfile.business_name']);
 
+        // inspect() runs the 'pledge' gate and returns its answer with the reason, without
+        // throwing, so the marketplace can say why pledging is still locked (PB-57: shown here,
+        // where it matters, not on the overview).
+        $pledge = Gate::forUser($request->user())->inspect('pledge');
+
         return Inertia::render('Investor/Campaigns/Index', [
+            'pledge' => ['allowed' => $pledge->allowed(), 'reason' => $pledge->message()],
             // Closest deadline first, so campaigns about to close are seen.
             'campaigns' => $query->orderBy('funding_deadline')->get()
                 ->map(fn (Campaign $campaign) => [

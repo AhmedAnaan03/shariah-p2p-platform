@@ -1,5 +1,4 @@
 import { useForm } from '@inertiajs/react';
-import Alert from '../../components/Alert';
 import Card from '../../components/Card';
 import Input from '../../components/Input';
 import OnboardingFrame from '../../components/OnboardingFrame';
@@ -10,11 +9,8 @@ import Select from '../../components/Select';
  * and postcode. The island list follows the chosen atoll; `atolls` carries every atoll with its
  * inhabited islands, so filtering needs no request. Choosing another atoll clears the island,
  * since the old one isn't in the new list. The server checks the island belongs to the atoll.
- *
- * `legacyAddress` is the single-line address an older profile had, shown while the user checks
- * the fields that were filled in from it.
  */
-export default function OnboardingAddress({ wizard, address, legacyAddress, atolls }) {
+export default function OnboardingAddress({ wizard, address, atolls }) {
     const form = useForm(address);
     const islands = atolls.find((atoll) => atoll.value === form.data.atoll_id)?.islands ?? [];
 
@@ -33,19 +29,11 @@ export default function OnboardingAddress({ wizard, address, legacyAddress, atol
 
     return (
         <OnboardingFrame wizard={wizard} onSubmit={submit} processing={form.processing}>
-            {legacyAddress && (
-                <Alert tone="info" role="note" title="Check your address">
-                    <p>Addresses are now split into separate parts. We filled in what we could from the address you gave before:</p>
-                    <p className="mt-2 font-medium">{legacyAddress}</p>
-                    <p className="mt-2">Check each part, fill in anything missing, then continue.</p>
-                </Alert>
-            )}
-
             <Card title="Your address" description="Where you live. For a business, where it operates.">
                 <fieldset className="grid gap-5 @bp-sm/shell:grid-cols-2">
                     <legend className="sr-only">Address</legend>
-                    <Input {...field('address_house')} label="House or building name" autoComplete="address-line1" hint="Like H. Sea Breeze or Fehivina." />
-                    <Input {...field('address_road')} label="Road (magu)" autoComplete="address-line2" hint="Like Majeedhee Magu." />
+                    <Input {...field('address_house')} label="House or building name" autoComplete="address-line1" />
+                    <Input {...field('address_road')} label="Road (magu)" autoComplete="address-line2" />
                     <Select
                         {...field('atoll_id')}
                         onChange={(value) => form.setData((data) => ({ ...data, atoll_id: value, island_id: value === data.atoll_id ? data.island_id : '' }))}
@@ -67,7 +55,7 @@ export default function OnboardingAddress({ wizard, address, legacyAddress, atol
                         inputMode="numeric"
                         autoComplete="postal-code"
                         maxLength={6}
-                        hint="5 digits, like 20026."
+                        hint="5 digits"
                         controlClassName="max-w-40"
                     />
                 </fieldset>

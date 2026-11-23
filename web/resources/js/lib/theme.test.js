@@ -1,67 +1,63 @@
 import { describe, expect, it, vi } from 'vitest';
-import { applyTheme, followSystemTheme, normaliseTheme, resolveTheme } from './theme';
+import { applyTheme, onSystemThemeChange, resolveTheme, systemTheme } from './theme';
 
 function fakeWindow(dark) {
     const listeners = new Set();
     const query = {
-        matches: dark,
+        get matches() {
+            return dark;
+        },
         addEventListener: (_, fn) => listeners.add(fn),
         removeEventListener: (_, fn) => listeners.delete(fn),
     };
     return {
         matchMedia: vi.fn(() => query),
         setDark(value) {
-            query.matches = value;
+            dark = value;
             listeners.forEach((fn) => fn());
         },
         listeners,
     };
 }
 
-const fakeDocument = () => ({ documentElement: { dataset: {} } });
+describe('resolveTheme: the most recent change wins', () => {
+    it('follows the device when nothing has been chosen (blank)', () => {
+        expect(resolveTheme({ choice: null, systemAtChoice: null }, 'dark')).toBe('dark');
+        expect(resolveTheme(undefined, 'light')).toBe('light');
+    });
 
-describe('normaliseTheme', () => {
-    it('keeps light, dark and system and turns anything else into system', () => {
-        expect(normaliseTheme('light')).toBe('light');
-        expect(normaliseTheme('dark')).toBe('dark');
-        expect(normaliseTheme('system')).toBe('system');
-        expect(normaliseTheme('')).toBe('system');
-        expect(normaliseTheme('purple')).toBe('system');
-        expect(normaliseTheme(undefined)).toBe('system');
+    it('keeps the choice while the device still has the setting it had then', () => {
+        expect(resolveTheme({ choice: 'dark', systemAtChoice: 'light' }, 'light')).toBe('dark');
+        expect(resolveTheme({ choice: 'light', systemAtChoice: 'dark' }, 'dark')).toBe('light');
+    });
+
+    it('follows the device once its setting has changed since the choice', () => {
+        expect(resolveTheme({ choice: 'light', systemAtChoice: 'light' }, 'dark')).toBe('dark');
+        expect(resolveTheme({ choice: 'dark', systemAtChoice: 'dark' }, 'light')).toBe('light');
+    });
+
+    it('keeps an older choice saved without a device setting, and ignores invalid values', () => {
+        expect(resolveTheme({ choice: 'dark', systemAtChoice: null }, 'light')).toBe('dark');
+        expect(resolveTheme({ choice: 'purple', systemAtChoice: 'light' }, 'dark')).toBe('dark');
     });
 });
 
-describe('resolveTheme', () => {
-    it('uses the choice, or the device for system', () => {
-        expect(resolveTheme('dark', false)).toBe('dark');
-        expect(resolveTheme('light', true)).toBe('light');
-        expect(resolveTheme('system', true)).toBe('dark');
-        expect(resolveTheme('system', false)).toBe('light');
-    });
-});
-
-describe('applyTheme and followSystemTheme', () => {
-    it('writes the choice and the theme to show on <html>', () => {
-        const doc = fakeDocument();
-        applyTheme('system', doc, fakeWindow(true));
-        expect(doc.documentElement.dataset).toEqual({ themePreference: 'system', theme: 'dark' });
-
-        applyTheme('light', doc, fakeWindow(true));
-        expect(doc.documentElement.dataset).toEqual({ themePreference: 'light', theme: 'light' });
-    });
-
-    it('follows the device only while the choice is system, and stops when asked', () => {
-        const doc = fakeDocument();
+describe('systemTheme, applyTheme and onSystemThemeChange', () => {
+    it('reads the device, writes <html>, and reports device changes until stopped', () => {
         const win = fakeWindow(false);
-        applyTheme('system', doc, win);
+        const doc = { documentElement: { dataset: {} } };
+        expect(systemTheme(win)).toBe('light');
 
-        const stop = followSystemTheme('system', doc, win);
-        win.setDark(true);
+        applyTheme('dark', doc);
+        expect(doc.documentElement.dataset.theme).toBe('dark');
+        applyTheme('purple', doc);
         expect(doc.documentElement.dataset.theme).toBe('dark');
 
+        const seen = [];
+        const stop = onSystemThemeChange((theme) => seen.push(theme), win);
+        win.setDark(true);
+        expect(seen).toEqual(['dark']);
         stop();
-        expect(win.listeners.size).toBe(0);
-        expect(followSystemTheme('dark', doc, win)).toBeTypeOf('function');
         expect(win.listeners.size).toBe(0);
     });
 });

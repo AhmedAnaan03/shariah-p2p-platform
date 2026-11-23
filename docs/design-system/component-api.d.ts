@@ -39,7 +39,8 @@ export declare function Spinner(props: SpinnerProps): React.ReactElement;
 /* Forms */
 export interface FieldProps { label?: Node; htmlFor?: string; required?: boolean; optional?: boolean; helper?: Node; error?: Node; children: Node }
 export declare function Field(props: FieldProps): React.ReactElement;
-export interface TextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'prefix'> { size?: 'sm' | 'md' | 'lg'; prefix?: Node; suffix?: Node; icon?: string; invalid?: boolean; inputClassName?: string }
+/** `figures` (PB-57): numbers in IBM Plex Mono with tabular digits. */
+export interface TextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'prefix'> { size?: 'sm' | 'md' | 'lg'; prefix?: Node; suffix?: Node; icon?: string; invalid?: boolean; inputClassName?: string; figures?: boolean }
 export declare function TextInput(props: TextInputProps): React.ReactElement;
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> { invalid?: boolean; maxLength?: number }
 export declare function Textarea(props: TextareaProps): React.ReactElement;
@@ -55,6 +56,9 @@ export interface SwitchProps { label?: Node; description?: Node; checked?: boole
 export declare function Switch(props: SwitchProps): React.ReactElement;
 export interface MoneyInputProps extends Omit<TextInputProps, 'value' | 'defaultValue'> { value?: number | string; defaultValue?: number | string; onValueChange?: (amount: number) => void }
 export declare function MoneyInput(props: MoneyInputProps): React.ReactElement;
+/** PB-57: a whole number (count, years): figure font, numeric keyboard, digits only; onChange gets the digits as text. */
+export interface CountInputProps extends Omit<TextInputProps, 'onChange'> { id: string; label?: Node; hint?: Node; error?: Node; onChange?: (digits: string) => void; controlClassName?: string }
+export declare function CountInput(props: CountInputProps): React.ReactElement;
 export declare function PercentInput(props: TextInputProps): React.ReactElement;
 export declare function PhoneInput(props: TextInputProps): React.ReactElement;
 export declare function NationalIdInput(props: TextInputProps): React.ReactElement;
@@ -148,8 +152,8 @@ export interface NavGroup { label?: string; items: { icon: string; label: string
 export interface SidebarProps { portal?: 'Investor' | 'Borrower' | 'Admin'; groups?: NavGroup[]; collapsed?: boolean; footer?: Node; onNavigate?: (item: NavGroup['items'][number]) => void; collapsible?: boolean }
 export interface ModeSwitchProps { mode?: Mode; onChange?: (m: Mode) => void; label?: string }
 export declare function ModeSwitch(props: ModeSwitchProps): React.ReactElement;
-/** PB-55: light / dark / system, saved per user; `compact` for the collapsed sidebar (icons, tooltips). */
-export interface ThemeToggleProps { compact?: boolean }
+/** PB-55, PB-57: icon-only light/dark sliding switch (role="switch", "Dark theme"); `vertical` for the collapsed sidebar; `save={false}` in the design preview. */
+export interface ThemeToggleProps { vertical?: boolean; save?: boolean }
 export declare function ThemeToggle(props: ThemeToggleProps): React.ReactElement;
 export declare function Sidebar(props: SidebarProps): React.ReactElement;
 export interface TopBarProps { title: Node; breadcrumb?: Node; shariahOn?: boolean; mode?: Mode; onModeChange?: (m: Mode) => void; unread?: number; user?: { name: string; role: string }; search?: boolean; onMenu?: () => void }

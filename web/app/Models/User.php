@@ -16,8 +16,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 // role_id and status are deliberately NOT fillable: a registration form must not be able to
-// make someone an admin or mark them verified by adding a field to the request. Nor is theme
-// (PB-55): only the theme route sets it.
+// make someone an admin or mark them verified by adding a field to the request. Nor are theme
+// and theme_system_at_choice (PB-55, PB-57): only the theme route sets them.
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -33,15 +33,14 @@ class User extends Authenticatable
      */
     protected $attributes = [
         'status' => 'pending_verification',
-        'theme' => self::THEME_SYSTEM,
     ];
 
     /**
-     * The interface themes a user can choose (PB-55). 'system' follows the device's setting.
+     * The themes the switch chooses between (PB-55, a two-way switch since PB-57). With no
+     * choice (theme NULL) the interface follows the device. theme_system_at_choice records the
+     * device's setting when the choice was made: the choice is kept until the device changes.
      */
-    public const THEME_SYSTEM = 'system';
-
-    public const THEMES = ['light', 'dark', self::THEME_SYSTEM];
+    public const THEMES = ['light', 'dark'];
 
     /**
      * Get the attributes that should be cast.

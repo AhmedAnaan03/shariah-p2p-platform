@@ -49,6 +49,19 @@ final class VerificationChecklist
     }
 
     /**
+     * A borrower's financial profile (PB-58): every field the risk model needs. Investors have
+     * none.
+     */
+    public function hasFinancialProfile(): bool
+    {
+        if (! $this->user->hasRole(Role::BORROWER)) {
+            return true;
+        }
+
+        return $this->user->borrowerProfile?->hasFinancialProfile() ?? false;
+    }
+
+    /**
      * The user's document slots (DocumentSlots), every one of them required.
      *
      * @return list<string>
@@ -98,7 +111,8 @@ final class VerificationChecklist
      */
     public function isComplete(): bool
     {
-        return $this->hasProfile() && $this->hasCompleteAddress() && $this->hasAllDocuments() && $this->hasAcceptedRisk();
+        return $this->hasProfile() && $this->hasCompleteAddress() && $this->hasFinancialProfile()
+            && $this->hasAllDocuments() && $this->hasAcceptedRisk();
     }
 
     public function isSubmitted(): bool
@@ -126,6 +140,7 @@ final class VerificationChecklist
         return [
             'has_profile' => $this->hasProfile(),
             'has_address' => $this->hasCompleteAddress(),
+            'has_finances' => $this->hasFinancialProfile(),
             'required_documents' => array_map(fn (string $type) => [
                 'type' => $type,
                 'label' => DocumentSlots::labelFor($this->user, $type),

@@ -64,7 +64,7 @@ class DocumentSlotsTest extends TestCase
     public static function slotsByKind(): array
     {
         return [
-            'individual borrower' => ['individual', 'borrower', ['national_id', 'proof_of_address'], 'National ID card'],
+            'individual borrower' => ['individual', 'borrower', ['national_id', 'proof_of_address', 'salary_slip'], 'National ID card'],
             'SME borrower' => ['sme', 'borrower', ['national_id', 'business_registration', 'proof_of_address', 'financial_statement'], 'National ID card'],
             'investor' => ['investor', 'investor', ['national_id', 'proof_of_address'], 'National ID card'],
         ];
@@ -215,9 +215,10 @@ class DocumentSlotsTest extends TestCase
 
         $this->actingAs($user)->from('/borrower/onboarding/documents')->put('/borrower/onboarding/documents')
             ->assertRedirect('/borrower/onboarding/documents')
-            ->assertSessionHasErrors(['documents' => 'Upload every document before you continue. Still needed: Proof of address.']);
+            ->assertSessionHasErrors(['documents' => 'Upload every document before you continue. Still needed: Proof of address, Salary slip.']);
 
         $this->upload($user, 'proof_of_address');
+        $this->upload($user, 'salary_slip');
         $this->actingAs($user)->put('/borrower/onboarding/documents')->assertRedirect('/borrower/onboarding/review');
     }
 

@@ -207,7 +207,7 @@ class KycDocumentUploadTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Onboarding/Documents')
-                ->has('slots', 2)
+                ->has('slots', 3)
                 ->has('slots.0.document', fn (Assert $document) => $document
                     ->where('type_label', 'National ID card')
                     ->where('status', 'pending')

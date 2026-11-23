@@ -73,7 +73,8 @@ erDiagram
         varchar remember_token "nullable"
         enum status "pending_verification | verified | rejected | suspended"
         varchar status_reason "nullable, why rejected or suspended"
-        enum theme "light | dark | system (default), PB-55"
+        enum theme "nullable: light | dark; NULL = follow the device (PB-55, PB-57)"
+        enum theme_system_at_choice "nullable: the device's light | dark when the choice was made (PB-57)"
         timestamp verification_submitted_at "nullable, set by Submit at the end of onboarding (PB-53)"
     }
 
@@ -87,13 +88,17 @@ erDiagram
         varchar address_road "nullable, the magu"
         bigint island_id FK "nullable, islands.id (implies the atoll)"
         char postcode "nullable, 5 digits (CHECK)"
-        text address_legacy "nullable, the single-line address from before PB-53"
-        boolean address_needs_review "set by the PB-53 migration until the user checks the fields"
         varchar business_name "nullable (individuals)"
         varchar business_registration_no "nullable"
         varchar sector "nullable"
         smallint years_operating "nullable"
-        decimal declared_annual_income "income or revenue"
+        decimal monthly_income "nullable until the finance step; before tax (SME: average monthly revenue), PB-58"
+        decimal monthly_debt_repayments "nullable, excluding housing"
+        tinyint employment_years "nullable, 0-10"
+        enum housing "nullable: rent | own | own_with_home_loan | family_home"
+        smallint open_credit_lines "nullable, self-declared"
+        smallint late_payments_2y "nullable, self-declared"
+        smallint public_records "nullable, self-declared"
     }
 
     investor_profiles {
@@ -105,8 +110,6 @@ erDiagram
         varchar address_road "nullable, the magu"
         bigint island_id FK "nullable, islands.id (implies the atoll)"
         char postcode "nullable, 5 digits (CHECK)"
-        text address_legacy "nullable, the single-line address from before PB-53"
-        boolean address_needs_review "set by the PB-53 migration until the user checks the fields"
         timestamp risk_acknowledged_at "nullable, set when accepted"
         boolean shariah_only "default false"
     }
@@ -115,7 +118,7 @@ erDiagram
         bigint id PK
         bigint user_id FK "owner"
         bigint campaign_id FK "nullable, set only for a credit_report (PB-14)"
-        enum document_type "national_id | business_registration | financial_statement | proof_of_address | other | credit_report"
+        enum document_type "national_id | business_registration | financial_statement | proof_of_address | other | credit_report | salary_slip"
         varchar original_name
         varchar storage_path "private disk"
         varchar mime_type
@@ -166,7 +169,7 @@ erDiagram
     campaign_financials {
         bigint id PK
         bigint campaign_id FK, UK
-        decimal annual_income "snapshot, > 0"
+        decimal monthly_income "snapshot of the profile at submission (PB-58), > 0; the model uses × 12"
         decimal monthly_debt_repayments "excluding housing, >= 0"
         tinyint employment_years "0-10, 10 = ten or more"
         enum housing "rent | own | own_with_home_loan | family_home"
@@ -266,7 +269,7 @@ erDiagram
 | campaigns | CHECK `investor_profit_share_percent` is NOT NULL and strictly between 0 and 100 when `contract_type = 'mudarabah'`, NULL otherwise | A profit-sharing ratio both sides receive something from; not a guaranteed return |
 | campaigns | CHECK `amount_requested > 0`, `tenure_months > 0` | No zero or negative requests |
 | pledges, repayments | CHECK `amount > 0` | No zero or negative money movements |
-| campaign_financials | CHECK `annual_income > 0`, `monthly_debt_repayments >= 0`, `employment_years <= 10`; counts are unsigned; UNIQUE `campaign_id` | One set of financial information per request, with no impossible values (PB-14) |
+| campaign_financials | CHECK `monthly_income > 0` (was `annual_income`, PB-58), `monthly_debt_repayments >= 0`, `employment_years <= 10`; counts are unsigned; UNIQUE `campaign_id` | One set of financial information per request, with no impossible values (PB-14) |
 | kyc_documents | CHECK (`document_type = 'credit_report'` and `campaign_id` NOT NULL) or (`document_type <> 'credit_report'` and `campaign_id` NULL) | A credit report always belongs to a request; an identity document never does (PB-14) |
 | wallet_accounts | CHECK exactly one owner: (`type = 'user'`, `user_id` set, `campaign_id` NULL) or (`type = 'escrow'`, `campaign_id` set, `user_id` NULL) | Every wallet has exactly one owner |
 | wallet_transactions | CHECK `amount > 0` and `balance_after >= 0` | The database itself refuses a negative balance |
