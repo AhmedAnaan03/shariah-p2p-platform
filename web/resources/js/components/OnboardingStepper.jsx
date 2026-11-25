@@ -33,31 +33,32 @@ export default function OnboardingStepper({ steps, current, orientation = 'horiz
             <p className="mb-4 text-label text-text-muted">
                 <span className="font-mono text-code text-text">{doneCount}</span> of <span className="font-mono text-code text-text">{steps.length}</span> steps done
             </p>
-            <ol className={cx('grid gap-0', horizontal && '@bp-sm:gap-4', horizontal && GRID[steps.length])}>
+            <ol className={cx('grid', horizontal && GRID[steps.length])}>
                 {steps.map((step, index) => {
                     // In the wizard the step on screen is "current" even when it is already done.
                     const state = nav && index === active ? 'current' : step.done ? 'done' : index === active ? 'current' : 'upcoming';
+                    const first = index === 0;
                     const last = index === steps.length - 1;
 
                     return (
                         <li
                             key={step.title}
                             aria-current={state === 'current' ? 'step' : undefined}
-                            className={cx('relative flex gap-3 pb-6', last && 'pb-0', horizontal && '@bp-sm:flex-col @bp-sm:pb-0')}
+                            className={cx('flex gap-3', horizontal && '@bp-sm:flex-col @bp-sm:items-center @bp-sm:gap-3 @bp-sm:text-center')}
                         >
-                            {/* The line joining this step to the next: down on phones, across when horizontal. */}
-                            {!last && (
-                                <span
-                                    aria-hidden="true"
-                                    className={cx(
-                                        'absolute top-8 bottom-0 left-3.5 w-px',
-                                        step.done ? 'bg-primary' : 'bg-border',
-                                        horizontal && '@bp-sm:top-3.5 @bp-sm:-right-4 @bp-sm:bottom-auto @bp-sm:left-10 @bp-sm:h-px @bp-sm:w-auto',
-                                    )}
-                                />
-                            )}
-                            <Marker state={state} number={index + 1} done={step.done} />
-                            <div className="min-w-0 flex-1">
+                            {/* The track: the marker with the lines to its neighbours. The lines are
+                                flex items next to the marker, so they always touch it, and they fill
+                                the rest of the step, so they meet the next step's line at the edge:
+                                no gaps at any width. On phones one line runs down from the marker to
+                                the next step; when horizontal a half-line runs to each side. Grid
+                                columns have no gap, so neighbouring half-lines meet. */}
+                            <div aria-hidden="true" className={cx('flex flex-col items-center', horizontal && '@bp-sm:w-full @bp-sm:flex-row')}>
+                                {horizontal && <Line done={!first && steps[index - 1].done} hidden={first} />}
+                                <Marker state={state} number={index + 1} done={step.done} />
+                                <Line done={step.done} hidden={last} down horizontal={horizontal} />
+                            </div>
+                            {/* pt-0.5 centres the title's first line on the 28 px marker beside it. */}
+                            <div className={cx('min-w-0 flex-1 pt-0.5', !last && 'pb-6', horizontal && '@bp-sm:px-2 @bp-sm:pt-0 @bp-sm:pb-0')}>
                                 <p className={cx('font-semibold', state === 'upcoming' ? 'text-text-secondary' : 'text-text')}>
                                     {nav && step.href && state !== 'current' ? (
                                         <TextLink href={step.href}>{step.title}</TextLink>
@@ -93,6 +94,30 @@ export default function OnboardingStepper({ steps, current, orientation = 'horiz
 const GRID = { 2: '@bp-sm:grid-cols-2', 3: '@bp-sm:grid-cols-3', 4: '@bp-sm:grid-cols-4', 5: '@bp-sm:grid-cols-5' };
 
 const STATE_LABEL = { done: 'Done.', current: 'Current step.', upcoming: 'Not started.' };
+
+/**
+ * A connecting line, 2 px thick, centred on the marker: primary once the step before it is done.
+ *
+ * - `down`: the line from the marker towards the next step. On phones it runs down the left
+ *   column to the bottom of the step, where the next marker starts; once the stepper turns
+ *   horizontal (`horizontal`) it becomes the right-hand half-line.
+ * - Otherwise: the left-hand half-line, shown only when horizontal.
+ *
+ * `hidden` keeps the space without drawing it (before the first step and after the last), so
+ * every marker stays centred over its label.
+ */
+function Line({ done, hidden = false, down = false, horizontal = false }) {
+    return (
+        <span
+            className={cx(
+                'flex-1',
+                down ? 'w-0.5' : 'hidden h-0.5 @bp-sm:block',
+                down && horizontal && '@bp-sm:h-0.5',
+                hidden ? 'invisible' : done ? 'bg-primary' : 'bg-border',
+            )}
+        />
+    );
+}
 
 function Marker({ state, number, done }) {
     if (state === 'done' || (state === 'current' && done)) {

@@ -56,7 +56,7 @@ final class MarketplaceCampaigns
                 'title' => $title,
                 'purpose' => $purpose,
                 'description' => self::DESCRIPTIONS[$purpose],
-                'business_background' => $business ? "{$business} has traded for several years and is verified on Amanah." : null,
+                'business_background' => $business ? "{$business} has traded for several years and is verified on Amanah P2P." : null,
                 'amount_requested' => $amount,
                 'tenure_months' => $tenure,
                 'submitted_at' => now()->subDays(10),
@@ -107,7 +107,7 @@ final class MarketplaceCampaigns
 
         Campaign::factory()->murabahah()->live(now()->addDays(22))->for($borrower, 'borrower')->create([
             'title' => 'Bakery deck oven and mixer', 'purpose' => 'growth', 'description' => self::DESCRIPTIONS['growth'],
-            'business_background' => 'Hulhumalé Bakes supplies bread to four cafes and has repaid an earlier Amanah campaign.',
+            'business_background' => 'Hulhumalé Bakes supplies bread to four cafes and has repaid an earlier Amanah P2P campaign.',
             'asset_description' => 'Deck oven and spiral mixer', 'amount_requested' => 45_000, 'markup_amount' => 3_600, 'tenure_months' => 12,
             'submitted_at' => now()->subDays(6),
         ]);

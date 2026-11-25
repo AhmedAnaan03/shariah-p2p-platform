@@ -4,6 +4,7 @@ import Card from './Card';
 import PageTransition from './PageTransition';
 import StatusMessage from './StatusMessage';
 import Wordmark from './Wordmark';
+import { PLATFORM_NAME } from '../lib/brand';
 
 /**
  * The frame for the register, sign-in and password pages: the wordmark on a patterned band, a
@@ -26,7 +27,7 @@ export default function AuthLayout({ title, intro, footer, children }) {
                 </div>
 
                 <div className="relative mx-auto w-full max-w-md px-4 py-10 @bp-sm/shell:py-16">
-                    <Link href="/" aria-label="Amanah, home" className="inline-block rounded-sm">
+                    <Link href="/" aria-label={`${PLATFORM_NAME}, home`} className="inline-block rounded-sm">
                         <Wordmark size="lg" />
                     </Link>
 

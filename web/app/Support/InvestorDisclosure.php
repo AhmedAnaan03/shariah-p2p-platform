@@ -23,7 +23,7 @@ final class InvestorDisclosure
         return [
             'title' => self::TITLE,
             'body' => [
-                'When a request is approved, investors see your three credit history answers and your repayment history on Amanah (how you have repaid earlier campaigns here).',
+                'When a request is approved, investors see your three credit history answers and your repayment history on Amanah P2P (how you have repaid earlier campaigns here).',
                 $isSme
                     ? 'They also see your business name, sector and years operating. They never see your own name, your income figures, your address, your ID card number or your documents.'
                     : 'You borrow as an individual, so investors never see your name: you are shown as "Individual borrower". They never see your income figures, your address, your ID card number or your documents either.',

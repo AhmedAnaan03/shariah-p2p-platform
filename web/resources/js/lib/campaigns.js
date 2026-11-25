@@ -53,7 +53,7 @@ export const CAMPAIGN_PAGE_TEXT = {
     riskExplanationTitle: 'Why this grade',
     riskExplanationReserved: 'The factors that raise or lower this campaign’s risk will be listed here.',
     fundingNote: 'Pledging opens in a later release. Until then every campaign shows 0% funded.',
-    repaymentTitle: 'Repayment history on Amanah',
+    repaymentTitle: 'Repayment history on Amanah P2P',
     creditTitle: 'Credit history, as declared by the borrower',
     creditNote: 'The borrower’s own answers. An administrator checked them against the borrower’s MMA credit report, where one was attached, before approving the campaign.',
 };

@@ -254,7 +254,7 @@ class CampaignPageTest extends TestCase
         $none = ['fundedCampaigns' => 0, 'completedCampaigns' => 0, 'instalmentsDue' => 0, 'paidOnTime' => 0, 'paidLate' => 0, 'overdue' => 0];
 
         return [
-            'no funded campaigns' => [$none, 'No repayment history on Amanah yet: this borrower has not had a campaign funded here before.'],
+            'no funded campaigns' => [$none, 'No repayment history on Amanah P2P yet: this borrower has not had a campaign funded here before.'],
             'funded, nothing due yet' => [[...$none, 'fundedCampaigns' => 1], 'This borrower has had a campaign funded here, but no instalments have been due yet.'],
             'one instalment, on time' => [[...$none, 'fundedCampaigns' => 1, 'instalmentsDue' => 1, 'paidOnTime' => 1], '1 of 1 instalment paid on time.'],
             'all on time' => [[...$none, 'fundedCampaigns' => 1, 'instalmentsDue' => 12, 'paidOnTime' => 12], '12 of 12 instalments paid on time.'],

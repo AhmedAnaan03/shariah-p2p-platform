@@ -68,11 +68,7 @@ export default function PortalLayout({ title, description, breadcrumbs, children
                                 groups={navigation.groups}
                                 collapsed={collapsed}
                                 onToggleCollapse={() => setCollapsed(!collapsed)}
-                                footer={
-                                    <div className={collapsed ? 'flex justify-center' : 'px-3'}>
-                                        <ThemeToggle vertical={collapsed} />
-                                    </div>
-                                }
+                                footer={<ThemeToggle />}
                             />
                         </div>
                     </aside>

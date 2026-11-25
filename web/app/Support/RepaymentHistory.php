@@ -70,7 +70,7 @@ final class RepaymentHistory
     public static function summary(array $record): string
     {
         if ($record['fundedCampaigns'] === 0) {
-            return 'No repayment history on Amanah yet: this borrower has not had a campaign funded here before.';
+            return 'No repayment history on Amanah P2P yet: this borrower has not had a campaign funded here before.';
         }
 
         if ($record['instalmentsDue'] === 0) {
