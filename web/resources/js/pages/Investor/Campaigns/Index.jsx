@@ -33,7 +33,7 @@ export default function MarketplaceIndex({ campaigns, hasAny, shariahOnly, filte
                     Shariah-only mode is on, so only Murabahah and Mudarabah campaigns are listed. Turn it off with the switch in the top bar to see every campaign.
                 </Alert>
             )}
-            <Card title="Open campaigns" description="Approved by an administrator and open until their funding deadline. Pledging arrives in a later release.">
+            <Card title="Open campaigns" description="Approved by an administrator and open until their funding deadline. Open one to pledge from your simulated wallet.">
                 {hasAny && (
                     <div className="mb-6">
                         <ListFilters

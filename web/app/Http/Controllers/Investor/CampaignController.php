@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Investor;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
 use App\Policies\CampaignPolicy;
+use App\Services\PledgeService;
+use App\Services\WalletLedger;
 use App\Support\CampaignPresenter;
 use App\Support\ListFilters;
 use App\Support\MarketplaceFilters;
+use App\Support\Money;
 use App\Support\RepaymentHistory;
 use App\Support\ReturnUrl;
 use Illuminate\Http\RedirectResponse;
@@ -64,7 +67,7 @@ class CampaignController extends Controller
         ]);
     }
 
-    public function show(Request $request, Campaign $campaign): Response|RedirectResponse
+    public function show(Request $request, Campaign $campaign, WalletLedger $ledger): Response|RedirectResponse
     {
         $access = Gate::inspect('browse', $campaign);
         // PB-31: a conventional campaign while Shariah-only is on. Back to the marketplace with
@@ -97,6 +100,15 @@ class CampaignController extends Controller
                 'model' => $score->model_version,
             ] : null,
             'pledge' => ['allowed' => $pledge->allowed(), 'reason' => $pledge->message()],
+            // PB-19: what the pledge form needs. Money as "12500.00" strings, exact.
+            'pledging' => [
+                'url' => route('investor.campaigns.pledges.store', $campaign),
+                'walletUrl' => route('investor.wallet.show'),
+                'balance' => Money::fromCents($ledger->balanceFor($request->user())),
+                'remaining' => Money::fromCents($remaining = PledgeService::remainingCents($campaign)),
+                'minimum' => Money::fromCents(min(PledgeService::MIN_CENTS, $remaining)),
+                'mine' => Money::fromCents(Money::fromDatabase($campaign->pledges()->where('investor_id', $request->user()->id)->where('status', 'held')->sum('amount'))),
+            ],
             // PB-54: back to the marketplace with its filters and page.
             'back' => ReturnUrl::back($request, 'investor.campaigns.index'),
         ]);

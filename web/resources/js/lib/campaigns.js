@@ -52,7 +52,6 @@ export const CAMPAIGN_PAGE_TEXT = {
     riskReserved: 'This campaign hasn’t been given an AI-assisted risk grade yet. The grade, and the factors behind it, will appear here once it is scored.',
     riskExplanationTitle: 'Why this grade',
     riskExplanationReserved: 'The factors that raise or lower this campaign’s risk will be listed here.',
-    fundingNote: 'Pledging opens in a later release. Until then every campaign shows 0% funded.',
     repaymentTitle: 'Repayment history on Amanah P2P',
     creditTitle: 'Credit history, as declared by the borrower',
     creditNote: 'The borrower’s own answers. An administrator checked them against the borrower’s MMA credit report, where one was attached, before approving the campaign.',
