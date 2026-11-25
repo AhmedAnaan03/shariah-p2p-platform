@@ -7,11 +7,31 @@ import { duration, ease, useReducedMotion } from '../lib/motion';
  * lands; with reduced motion it shows the final value at once.
  *
  *   <FundingRing value={0} max={120000} label="funded" />
+ *   <FundingRing value={0} max={120000}>{details}</FundingRing>   details beside the ring
  *
  * `size` and `stroke` are the SVG's own dimensions in px (not page styling). Exposed as a
  * progressbar, so the value is read out, not only drawn.
+ *
+ * `children` (raised, target, investors) sit to the right of the ring while there is room for
+ * at least 10 rem of text, and move under it when there isn't. Their column has a real width
+ * (a flex basis), so text inside wraps by word and never collapses to one letter per line.
  */
-export default function FundingRing({ value, max, size = 136, stroke = 12, label = 'funded' }) {
+export default function FundingRing({ children, ...ring }) {
+    if (!children) {
+        return <Ring {...ring} />;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+            <Ring {...ring} />
+            <div data-funding-details className="min-w-0 flex-1 basis-40">
+                {children}
+            </div>
+        </div>
+    );
+}
+
+function Ring({ value, max, size = 136, stroke = 12, label = 'funded' }) {
     const reduced = useReducedMotion();
     const radius = (size - stroke) / 2;
     const circumference = 2 * Math.PI * radius;
@@ -29,7 +49,7 @@ export default function FundingRing({ value, max, size = 136, stroke = 12, label
             style={{ width: size, height: size }}
         >
             <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true" className="-rotate-90">
-                <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} className="stroke-surface-subtle" />
+                <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} className="stroke-border" />
                 <motion.circle
                     cx={size / 2}
                     cy={size / 2}
@@ -44,7 +64,7 @@ export default function FundingRing({ value, max, size = 136, stroke = 12, label
                     transition={reduced ? { duration: 0 } : { duration: duration.slow, ease: ease.standard }}
                 />
             </svg>
-            <div aria-hidden="true" className="absolute inset-0 grid place-content-center text-center">
+            <div aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center text-center whitespace-nowrap">
                 <span className="font-mono text-figure-lg text-text">{percent}%</span>
                 <span className="text-body-sm text-text-muted">{label}</span>
             </div>

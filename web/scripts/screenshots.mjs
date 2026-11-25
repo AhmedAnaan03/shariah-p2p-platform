@@ -21,8 +21,9 @@
 //   --out=<dir>       where screenshots go (default docs/report-notes/screenshots/design-system/,
 //                     git-ignored); Sprint 5 report screenshots are saved outside the repo
 //
-// For every page and width it fails on a console error, an uncaught exception or a horizontal
-// scrollbar, and at 1440 and 390 px runs axe-core's WCAG 2.2 A/AA rules (contrast of the real
+// For every page and width it fails on a console error, an uncaught exception, a horizontal
+// scrollbar, text squeezed to one letter per line or the funding ring overlapping its figures
+// (checkLayout), and at 1440 and 390 px runs axe-core's WCAG 2.2 A/AA rules (contrast of the real
 // rendered text included). Exits with code 1 if any check fails.
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -145,6 +146,45 @@ async function runAxe(page, where) {
     }
 }
 
+/**
+ * Layout checks the eye would catch (PB-17 fix): text squeezed into a column so narrow it runs
+ * one letter per line, and the funding ring overlapping the figures beside it. Run on every
+ * page at every width and theme.
+ */
+async function checkLayout(page, where) {
+    const problems = await page.evaluate(() => {
+        const found = [];
+        for (const el of document.querySelectorAll('body *')) {
+            const text = [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join('').trim();
+            if (text.length < 4) continue;
+            const box = el.getBoundingClientRect();
+            if (box.height < 4) continue; // not displayed, or screen-reader-only text (1 × 1 px)
+            // Faded out on purpose (the collapsed sidebar's labels): nothing to see, nothing to overlap.
+            if (!el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
+            const style = getComputedStyle(el);
+            const size = parseFloat(style.fontSize);
+            const line = parseFloat(style.lineHeight) || size * 1.4;
+            if (box.width < 1) {
+                // A column squeezed to nothing: its text spills over whatever is beside it.
+                found.push(`text "${text.slice(0, 30)}" is in a box 0 px wide`);
+            } else if (box.width < size * 1.5 && box.height > line * 2.5) {
+                found.push(`vertical text "${text.slice(0, 30)}" (${Math.round(box.width)}×${Math.round(box.height)}px)`);
+            }
+        }
+        for (const ring of document.querySelectorAll('[role="progressbar"][aria-label^="Funding:"]')) {
+            const details = ring.parentElement.querySelector(':scope > [data-funding-details]');
+            if (!details) continue; // a ring on its own
+            const a = ring.getBoundingClientRect();
+            const b = details.getBoundingClientRect();
+            const overlap = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+            if (overlap > 0) found.push(`the funding ring overlaps its details by ${Math.round(overlap)}px²`);
+            if (b.width < 120) found.push(`the funding details are only ${Math.round(b.width)}px wide`);
+        }
+        return found;
+    });
+    for (const problem of problems) fail(where, problem);
+}
+
 async function capture(context, name, path) {
     const page = await context.newPage();
     const errors = [];
@@ -170,6 +210,7 @@ async function capture(context, name, path) {
 
             const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
             if (overflow > 0) fail(where, `scrolls sideways by ${overflow}px`);
+            await checkLayout(page, where);
 
             if (width === 1440 || width === 390) await runAxe(page, where);
 

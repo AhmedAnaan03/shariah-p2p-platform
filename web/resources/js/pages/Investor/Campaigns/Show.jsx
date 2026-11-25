@@ -57,8 +57,7 @@ export default function CampaignShow({ campaign, creditHistory, repaymentHistory
                 <div className="order-first space-y-6 @bp-lg/shell:order-last">
                     <Card title="Funding">
                         <div className="space-y-5">
-                            <div className="flex flex-wrap items-center gap-5">
-                                <FundingRing value={campaign.raised} max={campaign.amount_requested} />
+                            <FundingRing value={campaign.raised} max={campaign.amount_requested}>
                                 <DescriptionList
                                     columns={1}
                                     items={[
@@ -67,7 +66,7 @@ export default function CampaignShow({ campaign, creditHistory, repaymentHistory
                                         ['Investors', investorsText(campaign.investors)],
                                     ]}
                                 />
-                            </div>
+                            </FundingRing>
                             <DescriptionList items={[['Funding deadline', campaign.funding_deadline_label, true]]} columns={1} />
                             {pledge.allowed ? (
                                 <Alert tone="info" role="note">
