@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
      *   sme@example.com               verified SME borrower
      *   investor@example.com          verified investor, risk acknowledged
      *   pending-borrower@example.com  individual borrower who has submitted and is waiting in the admin queue
+     *   shariah-investor@example.com  verified investor with Shariah-only mode on (PB-31)
      *   new-investor@example.com      investor who has only registered (onboarding from the start)
      */
     public function run(): void
@@ -71,5 +72,18 @@ class DatabaseSeeder extends Seeder
         DemoData::documents($pending);
 
         User::factory()->investor()->create(['name' => 'Hassan Nizam', 'email' => 'new-investor@example.com', 'password' => $password]);
+
+        // PB-31: an investor who only browses Shariah campaigns.
+        $shariahInvestor = User::factory()->investor()->verified()->submitted()->create(['name' => 'Zeena Ahmed', 'email' => 'shariah-investor@example.com', 'password' => $password]);
+        InvestorProfile::factory()->for($shariahInvestor)->create([
+            'phone' => '+960 9614477', 'national_id_no' => 'A402219',
+            ...DemoData::address('male_maafannu'),
+            'risk_acknowledged_at' => now()->subDays(4),
+            'shariah_only' => true,
+        ]);
+        DemoData::documents($shariahInvestor, 'approved');
+
+        // The marketplace (PB-16, PB-17): twelve open campaigns across sectors and contracts.
+        MarketplaceCampaigns::seed();
     }
 }

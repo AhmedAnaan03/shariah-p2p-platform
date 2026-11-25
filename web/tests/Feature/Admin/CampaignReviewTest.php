@@ -175,10 +175,10 @@ class CampaignReviewTest extends TestCase
         $this->actingAs($investor)->get('/investor/campaigns')
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Investor/Campaigns/Index')
-                ->has('campaigns', 1)
-                ->where('campaigns.0.id', $this->campaign->id)
-                ->where('campaigns.0.funding_deadline', '2026-12-18T18:59:59+00:00')
-                ->where('campaigns.0.funding_deadline_label', '18 Dec 2026')
+                ->has('campaigns.data', 1)
+                ->where('campaigns.data.0.id', $this->campaign->id)
+                ->where('campaigns.data.0.funding_deadline', '2026-12-18T18:59:59+00:00')
+                ->where('campaigns.data.0.funding_deadline_label', '18 Dec 2026')
             );
     }
 

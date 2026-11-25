@@ -63,6 +63,77 @@ final class CampaignPresenter
     }
 
     /**
+     * What a marketplace card needs (PB-16; component-api.d.ts, CampaignCard). The query must
+     * have loaded borrower.borrowerProfile and currentRiskScore, and used withFunding().
+     * An individual borrower's name is never sent: the card shows "Individual borrower".
+     *
+     * @return array<string, mixed>
+     */
+    public static function card(Campaign $campaign): array
+    {
+        $profile = $campaign->borrower->borrowerProfile;
+
+        return [
+            'id' => $campaign->id,
+            'title' => $campaign->title,
+            'business_name' => $profile?->business_name,
+            'sector_label' => self::sectorLabel($profile),
+            'purpose_label' => Campaign::PURPOSES[$campaign->purpose],
+            'contract_type' => $campaign->contract_type,
+            'is_shariah' => $campaign->isShariah(),
+            'amount_requested' => (float) $campaign->amount_requested,
+            'raised' => (float) ($campaign->raised_amount ?? 0),
+            'investors' => (int) ($campaign->investors_count ?? 0),
+            'tenure_months' => $campaign->tenure_months,
+            'rate' => $campaign->rateForCard(),
+            // null until the campaign is scored (PB-25); the card then says "Not yet scored".
+            'grade' => $campaign->currentRiskScore?->grade,
+            'funding_deadline' => $campaign->funding_deadline?->toIso8601String(),
+            'funding_deadline_label' => $campaign->fundingDeadlineLabel(),
+            'url' => route('investor.campaigns.show', $campaign, false),
+        ];
+    }
+
+    /**
+     * Everything the investor's campaign page discloses (PB-17): the request, the borrower as
+     * investors may see them (business name and sector for an SME, never an individual's name),
+     * the projected return and funding. Never the income figures, address, ID or documents.
+     *
+     * @return array<string, mixed>
+     */
+    public static function forInvestor(Campaign $campaign): array
+    {
+        $profile = $campaign->borrower->borrowerProfile;
+
+        return [
+            ...self::card($campaign),
+            'description' => $campaign->description,
+            'business_background' => $campaign->business_background,
+            'terms' => $campaign->termsForDisplay(),
+            'projected_return' => $campaign->projectedReturn(),
+            'contract_label' => self::CONTRACT_LABELS[$campaign->contract_type],
+            'borrower' => [
+                'borrowing_as' => $profile ? BorrowerProfile::TYPES[$profile->borrower_type] : null,
+                'business_name' => $profile?->business_name,
+                'sector_label' => $profile?->isSme() ? self::sectorLabel($profile) : null,
+                'years_operating' => $profile?->isSme() ? $profile->years_operating : null,
+            ],
+        ];
+    }
+
+    /**
+     * The SME's sector, or "Individual borrower".
+     */
+    public static function sectorLabel(?BorrowerProfile $profile): string
+    {
+        if ($profile === null || ! $profile->isSme()) {
+            return 'Individual borrower';
+        }
+
+        return BorrowerProfile::SECTORS[$profile->sector] ?? 'Other';
+    }
+
+    /**
      * The borrower's finances as label / value / mono rows (PB-14): a request's snapshot, or
      * since PB-58 the borrower's financial profile itself (the same field names). Annual income
      * is shown too, as the risk model uses it (monthly × 12).

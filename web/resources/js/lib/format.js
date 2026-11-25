@@ -153,21 +153,36 @@ export function initials(name) {
 }
 
 /**
- * How long is left until a deadline, counted in whole days: "Closes today" on its last day,
- * "1 day left", "12 days left". A passed or unusable deadline gives "Closed" or a dash.
+ * Whole days left before a deadline (PB-16): 0 on its last day, null once it has passed or when
+ * it can't be read. A campaign card takes this number.
  */
-export function daysLeftLabel(deadline, now = new Date()) {
+export function daysLeft(deadline, now = new Date()) {
     const end = toDate(deadline);
     if (end === null) {
-        return EMPTY;
+        return null;
     }
     const ms = end.getTime() - now.getTime();
     if (ms < 0) {
+        return null;
+    }
+    return Math.max(0, Math.ceil(ms / 86_400_000) - 1);
+}
+
+/** The words for daysLeft(): "Closes today", "1 day left", "12 days left", or "Closed" (null). */
+export function daysLeftText(days) {
+    if (days === null || days === undefined) {
         return 'Closed';
     }
-    const days = Math.ceil(ms / 86_400_000) - 1;
     if (days <= 0) {
         return 'Closes today';
     }
     return days === 1 ? '1 day left' : `${days} days left`;
+}
+
+/**
+ * How long is left until a deadline, counted in whole days: "Closes today" on its last day,
+ * "1 day left", "12 days left". A passed or unusable deadline gives "Closed" or a dash.
+ */
+export function daysLeftLabel(deadline, now = new Date()) {
+    return toDate(deadline) === null ? EMPTY : daysLeftText(daysLeft(deadline, now));
 }

@@ -99,7 +99,8 @@ export declare function AIScoredBadge(props: { size?: 'sm' | 'md' }): React.Reac
 export declare function RoleBadge(props: { role: 'investor' | 'borrower' | 'admin'; size?: 'sm' | 'md' }): React.ReactElement;
 export interface RiskGradeProps { grade: Grade; variant?: 'solid' | 'tinted'; size?: 'sm' | 'md' | 'lg'; tooltip?: boolean }
 export declare function RiskGrade(props: RiskGradeProps): React.ReactElement;
-export interface RiskGradeCardProps { grade?: Grade; probability?: number; sentence?: Node; model?: string; state?: 'ready' | 'scoring' | 'pending' }
+/** PB-17: `title` names the pending state ("Not yet scored"); `children` go under it (the explanation, PB-26). */
+export interface RiskGradeCardProps { grade?: Grade; probability?: number; sentence?: Node; model?: string; state?: 'ready' | 'scoring' | 'pending'; title?: Node; children?: Node }
 export declare function RiskGradeCard(props: RiskGradeCardProps): React.ReactElement;
 export interface ProgressBarProps { value: number; max?: number; label: string; size?: 'sm' | 'md' | 'lg'; showValue?: boolean; tone?: Tone }
 export declare function ProgressBar(props: ProgressBarProps): React.ReactElement;
@@ -107,8 +108,14 @@ export interface StatCardProps { label: Node; value: number; format?: 'money' | 
 export declare function StatCard(props: StatCardProps): React.ReactElement;
 export interface WalletCardProps { available: number; held: number; transactions?: { title: Node; date: string; amount: number }[]; onTopUp?: () => void; onWithdraw?: () => void }
 export declare function WalletCard(props: WalletCardProps): React.ReactElement;
-export interface CampaignCardProps { name: string; sector: string; purpose: string; contract?: Contract; grade?: Grade; amount: number; raised: number; tenure: number; rate: string; investors: number; daysLeft: number; status?: Status; href?: string; state?: 'loading' }
+/** PB-16: `business` is the SME's name (left out for an individual borrower); `rate` carries its unit ("8.5% a year", "7.5% in total", "60 : 40"). */
+export interface CampaignCardProps { name: string; business?: string; sector: string; purpose: string; contract?: Contract; grade?: Grade; amount: number; raised: number; tenure: number; rate: string; investors: number; daysLeft: number; status?: Status; href?: string; state?: 'loading' }
 export declare function CampaignCard(props: CampaignCardProps): React.ReactElement;
+/** PB-16: pages of a long list; `page` is the server's paginator props, links keep the filters. */
+export interface PaginationProps { page: { current_page: number; last_page: number; total: number; from: number | null; to: number | null; prev_url: string | null; next_url: string | null; pages: { label: string; url: string | null; active: boolean }[] }; only?: string[]; noun?: [string, string] }
+export declare function Pagination(props: PaginationProps): React.ReactElement | null;
+/** PB-17: tells a borrower what investors see about them on the campaign page. */
+export declare function DisclosureNotice(props: { notice: { title: string; body: string[] } | null }): React.ReactElement | null;
 export interface DataTableColumn<R> { key: string; label: Node; align?: 'right'; mono?: boolean; sortable?: boolean; sortValue?: (row: R) => string | number; render?: (row: R) => Node }
 export interface DataTableProps<R extends { id: string | number }> { columns: DataTableColumn<R>[]; rows: R[]; selectable?: boolean; pageSize?: number; density?: 'comfortable' | 'compact'; caption?: string; empty?: Node; loading?: boolean; forceStack?: boolean }
 export declare function DataTable<R extends { id: string | number }>(props: DataTableProps<R>): React.ReactElement;
