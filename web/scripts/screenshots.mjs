@@ -99,6 +99,7 @@ const PAGES = [
     ['verifiedBorrower', 'borrower-campaign-create', '/borrower/campaigns/create'],
     ['verifiedBorrower', 'borrower-campaign-show', null],
     ['investor', 'marketplace', '/investor/campaigns'],
+    ['investor', 'marketplace-campaign', null], // PB-17: the first card's campaign page
     ['admin', 'admin-campaigns', '/admin/campaigns'],
     ['admin', 'admin-campaign-review', null],
     ['guest', 'design-preview', '/dev/design'],
@@ -109,6 +110,7 @@ const FIRST_LINK = {
     'admin-review': ['/admin/verifications', 'a[href*="/admin/verifications/"]'],
     'admin-campaign-review': ['/admin/campaigns', 'a[href*="/admin/campaigns/"]'],
     'borrower-campaign-show': ['/borrower/campaigns', 'a[href*="/borrower/campaigns/"]:not([href$="/create"])'],
+    'marketplace-campaign': ['/investor/campaigns', 'a[href*="/investor/campaigns/"]'],
 };
 
 const failures = [];

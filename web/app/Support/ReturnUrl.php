@@ -38,6 +38,7 @@ final class ReturnUrl
         'borrower.campaigns.index' => ['Back to your requests', 'Your requests'],
         'investor.portal' => ['Back to overview', 'Overview'],
         'investor.campaigns.index' => ['Back to the marketplace', 'Marketplace'],
+        'investor.campaigns.show' => ['Back to the campaign', 'Campaign'],
     ];
 
     /**

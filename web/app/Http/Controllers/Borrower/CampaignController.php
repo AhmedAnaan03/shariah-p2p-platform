@@ -9,6 +9,7 @@ use App\Models\Campaign;
 use App\Models\KycDocument;
 use App\Services\CampaignSubmissionService;
 use App\Support\CampaignPresenter;
+use App\Support\InvestorDisclosure;
 use App\Support\ListFilters;
 use App\Support\ReturnUrl;
 use Illuminate\Http\RedirectResponse;
@@ -81,6 +82,8 @@ class CampaignController extends Controller
             // request when it is submitted. Changing it is done in the profile.
             'finances' => $profile?->hasFinancialProfile() ? CampaignPresenter::finances($profile) : null,
             'creditHistory' => $profile?->hasFinancialProfile() ? CampaignPresenter::creditHistory($profile) : null,
+            // PB-17: what investors will see on the campaign page, and what they never see.
+            'investorDisclosure' => InvestorDisclosure::forBorrower($profile?->isSme() ?? false),
             'financesUrl' => route('borrower.onboarding.show', 'finances').'?'.http_build_query([ReturnUrl::PARAM => route('borrower.campaigns.create', [], false)]),
             'purposes' => self::options(Campaign::PURPOSES),
             'tenures' => array_map(fn (int $months) => ['value' => (string) $months, 'label' => "{$months} months"], Campaign::TENURES),

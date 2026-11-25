@@ -4,6 +4,7 @@ import Button from '../../../components/Button';
 import Card from '../../../components/Card';
 import ContractTypePicker from '../../../components/ContractTypePicker';
 import DescriptionList from '../../../components/DescriptionList';
+import DisclosureNotice from '../../../components/DisclosureNotice';
 import FileDropzone from '../../../components/FileDropzone';
 import Input from '../../../components/Input';
 import Money from '../../../components/Money';
@@ -36,7 +37,7 @@ const ALL_TERMS = Object.values(TERMS_BY_CONTRACT).flat();
  *
  * Picking Murabahah or Mudarabah puts the page in Shariah mode straight away (README, "Modes").
  */
-export default function CampaignCreate({ canSubmit, blockedReason, isSme, finances, creditHistory, financesUrl, purposes, tenures, limits, maxBytes, tooLargeMessage }) {
+export default function CampaignCreate({ canSubmit, blockedReason, isSme, finances, creditHistory, investorDisclosure, financesUrl, purposes, tenures, limits, maxBytes, tooLargeMessage }) {
     const form = useForm({
         title: '',
         purpose: '',
@@ -213,7 +214,7 @@ export default function CampaignCreate({ canSubmit, blockedReason, isSme, financ
                 is submitted, so the request is scored on these figures. */}
             <Card
                 title="Your finances"
-                description="From your verified financial profile. They are saved with this request. Investors don’t see these figures."
+                description="From your verified financial profile. They are saved with this request. Investors don’t see your income figures."
                 actions={
                     <TextLink href={financesUrl} icon="pencil-simple">
                         Update in your profile
@@ -223,6 +224,8 @@ export default function CampaignCreate({ canSubmit, blockedReason, isSme, financ
                 <div className="space-y-5">
                     <DescriptionList items={finances.map((row) => [row.label, row.value, row.mono])} />
                     <DescriptionList items={creditHistory.map((row) => [row.label, row.value, row.mono])} />
+                    {/* PB-17: the credit history answers and repayment history are shown to investors. */}
+                    <DisclosureNotice notice={investorDisclosure} />
                     <p className="max-w-prose text-body-sm text-text-muted">
                         Changing them sends your account to an administrator to check again before you can submit a request.
                     </p>

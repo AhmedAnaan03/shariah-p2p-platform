@@ -17,6 +17,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\KycDocumentStore;
 use App\Support\DocumentSlots;
+use App\Support\InvestorDisclosure;
 use App\Support\OnboardingSteps;
 use App\Support\ProfilePresenter;
 use App\Support\ReturnUrl;
@@ -342,6 +343,8 @@ class OnboardingController extends Controller
             ),
             'maxCount' => CampaignFinancials::MAX_COUNT,
             'verified' => $user->status === 'verified',
+            // PB-17: what investors will see on the campaign page, and what they never see.
+            'investorDisclosure' => InvestorDisclosure::forBorrower($profile->isSme()),
             // Opened from the financing request form: a way back there (PB-54).
             'returnTo' => ReturnUrl::sanitize($request->query(ReturnUrl::PARAM)),
         ];
