@@ -108,12 +108,15 @@ export interface StatCardProps { label: Node; value: number; format?: 'money' | 
 export declare function StatCard(props: StatCardProps): React.ReactElement;
 export interface WalletCardProps { available: number; held: number; transactions?: { title: Node; date: string; amount: number }[]; onTopUp?: () => void; onWithdraw?: () => void }
 export declare function WalletCard(props: WalletCardProps): React.ReactElement;
-/** PB-16: `business` is the SME's name (left out for an individual borrower); `rate` carries its unit ("8.5% a year", "7.5% in total", "60 : 40"). */
-export interface CampaignCardProps { name: string; business?: string; sector: string; purpose: string; contract?: Contract; grade?: Grade; amount: number; raised: number; tenure: number; rate: string; investors: number; daysLeft: number; status?: Status; href?: string; state?: 'loading' }
+/** PB-16: `business` is the SME's name (left out for an individual borrower); `rate` is the figure ("8.5%", "7.5%", "60 : 40") and `rateUnit` the line under it ("a year", "in total", "investors : business"). */
+export interface CampaignCardProps { name: string; business?: string; sector: string; purpose: string; contract?: Contract; grade?: Grade; amount: number; raised: number; tenure: number; rate: string; rateUnit?: string; investors: number; daysLeft: number; status?: Status; href?: string; state?: 'loading' }
 export declare function CampaignCard(props: CampaignCardProps): React.ReactElement;
 /** PB-16: pages of a long list; `page` is the server's paginator props, links keep the filters. */
 export interface PaginationProps { page: { current_page: number; last_page: number; total: number; from: number | null; to: number | null; prev_url: string | null; next_url: string | null; pages: { label: string; url: string | null; active: boolean }[] }; only?: string[]; noun?: [string, string] }
 export declare function Pagination(props: PaginationProps): React.ReactElement | null;
+/** PB-16 review: a two-handle range slider (Radix Slider) along a list of `steps`; `value` and `onCommit` are positions, committed on release ('pointer') or after key presses ('keyboard'). */
+export interface RangeSliderProps { id?: string; label: Node; steps: number[]; value: [number, number]; onCommit: (positions: [number, number], how: 'pointer' | 'keyboard') => void; className?: string }
+export declare function RangeSlider(props: RangeSliderProps): React.ReactElement;
 /** PB-17: tells a borrower what investors see about them on the campaign page. */
 export declare function DisclosureNotice(props: { notice: { title: string; body: string[] } | null }): React.ReactElement | null;
 export interface DataTableColumn<R> { key: string; label: Node; align?: 'right'; mono?: boolean; sortable?: boolean; sortValue?: (row: R) => string | number; render?: (row: R) => Node }
@@ -138,7 +141,8 @@ export interface AvatarProps { name: string; size?: number }
 export declare function Avatar(props: AvatarProps): React.ReactElement;
 
 /* Navigation & overlays */
-export interface TooltipProps { content: Node; children: React.ReactElement; side?: 'top' | 'bottom'; defaultOpen?: boolean }
+/** `disabled` (PB-17 review) keeps the trigger mounted but never opens: the expanded sidebar's items. */
+export interface TooltipProps { content: Node; children: React.ReactElement; side?: 'top' | 'bottom' | 'right'; defaultOpen?: boolean; disabled?: boolean }
 export declare function Tooltip(props: TooltipProps): React.ReactElement;
 export declare function Term(props: { definition: Node; children: Node; defaultOpen?: boolean }): React.ReactElement;
 export interface PopoverProps { trigger: React.ReactElement; children: Node; defaultOpen?: boolean; align?: 'start' | 'end'; width?: number }
@@ -156,7 +160,8 @@ export declare function ListFilters(props: ListFiltersProps): React.ReactElement
 export interface AccordionProps { items: { q: Node; a: Node }[]; defaultOpen?: number[] }
 export declare function Accordion(props: AccordionProps): React.ReactElement;
 export interface NavGroup { label?: string; items: { icon: string; label: string; active?: boolean; count?: number }[] }
-export interface SidebarProps { portal?: 'Investor' | 'Borrower' | 'Admin'; groups?: NavGroup[]; collapsed?: boolean; footer?: Node; onNavigate?: (item: NavGroup['items'][number]) => void; collapsible?: boolean }
+/** PB-17 review: `footer` (the theme toggle) shares the bottom row with the icon-only collapse button and moves with Motion layout animations when collapsing. */
+export interface SidebarProps { portal?: 'Investor' | 'Borrower' | 'Admin'; groups?: NavGroup[]; collapsed?: boolean; footer?: Node; onNavigate?: (item: NavGroup['items'][number]) => void; collapsible?: boolean; onToggleCollapse?: () => void }
 export interface ModeSwitchProps { mode?: Mode; onChange?: (m: Mode) => void; label?: string }
 export declare function ModeSwitch(props: ModeSwitchProps): React.ReactElement;
 /** PB-55, PB-57: icon-only light/dark sliding switch (role="switch", "Dark theme"); `vertical` for the collapsed sidebar; `save={false}` in the design preview. */
@@ -175,7 +180,8 @@ export declare function RiskExplanation(props: RiskExplanationProps): React.Reac
 /* Charts */
 export interface ChartFrameProps { title: Node; takeaway: Node; legend?: { label: string; color: string; dashed?: boolean; line?: boolean }[]; table?: { columns: Node[]; rows: Node[][] }; actions?: Node; children: Node }
 export declare function ChartFrame(props: ChartFrameProps): React.ReactElement;
-export interface FundingRingProps { value: number; max: number; size?: number; stroke?: number; label?: string }
+/** PB-17 review: `children` (raised, target, investors) sit beside the ring, or under it when there isn't room. */
+export interface FundingRingProps { value: number; max: number; size?: number; stroke?: number; label?: string; children?: Node }
 export declare function FundingRing(props: FundingRingProps): React.ReactElement;
 export interface DonutChartProps { data: { label: string; value: number; color?: string }[]; size?: number; thickness?: number; centerLabel?: string; format?: (v: number) => string }
 export declare function DonutChart(props: DonutChartProps): React.ReactElement;
