@@ -82,6 +82,12 @@ class Campaign extends Model
 
     public const STATUS_SUSPENDED = 'suspended';
 
+    /** Target reached (PB-20); the money waits in escrow until it is paid out (PB-34). */
+    public const STATUS_FUNDED = 'funded';
+
+    /** Deadline passed short of the target (PB-20); every pledge was refunded. */
+    public const STATUS_FAILED = 'failed';
+
     /**
      * @var array<string, mixed>
      */

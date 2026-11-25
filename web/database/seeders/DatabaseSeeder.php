@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\BorrowerProfile;
 use App\Models\InvestorProfile;
 use App\Models\User;
+use App\Services\WalletLedger;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -29,6 +30,10 @@ class DatabaseSeeder extends Seeder
      *   investor@example.com          verified investor, risk acknowledged
      *   pending-borrower@example.com  individual borrower who has submitted and is waiting in the admin queue
      *   shariah-investor@example.com  verified investor with Shariah-only mode on (PB-31)
+     *
+     * Wallets (PB-18): investor MVR 50,000 (less a MVR 1,000 pledge to "Coconut oil press"),
+     * shariah-investor MVR 40,000, sme MVR 5,000. Two campaigns close 5 and 10 minutes after seeding
+     * (see MarketplaceCampaigns::funding).
      *   new-investor@example.com      investor who has only registered (onboarding from the start)
      */
     public function run(): void
@@ -85,5 +90,14 @@ class DatabaseSeeder extends Seeder
 
         // The marketplace (PB-16, PB-17): twelve open campaigns across sectors and contracts.
         MarketplaceCampaigns::seed();
+
+        // Simulated wallets (PB-18), through the ledger so they reconcile.
+        $ledger = app(WalletLedger::class);
+        $ledger->topUp($investor, 50_000_00);
+        $ledger->topUp($shariahInvestor, 40_000_00);
+        $ledger->topUp($sme, 5_000_00);
+
+        // Pledges, and two campaigns closing within minutes to watch the deadline job (PB-19, PB-20).
+        MarketplaceCampaigns::funding($investor);
     }
 }

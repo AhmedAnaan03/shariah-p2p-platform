@@ -8,6 +8,7 @@ use App\Models\InvestorProfile;
 use App\Models\KycDocument;
 use App\Models\User;
 use App\Services\KycDocumentStore;
+use App\Services\WalletLedger;
 use Illuminate\Database\Seeder;
 use Illuminate\Http\UploadedFile;
 
@@ -89,6 +90,10 @@ class ScreenshotSeeder extends Seeder
 
         $this->campaigns($password);
         MarketplaceCampaigns::seed();
+
+        // Wallets and pledges (PB-18 to PB-20).
+        app(WalletLedger::class)->topUp($investor, 50_000_00);
+        MarketplaceCampaigns::funding($investor);
     }
 
     /**
