@@ -188,19 +188,21 @@ erDiagram
 
     wallet_accounts {
         bigint id PK
-        enum type "user | escrow"
+        enum type "user | escrow | external"
         bigint user_id FK, UK "nullable, set when type = user"
         bigint campaign_id FK, UK "nullable, set when type = escrow"
+        tinyint singleton UK "1 for the one external account (PB-18), else NULL"
     }
 
     wallet_transactions {
         bigint id PK
         bigint wallet_account_id FK
+        enum wallet_type "the account's type, for the CHECK below (PB-18)"
         char transfer_ref "uuid shared by both legs of one movement"
         enum type "top_up | withdrawal | pledge | pledge_refund | disbursement | repayment | return_payout"
         enum direction "credit | debit"
         decimal amount "always positive"
-        decimal balance_after "running balance, never negative"
+        decimal balance_after "running balance, never negative except the external account"
         bigint pledge_id FK "nullable, required for return_payout"
         bigint repayment_id FK "nullable, required for return_payout"
         varchar description "nullable"
@@ -271,8 +273,10 @@ erDiagram
 | pledges, repayments | CHECK `amount > 0` | No zero or negative money movements |
 | campaign_financials | CHECK `monthly_income > 0` (was `annual_income`, PB-58), `monthly_debt_repayments >= 0`, `employment_years <= 10`; counts are unsigned; UNIQUE `campaign_id` | One set of financial information per request, with no impossible values (PB-14) |
 | kyc_documents | CHECK (`document_type = 'credit_report'` and `campaign_id` NOT NULL) or (`document_type <> 'credit_report'` and `campaign_id` NULL) | A credit report always belongs to a request; an identity document never does (PB-14) |
-| wallet_accounts | CHECK exactly one owner: (`type = 'user'`, `user_id` set, `campaign_id` NULL) or (`type = 'escrow'`, `campaign_id` set, `user_id` NULL) | Every wallet has exactly one owner |
-| wallet_transactions | CHECK `amount > 0` and `balance_after >= 0` | The database itself refuses a negative balance |
+| wallet_accounts | CHECK exactly one owner: (`type = 'user'`, `user_id` set) or (`type = 'escrow'`, `campaign_id` set) or (`type = 'external'`, no owner, `singleton = 1`) | Every wallet has exactly one owner; the outside world (simulated bank) is one account (PB-18) |
+| wallet_accounts | UNIQUE `singleton`; UNIQUE `(id, type)` | Only one external account; the target of the composite foreign key below |
+| wallet_transactions | CHECK `amount > 0` and (`wallet_type = 'external'` or `balance_after >= 0`) | The database itself refuses a negative user or escrow balance; only the outside world goes below zero (PB-18) |
+| wallet_transactions | FOREIGN KEY `(wallet_account_id, wallet_type)` → `wallet_accounts (id, type)` | An entry can't claim to belong to the external account to dodge the CHECK |
 | wallet_transactions | CHECK `type <> 'return_payout'` or both `pledge_id` and `repayment_id` are NOT NULL | Every payout traces to the investor's pledge and the repayment it came from |
 | wallet_transactions | INDEX `transfer_ref` | Find both legs of one transfer |
 | repayment_schedules | UNIQUE (`campaign_id`, `instalment_no`) | No duplicate instalments |

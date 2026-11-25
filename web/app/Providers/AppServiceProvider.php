@@ -6,6 +6,7 @@ use App\Models\Campaign;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -40,6 +41,17 @@ class AppServiceProvider extends ServiceProvider
             ->symbols());
 
         $this->definePledgeGate();
+
+        // PB-18: only a verified account can move simulated money (top up, withdraw, pledge).
+        Gate::define('move-money', fn (User $user): Response => $user->status === 'verified'
+            ? Response::allow()
+            : Response::deny('Your account must be verified before you can top up, withdraw or pledge.'));
+
+        // `composer dev` (php artisan dev) also runs the scheduler, so funding deadlines are
+        // settled automatically while the app runs locally (PB-20).
+        if ($this->app->runningInConsole() && $this->app->environment('local')) {
+            DevCommands::artisan('schedule:work', 'scheduler');
+        }
     }
 
     /**

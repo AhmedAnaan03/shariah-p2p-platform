@@ -55,6 +55,7 @@ import Term from '../../components/Term';
 import Textarea from '../../components/Textarea';
 import TextInput from '../../components/TextInput';
 import TextLink from '../../components/TextLink';
+import WalletCard from '../../components/WalletCard';
 import { useToasts } from '../../components/Toast';
 import Tooltip from '../../components/Tooltip';
 import { usePlatformMode } from '../../lib/mode';
@@ -143,6 +144,19 @@ function Campaigns() {
                 <RiskGradeCard sentence="This campaign hasn’t been given an AI-assisted risk grade yet." />
                 <RiskGradeCard state="scoring" />
                 <RiskGradeCard grade="B" probability={8.2} model="xgb-2026-12" />
+            </div>
+            <div className="grid gap-6 @bp-md/shell:grid-cols-2">
+                <WalletCard
+                    available={49000}
+                    held={1000}
+                    transactions={[
+                        { title: 'Pledge to “Coconut oil press”', date: '2026-11-25', amount: -1000 },
+                        { title: 'Simulated top-up', date: '2026-11-24', amount: 50000 },
+                    ]}
+                    onTopUp={() => {}}
+                    onWithdraw={() => {}}
+                />
+                <WalletCard available={0} held={0} />
             </div>
             <Pagination
                 page={{

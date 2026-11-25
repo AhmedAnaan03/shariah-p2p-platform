@@ -83,10 +83,11 @@ class SchemaMatchesErdTest extends TestCase
         ],
         'wallet_accounts' => [
             'id' => false, 'type' => false, 'user_id' => true, 'campaign_id' => true,
+            'singleton' => true, // PB-18: 1 for the one external account
             'created_at' => true, 'updated_at' => true,
         ],
         'wallet_transactions' => [
-            'id' => false, 'wallet_account_id' => false, 'transfer_ref' => false, 'type' => false,
+            'id' => false, 'wallet_account_id' => false, 'wallet_type' => false, 'transfer_ref' => false, 'type' => false,
             'direction' => false, 'amount' => false, 'balance_after' => false, 'pledge_id' => true,
             'repayment_id' => true, 'description' => true, 'created_at' => false,
         ],
@@ -181,6 +182,8 @@ class SchemaMatchesErdTest extends TestCase
             'wallet_transactions.pledge_id' => 'pledges.id',
             'wallet_transactions.repayment_id' => 'repayments.id',
             'wallet_transactions.wallet_account_id' => 'wallet_accounts.id',
+            // PB-18: the second column of the composite key (wallet_account_id, wallet_type).
+            'wallet_transactions.wallet_type' => 'wallet_accounts.type',
         ];
         $expected = array_map(fn ($target) => "{$target} ON DELETE RESTRICT", $expected);
 
