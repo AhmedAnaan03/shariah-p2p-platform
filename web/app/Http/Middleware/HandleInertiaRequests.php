@@ -60,6 +60,9 @@ class HandleInertiaRequests extends Middleware
             // One-off message set with ->with('status', '...') on a redirect.
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
+                // An information message rather than a success, e.g. why a campaign page sent
+                // the investor back to the marketplace (PB-31).
+                'notice' => fn () => $request->session()->get('notice'),
             ],
 
             // The platform-wide palette (PB-51). Not lazy: app.blade.php also reads it to put
