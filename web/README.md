@@ -100,7 +100,7 @@ be watched (times are from when you seeded):
 
 | Campaign | Closes | What happens |
 |---|---|---|
-| Solar water heaters for the guest house | in 10 minutes | MVR 4,000 is left. Pledge it as `investor@example.com` and it is funded at once; otherwise it is refunded at the deadline. |
+| Solar water heaters for the guest house | in 10 minutes | `sme@example.com`'s own campaign (its request page shows the funding progress). MVR 4,000 is left: pledge it as `investor@example.com` and it is funded at once; otherwise it is refunded at the deadline. |
 | Coconut oil press | in 5 minutes | Far short of its target, with a MVR 1,000 pledge from `investor@example.com`: at the deadline every pledge is refunded and the investor's wallet goes back to MVR 50,000. |
 
 With `composer run dev` running, this happens within a minute of the deadline; otherwise run

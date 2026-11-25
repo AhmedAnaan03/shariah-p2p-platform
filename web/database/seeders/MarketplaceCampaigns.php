@@ -79,9 +79,10 @@ final class MarketplaceCampaigns
 
     /**
      * Wallets and pledges. $demoInvestor (investor@example.com) gets a pledge in the campaign that
-     * will miss its target, so its refund shows up in that wallet.
+     * will miss its target, so its refund shows up in that wallet; $demoBorrower (sme@example.com)
+     * owns the campaign that is nearly funded, so a borrower login shows its funding progress.
      */
-    public static function funding(?User $demoInvestor = null): void
+    public static function funding(?User $demoInvestor = null, ?User $demoBorrower = null): void
     {
         $ledger = app(WalletLedger::class);
         $pledges = app(PledgeService::class);
@@ -103,7 +104,7 @@ final class MarketplaceCampaigns
         }
 
         // Closes in 10 minutes with MVR 4,000 left: pledge the rest to watch it become funded.
-        $nearly = self::closingSoon('Ibrahim Shareef', 'Sunrise Lodge Thoddoo', 'murabahah', ['asset_description' => 'Solar water heaters for 12 rooms', 'markup_amount' => 3_200], 'Solar water heaters for the guest house', 40_000, 24, 10);
+        $nearly = self::closingSoon('Ibrahim Shareef', 'Sunrise Lodge Thoddoo', 'murabahah', ['asset_description' => 'Solar water heaters for 12 rooms', 'markup_amount' => 3_200], 'Solar water heaters for the guest house', 40_000, 24, 10, $demoBorrower);
         foreach ([14_000, 12_000, 10_000] as $i => $mvr) {
             $pledges->pledge($crowd[$i], $nearly, $mvr * 100);
         }
@@ -118,9 +119,10 @@ final class MarketplaceCampaigns
         }
     }
 
-    private static function closingSoon(string $name, string $business, string $contract, array $terms, string $title, int $amount, int $tenure, int $minutes): Campaign
+    private static function closingSoon(string $name, string $business, string $contract, array $terms, string $title, int $amount, int $tenure, int $minutes, ?User $borrower = null): Campaign
     {
-        $borrower = self::borrower($name, $business, 'food_and_beverage', 'addu');
+        $business = $borrower?->borrowerProfile?->business_name ?? $business;
+        $borrower ??= self::borrower($name, $business, 'food_and_beverage', 'addu');
 
         return Campaign::factory()->{$contract}()->live(now()->addMinutes($minutes))->for($borrower, 'borrower')->create([
             'title' => $title, 'purpose' => 'growth', 'description' => self::DESCRIPTIONS['growth'],

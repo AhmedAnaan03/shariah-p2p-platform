@@ -57,6 +57,10 @@ class MarketplaceDemoDataTest extends TestCase
         $this->assertTrue($nearly->funding_deadline->between(now()->addMinutes(9), now()->addMinutes(11)));
         $this->assertTrue($short->funding_deadline->between(now()->addMinutes(4), now()->addMinutes(6)));
         $this->assertSame(50_000_00, PledgeService::remainingCents($short));
+        $sme = User::where('email', 'sme@example.com')->first();
+        $this->assertTrue($nearly->borrower->is($sme), 'A demo borrower login owns the nearly funded campaign.');
+        $this->actingAs($sme)->get("/borrower/campaigns/{$nearly->id}")
+            ->assertInertia(fn (Assert $page) => $page->where('funding.raised', 36_000)->where('funding.investors', 3)->where('funding.remaining', '4000.00'));
 
         // After its deadline the job refunds it, including the demo investor's pledge.
         $this->travel(6)->minutes();

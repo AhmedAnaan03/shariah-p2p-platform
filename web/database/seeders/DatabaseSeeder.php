@@ -33,7 +33,8 @@ class DatabaseSeeder extends Seeder
      *
      * Wallets (PB-18): investor MVR 50,000 (less a MVR 1,000 pledge to "Coconut oil press"),
      * shariah-investor MVR 40,000, sme MVR 5,000. Two campaigns close 5 and 10 minutes after seeding
-     * (see MarketplaceCampaigns::funding).
+     * (see MarketplaceCampaigns::funding); the 10-minute one, "Solar water heaters for the guest
+     * house", is sme@example.com's own, so its funding progress shows on that borrower's request page.
      *   new-investor@example.com      investor who has only registered (onboarding from the start)
      */
     public function run(): void
@@ -98,6 +99,6 @@ class DatabaseSeeder extends Seeder
         $ledger->topUp($sme, 5_000_00);
 
         // Pledges, and two campaigns closing within minutes to watch the deadline job (PB-19, PB-20).
-        MarketplaceCampaigns::funding($investor);
+        MarketplaceCampaigns::funding($investor, $sme);
     }
 }
