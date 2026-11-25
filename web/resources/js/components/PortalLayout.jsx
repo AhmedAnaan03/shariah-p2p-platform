@@ -1,7 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import cx from '../lib/cx';
-import { closesMenu, isOtherPage } from '../lib/visits';
 import Alert from './Alert';
 import Breadcrumbs from './Breadcrumbs';
 import MobileNav from './MobileNav';
@@ -41,17 +40,8 @@ export default function PortalLayout({ title, description, breadcrumbs, children
 
     useFlashToasts();
 
-    // Close the drawer when a visit starts (a nav link, a form redirect, the back button), but not
-    // for a setting saved from inside it (lib/visits.js); and whenever the page itself changes,
-    // e.g. Shariah-only turned on while a conventional campaign is open sends you to the marketplace.
-    useEffect(() => router.on('start', (event) => closesMenu(event.detail.visit) && setMenuOpen(false)), []);
-    const previousUrl = useRef(page.url);
-    useEffect(() => {
-        if (isOtherPage(previousUrl.current, page.url)) {
-            setMenuOpen(false);
-        }
-        previousUrl.current = page.url;
-    }, [page.url]);
+    // Close the drawer whenever a visit starts (a nav link, a form redirect, the back button).
+    useEffect(() => router.on('start', () => setMenuOpen(false)), []);
 
     return (
         <>
