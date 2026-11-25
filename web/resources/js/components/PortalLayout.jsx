@@ -68,11 +68,7 @@ export default function PortalLayout({ title, description, breadcrumbs, children
                                 groups={navigation.groups}
                                 collapsed={collapsed}
                                 onToggleCollapse={() => setCollapsed(!collapsed)}
-                                footer={
-                                    <div className={collapsed ? 'flex justify-center' : 'px-3'}>
-                                        <ThemeToggle vertical={collapsed} />
-                                    </div>
-                                }
+                                footer={<ThemeToggle />}
                             />
                         </div>
                     </aside>
@@ -145,8 +141,9 @@ function useCollapsedSidebar() {
 }
 
 /**
- * Shows the message the server flashed with ->with('status', '...') as a success toast, once per
- * response. The flash object is new on every full response and kept as-is on a partial reload,
+ * Shows the message the server flashed with ->with('status', '...') as a success toast, and one
+ * flashed with ->with('notice', '...') as an information toast that stays a little longer (PB-31:
+ * why a campaign page sent the investor back to the marketplace), once per response. The flash object is new on every full response and kept as-is on a partial reload,
  * so a background poll never shows an old message again.
  */
 function useFlashToasts() {
@@ -156,6 +153,9 @@ function useFlashToasts() {
     useEffect(() => {
         if (flash?.status) {
             push({ tone: 'success', title: flash.status });
+        }
+        if (flash?.notice) {
+            push({ tone: 'info', title: flash.notice, duration: 8000 });
         }
     }, [flash, push]);
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Requests\Campaign\StoreCampaignRequest;
 use App\Models\Campaign;
+use App\Models\InvestorProfile;
 use App\Models\User;
 use App\Notifications\CampaignDecided;
 use App\Services\CampaignReviewService;
@@ -93,5 +94,39 @@ class ShariahWordingTest extends TestCase
 
         $text = implode(' ', [$mail->subject, ...$mail->introLines, ...$mail->outroLines, $mail->actionText]);
         $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, $text);
+    }
+
+    // ----- The marketplace and campaign page (PB-16, PB-17, PB-31) -----
+
+    #[DataProvider('shariahContracts')]
+    public function test_the_marketplace_and_campaign_page_for_a_shariah_campaign_never_say_interest_or_guaranteed(string $contract): void
+    {
+        $campaign = Campaign::factory()->{$contract}()->live()->create(['title' => 'Dive compressor', 'description' => 'A compressor for the dive shop.', 'business_background' => 'A dive shop since 2019.']);
+        // A Shariah-only investor sees only Shariah campaigns, so the whole page is in Shariah mode.
+        $investor = User::factory()->investor()->verified()->create();
+        InvestorProfile::factory()->for($investor)->create(['shariah_only' => true, 'risk_acknowledged_at' => now()]);
+
+        foreach (['/investor/campaigns', "/investor/campaigns/{$campaign->id}"] as $url) {
+            $props = json_encode($this->actingAs($investor)->get($url)->assertOk()->viewData('page')['props']);
+            $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, $props, $url);
+        }
+    }
+
+    #[DataProvider('shariahContracts')]
+    public function test_a_shariah_campaigns_return_is_never_shown_as_a_yearly_rate(string $contract): void
+    {
+        $campaign = Campaign::factory()->{$contract}()->make(['amount_requested' => 50_000, 'markup_amount' => $contract === 'murabahah' ? 4_000 : null, 'tenure_months' => 12]);
+        $projected = $campaign->projectedReturn();
+
+        foreach ([$campaign->rateForCard(), $projected['label'], $projected['value'], $projected['note']] as $text) {
+            $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, $text);
+            // "It is a total, not a yearly rate." is the one place the words may appear: to say it isn't one.
+            $this->assertDoesNotMatchRegularExpression('/\b(a year|yearly|per annum|annual|p\.a\.)\b/i', str_replace('not a yearly rate', '', $text));
+        }
+
+        if ($contract === 'murabahah') {
+            $this->assertSame('8.0% markup over 12 months', $projected['value']);
+            $this->assertSame('8.0% in total', $campaign->rateForCard());
+        }
     }
 }

@@ -11,8 +11,9 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 /**
- * PB-15: approved campaigns appear in the marketplace with a funding deadline. This is the
- * first, minimal marketplace; PB-16 adds search, filters and pages.
+ * PB-15: approved campaigns appear in the marketplace with a funding deadline. PB-16's filters
+ * and pages are in MarketplaceFiltersTest, PB-17's campaign page in CampaignPageTest and PB-31's
+ * Shariah-only mode in ShariahOnlyMarketplaceTest.
  */
 class MarketplaceTest extends TestCase
 {
@@ -38,10 +39,10 @@ class MarketplaceTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Investor/Campaigns/Index')
-                ->has('campaigns', 2)
-                ->where('campaigns.0.id', $sooner->id)
-                ->where('campaigns.1.id', $later->id)
-                ->where('campaigns.0.funding_deadline', $sooner->funding_deadline->toIso8601String())
+                ->has('campaigns.data', 2)
+                ->where('campaigns.data.0.id', $sooner->id)
+                ->where('campaigns.data.1.id', $later->id)
+                ->where('campaigns.data.0.funding_deadline', $sooner->funding_deadline->toIso8601String())
             );
     }
 
@@ -54,10 +55,10 @@ class MarketplaceTest extends TestCase
 
         $this->actingAs(User::factory()->investor()->create())->get('/investor/campaigns')
             ->assertInertia(fn (Assert $page) => $page
-                ->where('campaigns.0.business_name', 'Hulhumalé Fresh Fish')
-                ->where('campaigns.1.business_name', null)
-                ->missing('campaigns.0.borrower')
-                ->missing('campaigns.0.interest_rate_percent')
+                ->where('campaigns.data.0.business_name', 'Hulhumalé Fresh Fish')
+                ->where('campaigns.data.1.business_name', null)
+                ->missing('campaigns.data.0.borrower')
+                ->missing('campaigns.data.0.interest_rate_percent')
             )
             ->assertDontSee($individual->name);
     }

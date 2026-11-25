@@ -8,8 +8,10 @@ import { createRoot } from 'react-dom/client';
 import AppRoot from './components/AppRoot';
 import AuthLayout from './components/AuthLayout';
 import PortalLayout from './components/PortalLayout';
+import { PLATFORM_NAME } from './lib/brand';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+// The platform's name (lib/brand.js), after every page title: "Marketplace - Amanah P2P".
+const appName = PLATFORM_NAME;
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

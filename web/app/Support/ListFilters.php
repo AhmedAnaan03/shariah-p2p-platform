@@ -19,6 +19,12 @@ use Illuminate\Support\Str;
  * allowed values and anything else is ignored (treated as "all"), never an error: an old or
  * edited link still opens the list. The search text is trimmed, limited to 100 characters, and
  * matched literally (a typed % or _ is not a wildcard).
+ *
+ * Number filters (PB-16, the amount slider's amount_min and amount_max) take whole numbers
+ * only: anything else is ignored, and a number outside the allowed range is clamped into it.
+ *
+ *   ListFilters::from($request, [...], numbers: ['amount_min' => [10_000, 2_000_000]]);
+ *   $filters->number('amount_min');   // 10000 ... 2000000, or null
  */
 final class ListFilters
 {
@@ -28,13 +34,15 @@ final class ListFilters
 
     /**
      * @param  array<string, string>  $values  the valid filter values, by name
+     * @param  array<string, int>  $numbers  the number filters that are set, clamped, by name
      */
-    private function __construct(private readonly ?string $search, private readonly array $values) {}
+    private function __construct(private readonly ?string $search, private readonly array $values, private readonly array $numbers = []) {}
 
     /**
      * @param  array<string, list<string>>  $allowed  filter name => the values it accepts
+     * @param  array<string, array{0: int, 1: int}>  $numbers  number filter name => [lowest, highest]
      */
-    public static function from(Request $request, array $allowed = []): self
+    public static function from(Request $request, array $allowed = [], array $numbers = []): self
     {
         $search = $request->query(self::SEARCH);
         $search = is_string($search) ? Str::limit(trim($search), self::MAX_SEARCH_LENGTH, '') : '';
@@ -47,7 +55,47 @@ final class ListFilters
             }
         }
 
-        return new self($search === '' ? null : $search, $values);
+        $clamped = [];
+        foreach ($numbers as $name => [$lowest, $highest]) {
+            $number = self::wholeNumber($request->query($name));
+            if ($number !== null) {
+                $clamped[$name] = max($lowest, min($highest, $number));
+            }
+        }
+
+        return new self($search === '' ? null : $search, $values, $clamped);
+    }
+
+    /**
+     * "250000" → 250000. Anything that isn't a plain whole number (blank, "abc", "-5", "2.5",
+     * "1e6", an array) → null. Very long digit strings are capped rather than overflowing.
+     */
+    public static function wholeNumber(mixed $value): ?int
+    {
+        if (! is_string($value) || ! preg_match('/^\d{1,15}$/', trim($value))) {
+            return null;
+        }
+
+        return (int) trim($value);
+    }
+
+    /**
+     * A number filter's clamped value, or null when it isn't set (or wasn't a whole number).
+     */
+    public function number(string $name): ?int
+    {
+        return $this->numbers[$name] ?? null;
+    }
+
+    /**
+     * The same filters with some number filters replaced or removed (null), e.g. after
+     * MarketplaceFilters puts a reversed range the right way round.
+     *
+     * @param  array<string, ?int>  $numbers
+     */
+    public function withNumbers(array $numbers): self
+    {
+        return new self($this->search, $this->values, array_filter([...$this->numbers, ...$numbers], fn ($n) => $n !== null));
     }
 
     public function search(): ?string
@@ -95,18 +143,18 @@ final class ListFilters
      */
     public function active(): bool
     {
-        return $this->search !== null || $this->values !== [];
+        return $this->search !== null || $this->values !== [] || $this->numbers !== [];
     }
 
     /**
      * The current values for the page, so the bar shows what the list is filtered by:
      * { search: '...', status: 'live', ... }, with only the filters that are set.
      *
-     * @return array<string, string>
+     * @return array<string, string|int>
      */
     public function toArray(): array
     {
-        return array_filter([self::SEARCH => $this->search, ...$this->values], fn ($value) => $value !== null);
+        return array_filter([self::SEARCH => $this->search, ...$this->values, ...$this->numbers], fn ($value) => $value !== null);
     }
 
     /**

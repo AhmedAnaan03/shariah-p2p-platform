@@ -17,7 +17,8 @@ use Illuminate\Http\UploadedFile;
  * profile yet (mode switch disabled), an investor at the documents step, an admin, and a
  * verification queue with three complete, submitted accounts and one incomplete one.
  * PB-13 to PB-15 add a verified borrower with requests in every state, a campaign review queue
- * (a Murabahah with a credit report first) and live campaigns for the marketplace.
+ * (a Murabahah with a credit report first) and live campaigns for the marketplace. PB-16 and
+ * PB-17 add MarketplaceCampaigns: more than a page of campaigns, one with a repayment history.
  *
  * Only for `npm run screenshots` / `npm run check:a11y`, which run it on their own throwaway
  * database (shariah_p2p_screenshots), never on the development or test database. Addresses,
@@ -87,6 +88,7 @@ class ScreenshotSeeder extends Seeder
         User::factory()->borrower()->create(['name' => 'Still Registering']);
 
         $this->campaigns($password);
+        MarketplaceCampaigns::seed();
     }
 
     /**
@@ -130,12 +132,9 @@ class ScreenshotSeeder extends Seeder
             'submitted_at' => now()->subDays(20),
         ]);
 
-        // More requests in the admin queue, and campaigns in the marketplace.
+        // Another request in the admin queue. The marketplace's campaigns are MarketplaceCampaigns.
         $others = [
             ['Aminath Leena', 'Island Tutors', 'mudarabah', 'education', 'Tutoring centre in Hulhumalé', 60000, 12, 'submitted', 1],
-            ['Ali Shareef', 'Sun Island Cafe', 'conventional', 'growth', 'Kitchen equipment for a second cafe', 150000, 36, 'live', 26],
-            ['Hawwa Nashida', 'Reef Dive Supplies', 'murabahah', 'growth', 'Dive compressor and tanks', 95000, 48, 'live', 5],
-            ['Yoosuf Rameez', null, 'mudarabah', 'start_up', 'Guest house fit-out in Maafushi', 300000, 60, 'live', 12],
         ];
         $addresses = ['hulhumale', 'male_maafannu', 'addu', 'kulhudhuffushi'];
         foreach ($others as $index => [$name, $business, $contract, $purpose, $title, $amount, $tenure, $status, $days]) {

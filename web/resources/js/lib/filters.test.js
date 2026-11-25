@@ -10,6 +10,11 @@ describe('filterParams', () => {
         expect(filterParams('?search=old&status=live', { search: '   ', status: 'all', contract: '' })).toEqual({});
     });
 
+    it('starts again at page 1 when the search or a filter changes (PB-16)', () => {
+        expect(filterParams('?page=3&sector=fisheries', { sector: 'retail' })).toEqual({ sector: 'retail' });
+        expect(filterParams('?page=2', { search: '' })).toEqual({});
+    });
+
     it('trims the search text and replaces an earlier value', () => {
         expect(filterParams('?status=live', { status: 'rejected', search: '  reef  ' })).toEqual({ status: 'rejected', search: 'reef' });
     });

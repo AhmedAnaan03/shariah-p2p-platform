@@ -99,7 +99,7 @@ final class DemoData
     public static function pdf(string $title): string
     {
         $text = str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $title);
-        $stream = "BT /F1 18 Tf 72 720 Td ({$text}) Tj 0 -28 Td /F1 12 Tf (Demo document for the Amanah prototype. Not a real document.) Tj ET";
+        $stream = "BT /F1 18 Tf 72 720 Td ({$text}) Tj 0 -28 Td /F1 12 Tf (Demo document for the Amanah P2P prototype. Not a real document.) Tj ET";
 
         $objects = [
             '<< /Type /Catalog /Pages 2 0 R >>',

@@ -158,7 +158,7 @@ class ListFiltersTest extends TestCase
         Campaign::factory()->conventional()->submitted()->for($sme, 'borrower')->create(['title' => 'Not approved yet']);
 
         $titles = fn (string $query) => collect($this->actingAs($investor)->get("/investor/campaigns{$query}")
-            ->assertOk()->viewData('page')['props']['campaigns'])->pluck('title')->all();
+            ->assertOk()->viewData('page')['props']['campaigns']['data'])->pluck('title')->all();
 
         $this->assertSame(['Dive compressor', 'Guest house fit-out'], $titles(''));
         $this->assertSame(['Dive compressor'], $titles('?search=reef'), 'Business names are searched.');

@@ -12,6 +12,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class RiskScore extends Model
 {
+    public const STATUS_SCORED = 'scored';
+
+    public const GRADES = ['A', 'B', 'C', 'D', 'E'];
+
     /**
      * @var array<string, mixed>
      */

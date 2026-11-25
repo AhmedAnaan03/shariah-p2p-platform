@@ -2,6 +2,7 @@ import { useForm } from '@inertiajs/react';
 import Alert from '../../components/Alert';
 import Card from '../../components/Card';
 import CountInput from '../../components/CountInput';
+import DisclosureNotice from '../../components/DisclosureNotice';
 import MoneyInput from '../../components/MoneyInput';
 import OnboardingFrame from '../../components/OnboardingFrame';
 import RadioCards from '../../components/RadioCards';
@@ -17,7 +18,7 @@ import { toNumber } from '../../lib/format';
  * It stays open after verification. A verified borrower who changes it is told first that the
  * account goes back to the administrator, and can't submit new requests until it is approved.
  */
-export default function OnboardingFinances({ wizard, finances, isSme, housing, employmentYears, verified, returnTo }) {
+export default function OnboardingFinances({ wizard, finances, isSme, housing, employmentYears, verified, investorDisclosure, returnTo }) {
     const form = useForm({
         ...finances,
         monthly_income: toNumber(finances.monthly_income),
@@ -103,6 +104,8 @@ export default function OnboardingFinances({ wizard, finances, isSme, housing, e
                     <CountInput {...count('open_credit_lines')} label="How many loans, financing facilities and credit cards do you have open?" hint="Count each one separately. Enter 0 if none." />
                     <CountInput {...count('late_payments_2y')} label="In the past 2 years, how many times was a repayment 30 or more days late?" hint="Across all your loans and cards. Enter 0 if never." />
                     <CountInput {...count('public_records')} label="How many court judgments, bankruptcies or debts written off have you had?" hint="Enter 0 if none." />
+                    {/* PB-17: these three answers are shown to investors on the campaign page. */}
+                    <DisclosureNotice notice={investorDisclosure} />
                 </div>
             </Card>
         </OnboardingFrame>

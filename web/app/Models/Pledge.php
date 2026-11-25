@@ -11,6 +11,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Pledge extends Model
 {
     /**
+     * Pledges that count towards a campaign's funding: held in escrow or paid out to the
+     * borrower. Refunded ones don't (PB-16, PB-17).
+     */
+    public const COUNTED_STATUSES = ['held', 'settled'];
+
+    /**
      * @var array<string, mixed>
      */
     protected $attributes = [

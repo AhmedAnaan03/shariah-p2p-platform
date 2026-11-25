@@ -17,6 +17,11 @@ class CampaignPolicy
 
     public const NOT_VERIFIED = 'Your account must be verified before you can submit a financing request.';
 
+    /** The response code browse() uses for a campaign hidden by Shariah-only mode (PB-31). */
+    public const HIDDEN_BY_SHARIAH_ONLY = 'hidden_by_shariah_only';
+
+    public const SHARIAH_ONLY_HIDDEN = 'That campaign uses a conventional contract, so it is hidden while Shariah-only mode is on. Turn Shariah-only off in the top bar to see it.';
+
     /**
      * Only a verified borrower may submit a request (PB-13 acceptance criterion).
      */
@@ -44,5 +49,27 @@ class CampaignPolicy
     public function view(User $user, Campaign $campaign): Response
     {
         return $user->id === $campaign->borrower_id ? Response::allow() : Response::denyAsNotFound();
+    }
+
+    /**
+     * Whether an investor may open a campaign's marketplace page (PB-17, PB-31). The investor
+     * routes are already behind role:investor.
+     *
+     * - Not open (draft, waiting, rejected, suspended, past its deadline): 404, as if it didn't
+     *   exist, so unpublished requests can't be found by trying ids.
+     * - Conventional while Shariah-only is on: refused with its own code, so the controller
+     *   can send the investor back to the marketplace with an explanation instead of an error.
+     */
+    public function browse(User $user, Campaign $campaign): Response
+    {
+        if (! $user->hasRole(Role::INVESTOR) || ! $campaign->isListed()) {
+            return Response::denyAsNotFound();
+        }
+
+        if ($user->investorProfile?->shariah_only && ! $campaign->isShariah()) {
+            return Response::deny(self::SHARIAH_ONLY_HIDDEN, self::HIDDEN_BY_SHARIAH_ONLY);
+        }
+
+        return Response::allow();
     }
 }

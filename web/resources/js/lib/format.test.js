@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanNumberInput, daysLeftLabel, formatAmount, formatBytes, formatCompactMoney, formatDate, formatMoney, formatPercent, formatTime, initials } from './format';
+import { cleanNumberInput, daysLeft, daysLeftLabel, daysLeftText, formatAmount, formatBytes, formatCompactMoney, formatDate, formatMoney, formatPercent, formatTime, initials } from './format';
 
 // Each case: [input, expected]. Grouped as blank, invalid and valid input (report table).
 const cases = (fn, table) => it.each(table)('%j → %s', (input, expected) => expect(fn(...[].concat(input))).toBe(expected));
@@ -138,4 +138,23 @@ describe('daysLeftLabel', () => {
         [deadline, at('2026-12-18T10:00:00'), 'Closes today'],
         [deadline, at('2026-12-19T00:00:01'), 'Closed'],
     ])('%s at %s → %s', (value, now, expected) => expect(daysLeftLabel(value, now)).toBe(expected));
+});
+
+describe('daysLeft and daysLeftText (PB-16, the campaign card)', () => {
+    const deadline = '2026-12-18T23:59:59';
+    const at = (when) => new Date(when);
+
+    it.each([
+        // blank and invalid: no number, so the card says "Closed"
+        [null, at('2026-11-18T10:00:00'), null, 'Closed'],
+        ['not a date', at('2026-11-18T10:00:00'), null, 'Closed'],
+        // valid
+        [deadline, at('2026-11-18T10:00:00'), 30, '30 days left'],
+        [deadline, at('2026-12-17T10:00:00'), 1, '1 day left'],
+        [deadline, at('2026-12-18T10:00:00'), 0, 'Closes today'],
+        [deadline, at('2026-12-19T00:00:01'), null, 'Closed'],
+    ])('%s at %s → %s (%s)', (value, now, days, text) => {
+        expect(daysLeft(value, now)).toBe(days);
+        expect(daysLeftText(daysLeft(value, now))).toBe(text);
+    });
 });

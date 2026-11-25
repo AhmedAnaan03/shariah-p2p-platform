@@ -1,4 +1,5 @@
 import * as RadixTooltip from '@radix-ui/react-tooltip';
+import { useState } from 'react';
 
 /**
  * A short hint on hover or keyboard focus, built on Radix Tooltip (announced as the trigger's
@@ -9,9 +10,12 @@ import * as RadixTooltip from '@radix-ui/react-tooltip';
  *
  * The child must be focusable. AppRoot provides the shared TooltipProvider.
  */
-export default function Tooltip({ content, children, side = 'top', defaultOpen }) {
+export default function Tooltip({ content, children, side = 'top', defaultOpen, disabled = false }) {
+    const [open, setOpen] = useState(defaultOpen ?? false);
+    // `disabled` keeps the same elements (so the trigger isn't re-created, which would restart its
+    // transitions) but never opens: the expanded sidebar's items, whose label is already shown.
     return (
-        <RadixTooltip.Root defaultOpen={defaultOpen}>
+        <RadixTooltip.Root open={open && !disabled} onOpenChange={setOpen}>
             <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
             <RadixTooltip.Portal>
                 <RadixTooltip.Content

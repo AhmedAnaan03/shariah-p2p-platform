@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 // Status, review and funding fields are changed by the workflow code, not by the borrower's form.
 #[Fillable([
@@ -104,9 +105,6 @@ class Campaign extends Model
     }
 
     /**
-     * Shariah mode is not stored separately; it follows from the contract type.
-     */
-    /**
      * The funding deadline for a campaign approved at $approvedAt: the end of the 30th day
      * after, Maldives time, stored in UTC like every other time.
      */
@@ -132,6 +130,9 @@ class Campaign extends Model
         return Carbon::instance($moment)->setTimezone(self::LOCAL_TIMEZONE)->format('j M Y');
     }
 
+    /**
+     * Shariah mode is not stored separately; it follows from the contract type.
+     */
     public function isShariah(): bool
     {
         return self::isShariahContract($this->contract_type);
@@ -151,6 +152,125 @@ class Campaign extends Model
     public function scopeListed(Builder $query): void
     {
         $query->where('status', self::STATUS_LIVE)->where('funding_deadline', '>', now());
+    }
+
+    /**
+     * The open campaigns an investor may browse and pledge to (PB-31): listed, and only
+     * Murabahah or Mudarabah while the investor has Shariah-only on. Both the marketplace and
+     * the campaign page go through this, so hiding is enforced on the server, not by the cards.
+     *
+     * @param  Builder<Campaign>  $query
+     */
+    public function scopeVisibleTo(Builder $query, User $investor): void
+    {
+        $query->listed()->when(
+            $investor->investorProfile?->shariah_only,
+            fn (Builder $q) => $q->whereIn('contract_type', self::SHARIAH_CONTRACTS),
+        );
+    }
+
+    /**
+     * Whether this campaign is open in the marketplace right now (the listed scope, for one model).
+     */
+    public function isListed(): bool
+    {
+        return $this->status === self::STATUS_LIVE && $this->funding_deadline?->isFuture();
+    }
+
+    /**
+     * Adds `raised_amount` (money pledged and not refunded) and `investors_count` (different
+     * investors) to each campaign (PB-16, PB-17). Both are 0 until pledging arrives (PB-19).
+     *
+     * @param  Builder<Campaign>  $query
+     */
+    public function scopeWithFunding(Builder $query): void
+    {
+        $query->withSum(['pledges as raised_amount' => fn ($q) => $q->whereIn('status', Pledge::COUNTED_STATUSES)], 'amount')
+            ->withCount(['pledges as investors_count' => fn ($q) => $q->whereIn('status', Pledge::COUNTED_STATUSES)
+                ->select(DB::raw('count(distinct investor_id)'))]);
+    }
+
+    /**
+     * The Murabahah markup as a percentage of the asset cost, for the whole tenure (not a yearly
+     * rate): a MVR 4,000 markup on a MVR 50,000 asset is 8.0%.
+     */
+    public function markupPercent(): ?float
+    {
+        if ($this->contract_type !== self::CONTRACT_MURABAHAH || (float) $this->amount_requested <= 0) {
+            return null;
+        }
+
+        return round((float) $this->markup_amount / (float) $this->amount_requested * 100, 1);
+    }
+
+    /**
+     * The return figure a campaign card shows under its contract's label (Interest, Markup,
+     * Profit share), and the unit on the line below it, so a Murabahah markup can never be read
+     * as a yearly rate: ["8.5%", "a year"], ["8.0%", "in total"], ["60 : 40", "investors : business"].
+     *
+     * @return array{0: string, 1: string}
+     */
+    public function rateParts(): array
+    {
+        return match ($this->contract_type) {
+            self::CONTRACT_CONVENTIONAL => [self::percent($this->interest_rate_percent), 'a year'],
+            self::CONTRACT_MURABAHAH => [self::percent($this->markupPercent()), 'in total'],
+            self::CONTRACT_MUDARABAH => [self::ratio($this->investor_profit_share_percent), 'investors : business'],
+        };
+    }
+
+    /**
+     * The card's figure and unit as one phrase ("8.0% in total"), for messages and tests.
+     */
+    public function rateForCard(): string
+    {
+        return implode(' ', $this->rateParts());
+    }
+
+    /**
+     * What an investor can expect to earn, for the campaign page (PB-17). Shariah contracts
+     * never say "interest" or "guaranteed": a Murabahah shows its fixed markup over the whole
+     * tenure (never a yearly rate) and a Mudarabah shows only its profit-share ratio, because its
+     * return depends on profit that hasn't been made yet.
+     *
+     * @return array{label: string, value: string, note: string}
+     */
+    public function projectedReturn(): array
+    {
+        $months = "{$this->tenure_months} months";
+
+        return match ($this->contract_type) {
+            self::CONTRACT_CONVENTIONAL => [
+                'label' => 'Interest rate',
+                'value' => self::percent($this->interest_rate_percent).' a year',
+                'note' => "A fixed yearly rate, repaid with the capital in instalments over {$months}. You could lose some or all of your money if the borrower doesn't repay.",
+            ],
+            self::CONTRACT_MURABAHAH => [
+                'label' => 'Expected markup',
+                'value' => self::percent($this->markupPercent())." markup over {$months}",
+                'note' => 'A fixed markup of '.self::money($this->markup_amount)." on the asset cost, agreed now for the whole {$months}. It is a total, not a yearly rate. Your returns could be lower than expected, or you could receive nothing, if the business doesn't pay.",
+            ],
+            self::CONTRACT_MUDARABAH => [
+                'label' => 'Expected profit share',
+                'value' => self::percent($this->investor_profit_share_percent)." of the business's actual profit",
+                'note' => 'Investors and the business share the actual profit '.self::ratio($this->investor_profit_share_percent).", over {$months}. Returns depend on that profit: they could be lower than expected, or you could receive nothing.",
+            ],
+        };
+    }
+
+    /**
+     * "60 : 40": the investors' share of the profit, then the business's.
+     */
+    private static function ratio(mixed $investorShare): string
+    {
+        $investors = (float) $investorShare;
+
+        return self::trimmed($investors).' : '.self::trimmed(100 - $investors);
+    }
+
+    private static function trimmed(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 1), '0'), '.');
     }
 
     /**
@@ -229,5 +349,14 @@ class Campaign extends Model
     public function riskScores(): HasMany
     {
         return $this->hasMany(RiskScore::class);
+    }
+
+    /**
+     * The latest successful risk score, if any (PB-16 filters on its grade; PB-25 creates
+     * scores and PB-26 shows the explanation). Pending and failed attempts don't count.
+     */
+    public function currentRiskScore(): HasOne
+    {
+        return $this->hasOne(RiskScore::class)->ofMany(['id' => 'max'], fn ($query) => $query->where('status', RiskScore::STATUS_SCORED));
     }
 }

@@ -23,6 +23,12 @@ import ModeSwitch from '../../components/ModeSwitch';
 import Money from '../../components/Money';
 import MoneyInput from '../../components/MoneyInput';
 import Breadcrumbs from '../../components/Breadcrumbs';
+import CampaignCard from '../../components/CampaignCard';
+import FundingRing from '../../components/FundingRing';
+import Pagination from '../../components/Pagination';
+import ProgressBar from '../../components/ProgressBar';
+import RiskGrade from '../../components/RiskGrade';
+import RiskGradeCard from '../../components/RiskGradeCard';
 import DocumentSlot from '../../components/DocumentSlot';
 import ListFilters from '../../components/ListFilters';
 import OnboardingStepper from '../../components/OnboardingStepper';
@@ -80,6 +86,7 @@ export default function Design() {
                     <Forms />
                     <Feedback />
                     <DataDisplay />
+                    <Campaigns />
                     <Overlays />
                     <Shell mode={mode} setMode={setMode} />
                 </main>
@@ -100,6 +107,52 @@ function Section({ id, title, description, children }) {
 
 function Row({ children }) {
     return <div className="flex flex-wrap items-center gap-3">{children}</div>;
+}
+
+// PB-16, PB-17: the marketplace and campaign page components.
+function Campaigns() {
+    const card = { sector: 'Tourism and hospitality', purpose: 'Growth', amount: 95000, tenure: 48, investors: 0, daysLeft: 5 };
+
+    return (
+        <Section id="campaigns" title="Campaigns" description="Cards for the marketplace grid, funding progress and risk grades (PB-16, PB-17).">
+            <div className="grid gap-6 @bp-md/shell:grid-cols-2 @bp-xl/shell:grid-cols-3">
+                <CampaignCard {...card} name="Cold room for the fish market" business="Addu Fresh Catch" contract="conventional" rate="8.0%" rateUnit="a year" raised={0} href="#campaigns" />
+                <CampaignCard {...card} name="Dive compressor and tanks" business="Reef Dive Supplies" contract="murabahah" grade="B" rate="7.5%" rateUnit="in total" amount={1750000} raised={47500} investors={12} daysLeft={0} href="#campaigns" />
+                <CampaignCard {...card} name="Guest house fit-out" sector="Individual borrower" contract="mudarabah" grade="D" rate="60 : 40" rateUnit="investors : business" raised={95000} investors={31} status="funded" />
+                <CampaignCard state="loading" />
+            </div>
+            <Row>
+                <FundingRing value={0} max={120000} />
+                <FundingRing value={42000} max={120000} />
+                <FundingRing value={120000} max={120000} size={96} stroke={10} />
+            </Row>
+            <div className="max-w-md space-y-3">
+                <ProgressBar value={0} label="Funded" showValue />
+                <ProgressBar value={35} label="Funded" showValue size="lg" />
+                <ProgressBar value={80} label="Repaid" size="sm" tone="success" />
+            </div>
+            <Row>
+                {['A', 'B', 'C', 'D', 'E'].map((grade) => (
+                    <RiskGrade key={grade} grade={grade} tooltip />
+                ))}
+                {['A', 'C', 'E'].map((grade) => (
+                    <RiskGrade key={grade} grade={grade} variant="solid" size="sm" />
+                ))}
+            </Row>
+            <div className="grid gap-6 @bp-md/shell:grid-cols-3">
+                <RiskGradeCard sentence="This campaign hasn’t been given an AI-assisted risk grade yet." />
+                <RiskGradeCard state="scoring" />
+                <RiskGradeCard grade="B" probability={8.2} model="xgb-2026-12" />
+            </div>
+            <Pagination
+                page={{
+                    current_page: 2, last_page: 5, total: 41, from: 10, to: 18, prev_url: '#campaigns', next_url: '#campaigns',
+                    pages: [{ label: '1', url: '#campaigns', active: false }, { label: '2', url: '#campaigns', active: true }, { label: '3', url: '#campaigns', active: false }, { label: '...', url: null, active: false }, { label: '5', url: '#campaigns', active: false }],
+                }}
+                noun={['campaign', 'campaigns']}
+            />
+        </Section>
+    );
 }
 
 function Typography() {

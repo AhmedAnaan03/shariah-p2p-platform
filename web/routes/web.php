@@ -117,8 +117,10 @@ Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('i
     // signed-in investor's own profile.
     Route::patch('/preferences/shariah-only', ShariahPreferenceController::class)->name('preferences.shariah-only');
 
-    // The marketplace: live campaigns with their funding deadline (PB-15; PB-16 extends it).
+    // The marketplace (PB-15, PB-16) and a campaign's page (PB-17). Both list only what the
+    // investor may see: open campaigns, and only Shariah ones while Shariah-only is on (PB-31).
     Route::get('/campaigns', [InvestorCampaignController::class, 'index'])->name('campaigns.index');
+    Route::get('/campaigns/{campaign}', [InvestorCampaignController::class, 'show'])->whereNumber('campaign')->name('campaigns.show');
 });
 
 Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin')->name('admin.')->group(function () {
