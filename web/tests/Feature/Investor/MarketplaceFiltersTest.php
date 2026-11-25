@@ -96,38 +96,69 @@ class MarketplaceFiltersTest extends TestCase
         $this->assertSame(['Grow'], $this->titles('?purpose=growth'));
     }
 
-    // ----- Amount -----
+    // ----- Amount (the two-handle slider) -----
 
     /**
-     * [filter value, titles listed]: each amount on a boundary belongs to one range only.
+     * [query, titles listed, filters echoed back]: both ends are inclusive; anything that isn't
+     * a whole number is ignored; out-of-range values are clamped, and an end at its limit filters
+     * nothing; a reversed pair is swapped.
      *
-     * @return array<string, array{0: string, 1: list<string>}>
+     * @return array<string, array{0: string, 1: list<string>, 2: array<string, int>}>
      */
     public static function amountRanges(): array
     {
+        $all = ['10K', '50K', '50K+1c', '200K', '500K', '2M'];
+
         return [
-            'blank' => ['', ['10K', '50K', '50K+1c', '200K', '500K', '500K+1']],
-            'invalid' => ['lots', ['10K', '50K', '50K+1c', '200K', '500K', '500K+1']],
-            'up to 50,000 (inclusive)' => ['up_to_50k', ['10K', '50K']],
-            '50,000 to 200,000' => ['50k_to_200k', ['50K+1c', '200K']],
-            '200,000 to 500,000' => ['200k_to_500k', ['500K']],
-            'over 500,000' => ['over_500k', ['500K+1']],
+            'blank' => ['?amount_min=&amount_max=', $all, []],
+            'not numbers' => ['?amount_min=abc&amount_max=1e6', $all, []],
+            'negative and decimal' => ['?amount_min=-5&amount_max=2.5', $all, []],
+            'array' => ['?amount_min[]=50000', $all, []],
+            'minimum only (inclusive)' => ['?amount_min=50000', ['50K', '50K+1c', '200K', '500K', '2M'], ['amount_min' => 50_000]],
+            'maximum only (inclusive)' => ['?amount_max=50000', ['10K', '50K'], ['amount_max' => 50_000]],
+            'both' => ['?amount_min=50001&amount_max=500000', ['200K', '500K'], ['amount_min' => 50_001, 'amount_max' => 500_000]],
+            'reversed: swapped' => ['?amount_min=500000&amount_max=50001', ['200K', '500K'], ['amount_min' => 50_001, 'amount_max' => 500_000]],
+            'below the lowest: clamped, filters nothing' => ['?amount_min=5', $all, []],
+            'above the highest: clamped, filters nothing' => ['?amount_max=99999999', $all, []],
+            'above the highest as a minimum: clamped to 2,000,000' => ['?amount_min=99999999', ['2M'], ['amount_min' => 2_000_000]],
+            'exactly the limits: filters nothing' => ['?amount_min=10000&amount_max=2000000', $all, []],
         ];
     }
 
     /**
      * @param  list<string>  $expected
+     * @param  array<string, int>  $echoed
      */
     #[DataProvider('amountRanges')]
-    public function test_the_amount_range_filter(string $value, array $expected): void
+    public function test_the_amount_range_slider_filter(string $query, array $expected, array $echoed): void
     {
-        $amounts = ['10K' => 10_000, '50K' => 50_000, '50K+1c' => 50_000.01, '200K' => 200_000, '500K' => 500_000, '500K+1' => 500_001];
+        $amounts = ['10K' => 10_000, '50K' => 50_000, '50K+1c' => 50_000.01, '200K' => 200_000, '500K' => 500_000, '2M' => 2_000_000];
         $day = 0;
         foreach ($amounts as $title => $amount) {
             $this->campaign($title, ++$day, ['amount_requested' => $amount]);
         }
 
-        $this->assertSame($expected, $this->titles("?amount={$value}"));
+        $this->assertSame($expected, $this->titles($query));
+        $this->actingAs($this->investor)->get("/investor/campaigns{$query}")
+            ->assertInertia(fn (Assert $page) => $page->where('filters', $echoed));
+    }
+
+    public function test_the_page_gets_the_sliders_scale(): void
+    {
+        $this->actingAs($this->investor)->get('/investor/campaigns')
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('amountSlider.min', 10_000)
+                ->where('amountSlider.max', 2_000_000)
+                ->where('amountSlider.steps', MarketplaceFilters::AMOUNT_STEPS));
+
+        $steps = MarketplaceFilters::AMOUNT_STEPS;
+        $this->assertSame(Campaign::MIN_AMOUNT, $steps[0]);
+        $this->assertSame(Campaign::MAX_AMOUNT, end($steps));
+        $sorted = $steps;
+        sort($sorted);
+        $this->assertSame($sorted, $steps, 'The steps go up.');
+        // Small amounts get their share of the track: at least a quarter of the steps are under MVR 50,000.
+        $this->assertGreaterThanOrEqual(count($steps) / 4, count(array_filter($steps, fn (int $step) => $step < 50_000)));
     }
 
     // ----- Tenure -----
@@ -206,13 +237,13 @@ class MarketplaceFiltersTest extends TestCase
         $this->campaign('Cold storage van', 2, ['purpose' => 'start_up', 'tenure_months' => 24], 'fisheries');
         $this->campaign('Cold drinks kiosk', 3, ['purpose' => 'growth', 'tenure_months' => 6], 'retail');
 
-        $this->assertSame(['Cold room'], $this->titles('?search=cold&sector=fisheries&purpose=growth&tenure=13_to_36'));
+        $this->assertSame(['Cold room'], $this->titles('?search=cold&sector=fisheries&purpose=growth&tenure=13_to_36&amount_max=60000'));
 
-        $this->actingAs($this->investor)->get('/investor/campaigns?search=cold&sector=fisheries&amount=bogus')
+        $this->actingAs($this->investor)->get('/investor/campaigns?search=cold&sector=fisheries&amount_min=bogus&tenure=forever')
             ->assertInertia(fn (Assert $page) => $page
-                ->where('filters', ['search' => 'cold', 'sector' => 'fisheries']) // the invalid amount is dropped
+                ->where('filters', ['search' => 'cold', 'sector' => 'fisheries']) // the invalid amount and tenure are dropped
                 ->has('filterOptions.sector', count(BorrowerProfile::SECTORS) + 1)
-                ->has('filterOptions.amount', 4)
+                ->missing('filterOptions.amount') // a slider, not a dropdown
                 ->has('filterOptions.tenure', 3)
                 ->has('filterOptions.contract', 4)
                 ->has('filterOptions.grade', 6)
@@ -274,13 +305,16 @@ class MarketplaceFiltersTest extends TestCase
 
         $this->actingAs($this->investor)->get('/investor/campaigns')
             ->assertInertia(fn (Assert $page) => $page
-                ->where('campaigns.data.0.rate', '8.5% a year')
+                ->where('campaigns.data.0.rate', '8.5%')
+                ->where('campaigns.data.0.rate_unit', 'a year')
                 ->where('campaigns.data.0.raised', 3_500)
                 ->where('campaigns.data.0.investors', 2)
-                ->where('campaigns.data.1.rate', '8.0% in total') // a markup for the whole tenure, never a yearly rate
+                ->where('campaigns.data.1.rate', '8.0%')
+                ->where('campaigns.data.1.rate_unit', 'in total') // a markup for the whole tenure, never a yearly rate
                 ->where('campaigns.data.1.raised', 0)
                 ->where('campaigns.data.1.investors', 0)
                 ->where('campaigns.data.2.rate', '60 : 40')
+                ->where('campaigns.data.2.rate_unit', 'investors : business')
                 ->where('campaigns.data.0.sector_label', 'Retail and trade')
                 ->where('campaigns.data.0.url', "/investor/campaigns/{$conventional->id}"));
     }

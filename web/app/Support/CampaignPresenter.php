@@ -85,7 +85,9 @@ final class CampaignPresenter
             'raised' => (float) ($campaign->raised_amount ?? 0),
             'investors' => (int) ($campaign->investors_count ?? 0),
             'tenure_months' => $campaign->tenure_months,
-            'rate' => $campaign->rateForCard(),
+            // The figure and its unit, shown on two lines: "8.0%" / "in total".
+            'rate' => $campaign->rateParts()[0],
+            'rate_unit' => $campaign->rateParts()[1],
             // null until the campaign is scored (PB-25); the card then says "Not yet scored".
             'grade' => $campaign->currentRiskScore?->grade,
             'funding_deadline' => $campaign->funding_deadline?->toIso8601String(),

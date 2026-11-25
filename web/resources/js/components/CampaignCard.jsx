@@ -1,10 +1,9 @@
 import { Link } from '@inertiajs/react';
 import { fundingPercent, investorsText, rateLabel } from '../lib/campaigns';
 import cx from '../lib/cx';
-import { daysLeftText } from '../lib/format';
+import { daysLeftText, formatAmount } from '../lib/format';
 import Badge from './Badge';
 import ContractBadge from './ContractBadge';
-import Money from './Money';
 import ProgressBar from './ProgressBar';
 import RiskGrade from './RiskGrade';
 import Skeleton from './Skeleton';
@@ -16,18 +15,19 @@ import StatusBadge from './StatusBadge';
  * The whole card links to the campaign page.
  *
  *   <CampaignCard name="Dive compressor" business="Reef Dive Supplies" sector="Tourism and hospitality"
- *       purpose="Growth" contract="murabahah" amount={95000} raised={0} tenure={48} rate="7.5% in total"
+ *       purpose="Growth" contract="murabahah" amount={95000} raised={0} tenure={48} rate="7.5%" rateUnit="in total"
  *       investors={0} daysLeft={5} href="/investor/campaigns/12" />
  *
  * - Follows the platform mode like everything else; a Murabahah or Mudarabah always carries the
  *   ShariahBadge with its contract badge, so it is recognisable on a conventional page too.
- * - The label above `rate` follows the contract: Interest / Markup / Profit share. `rate`
- *   brings its own unit ("a year", "in total"), so a markup is never read as a yearly rate.
+ * - The label above `rate` follows the contract: Interest / Markup / Profit share, and
+ *   `rateUnit` ("a year", "in total") sits under it, so a markup is never read as a yearly rate.
+ * - Terms are three aligned columns of label, figure and unit; figures never wrap.
  * - No `grade` yet: "Not yet scored" (until PB-25).
  * - A link card rises 2 px to shadow-sm over 150 ms on hover (none with reduced motion).
  * - `state="loading"`: a skeleton of the same size.
  */
-export default function CampaignCard({ name, business, sector, purpose, contract, grade, amount, raised = 0, tenure, rate, investors = 0, daysLeft, status, href, state }) {
+export default function CampaignCard({ name, business, sector, purpose, contract, grade, amount, raised = 0, tenure, rate, rateUnit, investors = 0, daysLeft, status, href, state }) {
     const frame = 'flex h-full flex-col gap-4 rounded-lg border border-border bg-surface p-5 shadow-xs';
 
     if (state === 'loading') {
@@ -61,21 +61,19 @@ export default function CampaignCard({ name, business, sector, purpose, contract
                 <p className="mt-1 text-body-sm text-text-muted">{[business, sector, purpose].filter(Boolean).join(' · ')}</p>
             </div>
 
-            <dl className="grid grid-cols-3 gap-3">
-                <div className="min-w-0">
-                    <dt className="text-overline text-text-muted">Target</dt>
-                    <dd className="mt-1">
-                        <Money value={amount} decimals={0} />
-                    </dd>
-                </div>
-                <div className="min-w-0">
-                    <dt className="text-overline text-text-muted">{rateLabel(contract)}</dt>
-                    <dd className="mt-1 font-mono text-figure text-text">{rate}</dd>
-                </div>
-                <div className="min-w-0">
-                    <dt className="text-overline text-text-muted">Tenure</dt>
-                    <dd className="mt-1 font-mono text-figure text-text">{tenure} months</dd>
-                </div>
+            {/* Three columns on a subgrid with three shared rows: the labels, the figures and the
+                units. Every figure stays on one line and every unit sits under its figure, so the
+                columns line up on any card width and nothing breaks mid-value. */}
+            <dl className="grid grid-cols-3 gap-x-3 border-y border-border py-3">
+                <TermColumn label="Target" unit="MVR">
+                    {formatAmount(amount, { decimals: 0 })}
+                </TermColumn>
+                <TermColumn label={rateLabel(contract)} unit={rateUnit}>
+                    {rate}
+                </TermColumn>
+                <TermColumn label="Tenure" unit={tenure === 1 ? 'month' : 'months'}>
+                    {tenure}
+                </TermColumn>
             </dl>
 
             <div className="mt-auto space-y-2">
@@ -110,5 +108,20 @@ export default function CampaignCard({ name, business, sector, purpose, contract
         >
             {content}
         </Link>
+    );
+}
+
+/**
+ * One column of the terms block: label, figure, unit, each on its own row of the dl's subgrid.
+ * The figure never wraps; a long label or unit wraps by word within its row, and the rows grow
+ * together across the three columns.
+ */
+function TermColumn({ label, unit, children }) {
+    return (
+        <div className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-0.5">
+            <dt className="text-overline text-text-muted">{label}</dt>
+            <dd className="font-mono text-figure whitespace-nowrap text-text">{children}</dd>
+            {unit ? <dd className="text-body-sm text-text-muted">{unit}</dd> : <dd aria-hidden="true" />}
+        </div>
     );
 }

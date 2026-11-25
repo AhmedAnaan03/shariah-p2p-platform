@@ -2,8 +2,10 @@ import { router } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { debounce, SEARCH_DEBOUNCE_MS } from '../lib/debounce';
 import { ALL, filterParams, hasActiveFilters } from '../lib/filters';
+import { positionsFor, valuesFor } from '../lib/rangeSlider';
 import Button from './Button';
 import Input from './Input';
+import RangeSlider from './RangeSlider';
 import Select from './Select';
 
 /**
@@ -24,10 +26,21 @@ import Select from './Select';
  * - The values live in the URL (replacing the history entry, so Back still leaves the page),
  *   so a filtered list can be bookmarked, reloaded, or returned to from a detail page.
  * - "Clear filters" removes them all. The number of results is announced to screen readers.
+ *
+ * A field with `type: 'range'` is a two-handle slider (PB-16, the marketplace amount):
+ *
+ *   { type: 'range', label: 'Amount', minName: 'amount_min', maxName: 'amount_max', steps: [10000, ...] }
+ *
+ * It is as tall as a dropdown, reloads when a handle is released (after a 300 ms pause for key
+ * presses), and an end at the edge of the track is left out of the URL.
  */
 export default function ListFilters({ filters = {}, fields = [], only = [], searchLabel = 'Search', searchPlaceholder, resultCount, resultNoun = ['result', 'results'] }) {
-    const names = ['search', ...fields.map((field) => field.name)];
-    const fromServer = () => Object.fromEntries(names.map((name) => [name, filters[name] ?? (name === 'search' ? '' : ALL)]));
+    const ranges = fields.filter((field) => field.type === 'range');
+    const rangeNames = ranges.flatMap((field) => [field.minName, field.maxName]);
+    const names = ['search', ...fields.filter((field) => field.type !== 'range').map((field) => field.name), ...rangeNames];
+    // A search or a range end is '' when unset; a dropdown is "all".
+    const blank = (name) => (name === 'search' || rangeNames.includes(name) ? '' : ALL);
+    const fromServer = () => Object.fromEntries(names.map((name) => [name, filters[name] !== undefined ? String(filters[name]) : blank(name)]));
     const [values, setValues] = useState(fromServer);
 
     const reload = useMemo(
@@ -69,8 +82,20 @@ export default function ListFilters({ filters = {}, fields = [], only = [], sear
         }
     }
 
+    function changeRange(field, positions, how) {
+        const { min, max } = valuesFor(positions, field.steps);
+        const next = { ...values, [field.minName]: min, [field.maxName]: max };
+        setValues(next);
+        if (how === 'keyboard') {
+            debouncedReload.current(next);
+        } else {
+            debouncedReload.current.cancel();
+            reload(next);
+        }
+    }
+
     function clear() {
-        const empty = Object.fromEntries(names.map((name) => [name, name === 'search' ? '' : ALL]));
+        const empty = Object.fromEntries(names.map((name) => [name, blank(name)]));
         debouncedReload.current.cancel();
         setValues(empty);
         reload(empty);
@@ -92,17 +117,29 @@ export default function ListFilters({ filters = {}, fields = [], only = [], sear
                     autoComplete="off"
                     className="min-w-0 flex-1 basis-64"
                 />
-                {fields.map((field) => (
-                    <Select
-                        key={field.name}
-                        id={`filter-${field.name}`}
-                        label={field.label}
-                        options={[{ value: ALL, label: field.allLabel }, ...field.options]}
-                        value={values[field.name]}
-                        onChange={(value) => change(field.name, value)}
-                        className="min-w-0 grow basis-44"
-                    />
-                ))}
+                {fields.map((field) =>
+                    field.type === 'range' ? (
+                        <RangeSlider
+                            key={field.minName}
+                            id={`filter-${field.minName}`}
+                            label={field.label}
+                            steps={field.steps}
+                            value={positionsFor(values[field.minName], values[field.maxName], field.steps)}
+                            onCommit={(positions, how) => changeRange(field, positions, how)}
+                            className="grow basis-80"
+                        />
+                    ) : (
+                        <Select
+                            key={field.name}
+                            id={`filter-${field.name}`}
+                            label={field.label}
+                            options={[{ value: ALL, label: field.allLabel }, ...field.options]}
+                            value={values[field.name]}
+                            onChange={(value) => change(field.name, value)}
+                            className="min-w-0 grow basis-44"
+                        />
+                    ),
+                )}
                 {active && (
                     <Button variant="ghost" iconLeft="x" onClick={clear}>
                         Clear filters

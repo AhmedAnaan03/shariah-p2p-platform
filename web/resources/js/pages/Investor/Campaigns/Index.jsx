@@ -11,13 +11,13 @@ import { withReturn } from '../../../lib/returnUrl';
 /**
  * The marketplace (PB-15, PB-16): open campaigns as cards, closest deadline first, nine to a
  * page. The shared search-and-filter bar (PB-54) searches the title and business name and
- * filters by sector, purpose, amount, tenure, contract and risk grade; all of it happens on the
+ * filters by sector, purpose, amount (a two-handle slider), tenure, contract and risk grade; all of it happens on the
  * server and stays in the URL, so a filtered page can be bookmarked and returned to.
  *
  * With Shariah-only on (PB-31) the server sends only Murabahah and Mudarabah campaigns and only
  * those two contract options; this page just says so.
  */
-export default function MarketplaceIndex({ campaigns, hasAny, shariahOnly, filters, filterOptions, pledge }) {
+export default function MarketplaceIndex({ campaigns, hasAny, shariahOnly, filters, filterOptions, amountSlider, pledge }) {
     const { url } = usePage();
     const only = ['campaigns'];
 
@@ -44,10 +44,10 @@ export default function MarketplaceIndex({ campaigns, hasAny, shariahOnly, filte
                             fields={[
                                 { name: 'sector', label: 'Sector', allLabel: 'All sectors', options: filterOptions.sector },
                                 { name: 'purpose', label: 'Purpose', allLabel: 'All purposes', options: filterOptions.purpose },
-                                { name: 'amount', label: 'Amount', allLabel: 'Any amount', options: filterOptions.amount },
                                 { name: 'tenure', label: 'Tenure', allLabel: 'Any tenure', options: filterOptions.tenure },
                                 { name: 'contract', label: 'Contract', allLabel: shariahOnly ? 'Murabahah and Mudarabah' : 'All contracts', options: filterOptions.contract },
                                 { name: 'grade', label: 'Risk grade', allLabel: 'Any grade', options: filterOptions.grade },
+                                { type: 'range', label: 'Amount', minName: 'amount_min', maxName: 'amount_max', steps: amountSlider.steps },
                             ]}
                             resultCount={campaigns.total}
                             resultNoun={['campaign', 'campaigns']}
@@ -79,6 +79,7 @@ export default function MarketplaceIndex({ campaigns, hasAny, shariahOnly, filte
                                         raised={campaign.raised}
                                         tenure={campaign.tenure_months}
                                         rate={campaign.rate}
+                                        rateUnit={campaign.rate_unit}
                                         investors={campaign.investors}
                                         daysLeft={daysLeft(campaign.funding_deadline)}
                                         href={withReturn(campaign.url, url)}

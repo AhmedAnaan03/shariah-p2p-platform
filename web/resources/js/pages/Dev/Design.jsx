@@ -116,9 +116,9 @@ function Campaigns() {
     return (
         <Section id="campaigns" title="Campaigns" description="Cards for the marketplace grid, funding progress and risk grades (PB-16, PB-17).">
             <div className="grid gap-6 @bp-md/shell:grid-cols-2 @bp-xl/shell:grid-cols-3">
-                <CampaignCard {...card} name="Cold room for the fish market" business="Addu Fresh Catch" contract="conventional" rate="8.0% a year" raised={0} href="#campaigns" />
-                <CampaignCard {...card} name="Dive compressor and tanks" business="Reef Dive Supplies" contract="murabahah" grade="B" rate="7.5% in total" raised={47500} investors={12} daysLeft={0} href="#campaigns" />
-                <CampaignCard {...card} name="Guest house fit-out" sector="Individual borrower" contract="mudarabah" grade="D" rate="60 : 40" raised={95000} investors={31} status="funded" />
+                <CampaignCard {...card} name="Cold room for the fish market" business="Addu Fresh Catch" contract="conventional" rate="8.0%" rateUnit="a year" raised={0} href="#campaigns" />
+                <CampaignCard {...card} name="Dive compressor and tanks" business="Reef Dive Supplies" contract="murabahah" grade="B" rate="7.5%" rateUnit="in total" amount={1750000} raised={47500} investors={12} daysLeft={0} href="#campaigns" />
+                <CampaignCard {...card} name="Guest house fit-out" sector="Individual borrower" contract="mudarabah" grade="D" rate="60 : 40" rateUnit="investors : business" raised={95000} investors={31} status="funded" />
                 <CampaignCard state="loading" />
             </div>
             <Row>

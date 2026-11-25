@@ -10,12 +10,13 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * The marketplace's filters (PB-16), on top of the shared ListFilters bar (PB-54).
  *
- * Every filter is a dropdown with a fixed list of values, so ListFilters can ignore anything
- * else typed into the URL. Amount and tenure are preset ranges rather than free min/max boxes:
- * nothing to validate, and a range is one tap on a phone.
+ * Every filter but the amount is a dropdown with a fixed list of values, so ListFilters can
+ * ignore anything else typed into the URL. Tenure is preset ranges, which include their upper
+ * bound and exclude their lower one, so a boundary value belongs to exactly one range.
  *
- * Ranges include their upper bound and exclude their lower one, so a boundary value belongs to
- * exactly one range: MVR 50,000 is "Up to MVR 50,000", MVR 50,000.01 is the next range.
+ * The amount is a two-handle slider (amount_min, amount_max), both inclusive. The server takes
+ * any whole number, clamps it to MVR 10,000 – 2,000,000 (the request limits) and puts a reversed
+ * pair the right way round; the slider itself moves along AMOUNT_STEPS.
  *
  * While the investor has Shariah-only on (PB-31), the contract filter only offers Murabahah
  * and Mudarabah. The rows themselves are restricted by Campaign::scopeVisibleTo, not here.
@@ -34,16 +35,21 @@ final class MarketplaceFilters
     /** The risk grade filter's option for campaigns without a score yet (until PB-25). */
     public const UNSCORED = 'unscored';
 
+    public const AMOUNT_MIN = 'amount_min';
+
+    public const AMOUNT_MAX = 'amount_max';
+
     /**
-     * key => [label, above (exclusive), up to (inclusive)], in MVR.
+     * The amounts the slider stops at, MVR 10,000 to 2,000,000. Roughly even steps on a
+     * logarithmic scale (1, 1.5, 2, 2.5, 3, 4, 5, 6, 7.5 per power of ten), so the small amounts
+     * most requests are for get as much of the track as the large ones.
      *
-     * @var array<string, array{0: string, 1: ?int, 2: ?int}>
+     * @var list<int>
      */
-    public const AMOUNTS = [
-        'up_to_50k' => ['Up to MVR 50,000', null, 50_000],
-        '50k_to_200k' => ['MVR 50,000 to 200,000', 50_000, 200_000],
-        '200k_to_500k' => ['MVR 200,000 to 500,000', 200_000, 500_000],
-        'over_500k' => ['Over MVR 500,000', 500_000, null],
+    public const AMOUNT_STEPS = [
+        10_000, 15_000, 20_000, 25_000, 30_000, 40_000, 50_000, 60_000, 75_000,
+        100_000, 150_000, 200_000, 250_000, 300_000, 400_000, 500_000, 600_000, 750_000,
+        1_000_000, 1_250_000, 1_500_000, 1_750_000, 2_000_000,
     ];
 
     /**
@@ -104,7 +110,6 @@ final class MarketplaceFilters
         return [
             'sector' => self::sectors(),
             'purpose' => Campaign::PURPOSES,
-            'amount' => array_map(fn (array $range) => $range[0], self::AMOUNTS),
             'tenure' => array_map(fn (array $range) => $range[0], self::TENURES),
             'contract' => self::contracts($shariahOnly),
             'grade' => self::grades(),
@@ -119,6 +124,46 @@ final class MarketplaceFilters
     public static function allowed(bool $shariahOnly): array
     {
         return array_map(fn (array $labels) => array_map('strval', array_keys($labels)), self::labels($shariahOnly));
+    }
+
+    /**
+     * The number filters for ListFilters::from(): both ends of the amount slider.
+     *
+     * @return array<string, array{0: int, 1: int}>
+     */
+    public static function numbers(): array
+    {
+        $bounds = [Campaign::MIN_AMOUNT, Campaign::MAX_AMOUNT];
+
+        return [self::AMOUNT_MIN => $bounds, self::AMOUNT_MAX => $bounds];
+    }
+
+    /**
+     * Tidy the amount range from the URL: a reversed pair is swapped, and an end at its limit
+     * (MVR 10,000 or 2,000,000) is dropped, as it filters nothing.
+     */
+    public static function normalise(ListFilters $filters): ListFilters
+    {
+        $min = $filters->number(self::AMOUNT_MIN);
+        $max = $filters->number(self::AMOUNT_MAX);
+        if ($min !== null && $max !== null && $min > $max) {
+            [$min, $max] = [$max, $min];
+        }
+
+        return $filters->withNumbers([
+            self::AMOUNT_MIN => $min === Campaign::MIN_AMOUNT ? null : $min,
+            self::AMOUNT_MAX => $max === Campaign::MAX_AMOUNT ? null : $max,
+        ]);
+    }
+
+    /**
+     * What the amount slider needs on the page.
+     *
+     * @return array{min: int, max: int, steps: list<int>}
+     */
+    public static function amountSlider(): array
+    {
+        return ['min' => Campaign::MIN_AMOUNT, 'max' => Campaign::MAX_AMOUNT, 'steps' => self::AMOUNT_STEPS];
     }
 
     /**
@@ -144,7 +189,8 @@ final class MarketplaceFilters
                 ? $q->whereHas('borrower.borrowerProfile', fn ($p) => $p->where('borrower_type', 'individual'))
                 : $q->whereHas('borrower.borrowerProfile', fn ($p) => $p->where('sector', $sector)))
             ->when($filters->get('purpose'), fn (Builder $q, string $purpose) => $q->where('purpose', $purpose))
-            ->when($filters->get('amount'), fn (Builder $q, string $key) => self::inRange($q, 'amount_requested', self::AMOUNTS[$key]))
+            ->when($filters->number(self::AMOUNT_MIN), fn (Builder $q, int $min) => $q->where('amount_requested', '>=', $min))
+            ->when($filters->number(self::AMOUNT_MAX), fn (Builder $q, int $max) => $q->where('amount_requested', '<=', $max))
             ->when($filters->get('tenure'), fn (Builder $q, string $key) => self::inRange($q, 'tenure_months', self::TENURES[$key]))
             ->when($filters->get('contract'), fn (Builder $q, string $contract) => $contract === self::ANY_SHARIAH
                 ? $q->whereIn('contract_type', Campaign::SHARIAH_CONTRACTS)

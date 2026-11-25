@@ -205,15 +205,26 @@ class Campaign extends Model
 
     /**
      * The return figure a campaign card shows under its contract's label (Interest, Markup,
-     * Profit share), with its unit, so a Murabahah markup can never be read as a yearly rate.
+     * Profit share), and the unit on the line below it, so a Murabahah markup can never be read
+     * as a yearly rate: ["8.5%", "a year"], ["8.0%", "in total"], ["60 : 40", "investors : business"].
+     *
+     * @return array{0: string, 1: string}
+     */
+    public function rateParts(): array
+    {
+        return match ($this->contract_type) {
+            self::CONTRACT_CONVENTIONAL => [self::percent($this->interest_rate_percent), 'a year'],
+            self::CONTRACT_MURABAHAH => [self::percent($this->markupPercent()), 'in total'],
+            self::CONTRACT_MUDARABAH => [self::ratio($this->investor_profit_share_percent), 'investors : business'],
+        };
+    }
+
+    /**
+     * The card's figure and unit as one phrase ("8.0% in total"), for messages and tests.
      */
     public function rateForCard(): string
     {
-        return match ($this->contract_type) {
-            self::CONTRACT_CONVENTIONAL => self::percent($this->interest_rate_percent).' a year',
-            self::CONTRACT_MURABAHAH => self::percent($this->markupPercent()).' in total',
-            self::CONTRACT_MUDARABAH => self::ratio($this->investor_profit_share_percent),
-        };
+        return implode(' ', $this->rateParts());
     }
 
     /**

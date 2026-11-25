@@ -31,7 +31,9 @@ class CampaignController extends Controller
         $user = $request->user();
         $shariahOnly = (bool) $user->investorProfile?->shariah_only;
 
-        $filters = ListFilters::from($request, MarketplaceFilters::allowed($shariahOnly));
+        $filters = MarketplaceFilters::normalise(
+            ListFilters::from($request, MarketplaceFilters::allowed($shariahOnly), MarketplaceFilters::numbers()),
+        );
         $query = Campaign::visibleTo($user)->withFunding()->with(['borrower.borrowerProfile', 'currentRiskScore']);
         MarketplaceFilters::apply($query, $filters);
         // An individual borrower's name is never shown to investors, so it isn't searched either.
@@ -58,6 +60,7 @@ class CampaignController extends Controller
             'shariahOnly' => $shariahOnly,
             'filters' => $filters->toArray(),
             'filterOptions' => MarketplaceFilters::options($shariahOnly),
+            'amountSlider' => MarketplaceFilters::amountSlider(),
         ]);
     }
 
