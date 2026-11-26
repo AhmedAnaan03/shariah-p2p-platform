@@ -16,3 +16,9 @@ Artisan::command('inspire', function () {
 | is safe either way: it locks each campaign).
 */
 Schedule::command('campaigns:settle-deadlines')->everyMinute()->withoutOverlapping();
+
+/*
+| PB-35: every minute, mark unpaid instalments past their due date as late. A status only: there
+| are no late fees or penalty charges for any contract, and a Mudarabah is never late.
+*/
+Schedule::command('repayments:mark-late')->everyMinute()->withoutOverlapping();

@@ -7,6 +7,7 @@ use App\Models\Pledge;
 use App\Models\Repayment;
 use App\Models\User;
 use App\Models\WalletAccount;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\Concerns\AssertsDatabaseConstraints;
@@ -167,8 +168,31 @@ class WalletLedgerConstraintsTest extends TestCase
         ]);
 
         $this->assertCheckViolated('repayments_amount_check', fn () => $schedule->repayments()->create([
-            'amount' => -5, 'paid_at' => now(),
+            'amount' => -5, 'capital_amount' => 0, 'return_amount' => 0, 'paid_at' => now(),
         ]));
+    }
+
+    public function test_a_repayment_must_add_up_to_its_capital_and_return(): void
+    {
+        $schedule = Campaign::factory()->create()->repaymentSchedules()->create([
+            'instalment_no' => 1, 'due_date' => '2027-01-31', 'capital_due' => 4000, 'return_due' => 350,
+        ]);
+
+        $this->assertCheckViolated('repayments_breakdown_check', fn () => $schedule->repayments()->create([
+            'amount' => 4350, 'capital_amount' => 4000, 'return_amount' => 300, 'paid_at' => now(),
+        ]));
+    }
+
+    public function test_an_instalment_can_be_paid_only_once(): void
+    {
+        $schedule = Campaign::factory()->create()->repaymentSchedules()->create([
+            'instalment_no' => 1, 'due_date' => '2027-01-31', 'capital_due' => 4000, 'return_due' => 350,
+        ]);
+        $paid = ['amount' => 4350, 'capital_amount' => 4000, 'return_amount' => 350, 'paid_at' => now()];
+        $schedule->repayments()->create($paid);
+
+        $this->expectException(UniqueConstraintViolationException::class);
+        $schedule->repayments()->create($paid);
     }
 
     // --- helpers ------------------------------------------------------------------------
@@ -206,7 +230,7 @@ class WalletLedgerConstraintsTest extends TestCase
         $schedule = $campaign->repaymentSchedules()->create([
             'instalment_no' => 1, 'due_date' => '2027-01-31', 'capital_due' => 4166.67, 'return_due' => 333.33,
         ]);
-        $repayment = $schedule->repayments()->create(['amount' => 4500, 'paid_at' => now()]);
+        $repayment = $schedule->repayments()->create(['amount' => 4500, 'capital_amount' => 4166.67, 'return_amount' => 333.33, 'paid_at' => now()]);
 
         return [$wallet, $pledge, $repayment];
     }

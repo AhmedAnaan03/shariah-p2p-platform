@@ -3,12 +3,17 @@
 namespace Database\Seeders;
 
 use App\Models\BorrowerProfile;
+use App\Models\BusinessReport;
 use App\Models\Campaign;
 use App\Models\InvestorProfile;
 use App\Models\RepaymentSchedule;
 use App\Models\User;
+use App\Services\BusinessReportService;
+use App\Services\DemoClock;
 use App\Services\PledgeService;
+use App\Services\RepaymentService;
 use App\Services\WalletLedger;
+use Illuminate\Support\Carbon;
 
 /**
  * Live campaigns for the marketplace (PB-16, PB-17, PB-31), shared by DatabaseSeeder (the demo
@@ -186,28 +191,47 @@ final class MarketplaceCampaigns
     /**
      * An SME repaying an earlier Murabahah: eight instalments due so far, seven paid on time and
      * one four days late. Its new campaign's page shows that record.
+     *
+     * PB-35: the history is real money, not just rows marked paid: a seeded investor funds the
+     * campaign through PledgeService, it is paid out, and each instalment is paid through
+     * RepaymentService on its own date (the clock is set to each date in turn, then put back),
+     * so the ledger and the investor's payouts reconcile like any other campaign's.
      */
     private static function bakeryWithRepaymentHistory(): void
     {
         $borrower = self::borrower('Aishath Nuha', 'Hulhumalé Bakes', 'food_and_beverage', 'hulhumale');
+        // Whatever "now" is (a test may have frozen it), and the clock to put back afterwards.
+        $now = now();
+        $previousClock = Carbon::getTestNow();
+        $fundedAt = $now->copy()->subMonths(8)->subDays(10)->setTime(10, 0);
 
-        $earlier = Campaign::factory()->murabahah()->submitted()->for($borrower, 'borrower')->create([
-            'title' => 'Bread slicer and display fridge', 'purpose' => 'growth', 'description' => self::DESCRIPTIONS['growth'],
-            'amount_requested' => 30_000, 'markup_amount' => 2_400, 'asset_description' => 'Bread slicer and display fridge', 'tenure_months' => 12,
-            'submitted_at' => now()->subMonths(9)->subDays(40),
-        ]);
-        $fundedAt = now()->subMonths(8)->subDays(10);
-        // Workflow fields are set in code, never mass-assigned.
-        $earlier->forceFill(['status' => 'repaying', 'approved_at' => $fundedAt->copy()->subDays(30), 'funding_deadline' => $fundedAt, 'funded_at' => $fundedAt])->save();
+        $investor = User::factory()->investor()->verified()->submitted()->create(['name' => 'Hassan Rasheed']);
+        InvestorProfile::factory()->for($investor)->create(['risk_acknowledged_at' => $fundedAt->copy()->subWeek()]);
+        app(WalletLedger::class)->topUp($investor, 30_000_00);
 
-        foreach (range(1, 12) as $no) {
-            $due = $fundedAt->copy()->addMonths($no)->startOfDay();
-            $schedule = new RepaymentSchedule(['instalment_no' => $no, 'due_date' => $due->toDateString(), 'capital_due' => 2_500, 'return_due' => 200]);
-            $schedule->campaign()->associate($earlier);
-            if ($due->isPast()) {
-                $schedule->forceFill(['status' => 'paid', 'paid_at' => $no === 5 ? $due->copy()->addDays(4)->setTime(10, 0) : $due->copy()->subDay()->setTime(10, 0)]);
+        Carbon::setTestNow($fundedAt);
+        try {
+            $earlier = Campaign::factory()->murabahah()->live($fundedAt->copy()->addDays(20))->for($borrower, 'borrower')->create([
+                'title' => 'Bread slicer and display fridge', 'purpose' => 'growth', 'description' => self::DESCRIPTIONS['growth'],
+                'amount_requested' => 30_000, 'markup_amount' => 2_400, 'asset_description' => 'Bread slicer and display fridge', 'tenure_months' => 12,
+                'submitted_at' => $fundedAt->copy()->subDays(40),
+            ]);
+            // One pledge of the whole amount: funded and paid out at once, schedule from next month.
+            app(PledgeService::class)->pledge($investor, $earlier, 30_000_00);
+
+            $repayments = app(RepaymentService::class);
+            foreach (RepaymentSchedule::where('campaign_id', $earlier->id)->orderBy('instalment_no')->get() as $row) {
+                $paidAt = $row->instalment_no === 5
+                    ? $row->due_date->copy()->addDays(4)->setTime(10, 0)
+                    : $row->due_date->copy()->subDay()->setTime(10, 0);
+                if ($paidAt->greaterThan($now)) {
+                    break; // not paid yet: still in the future
+                }
+                Carbon::setTestNow($paidAt); // 10:00 UTC, 15:00 the same day in Malé
+                $repayments->payNext($borrower, $earlier, $row->id);
             }
-            $schedule->save();
+        } finally {
+            Carbon::setTestNow($previousClock);
         }
 
         Campaign::factory()->murabahah()->live(now()->addDays(22))->for($borrower, 'borrower')->create([
@@ -216,5 +240,41 @@ final class MarketplaceCampaigns
             'asset_description' => 'Deck oven and spiral mixer', 'amount_requested' => 45_000, 'markup_amount' => 3_600, 'tenure_months' => 12,
             'submitted_at' => now()->subDays(6),
         ]);
+    }
+
+    /**
+     * PB-35, PB-29, for the rendered-page checks (ScreenshotSeeder): every new page in a state it
+     * can be checked in. Dates are moved with DemoClock (as the demo tool does) so rows fall today.
+     *  - The Murabahah "Laundry machines for the guest house": instalment 1 paid, the rest due.
+     *  - The Mudarabah "Food truck for Malé evenings": period 1 approved as a genuine loss, and
+     *    period 2's profit report waiting for the administrator.
+     *  - A new Mudarabah "Juice kiosk at the ferry terminal" of the same business: period 1 is
+     *    planned for today and not reported yet, so its report form opens.
+     */
+    public static function repaymentsAndReports(User $sme, User $mudarabahBorrower, User $admin): void
+    {
+        $ledger = app(WalletLedger::class);
+        $clock = app(DemoClock::class);
+        $reports = app(BusinessReportService::class);
+
+        $laundry = Campaign::where('title', 'Laundry machines for the guest house')->sole();
+        $clock->advance($laundry, 0, $admin);
+        $ledger->topUp($sme, 2_000_00);
+        app(RepaymentService::class)->payNext($sme, $laundry, $laundry->repaymentSchedules()->orderBy('instalment_no')->value('id'));
+
+        $truck = Campaign::where('title', 'Food truck for Malé evenings')->sole();
+        $ledger->topUp($mudarabahBorrower, 5_000_00);
+        $clock->advance($truck, 0, $admin);
+        $loss = $reports->submit($mudarabahBorrower, $truck, ['revenue' => 3_200_00, 'costs' => 3_800_00, 'capital_returned' => 5_000_00]);
+        $reports->approve($admin, $loss, BusinessReport::CAUSE_BUSINESS, 'Two weeks of closures for road works: a genuine business loss.');
+        $clock->advance($truck->fresh(), 0, $admin);
+        $reports->submit($mudarabahBorrower, $truck, ['revenue' => 6_400_00, 'costs' => 4_100_00, 'capital_returned' => 5_000_00]);
+
+        $crowd = User::factory()->investor()->verified()->submitted()->create(['name' => 'Zeena Ahmed']);
+        InvestorProfile::factory()->for($crowd)->create(['risk_acknowledged_at' => now()->subWeek()]);
+        $ledger->topUp($crowd, 12_000_00);
+        $kiosk = self::paidOutCampaign($mudarabahBorrower, 'mudarabah', ['investor_profit_share_percent' => 55], 'Juice kiosk at the ferry terminal', 12_000, 6);
+        app(PledgeService::class)->pledge($crowd, $kiosk, 12_000_00);
+        $clock->advance($kiosk->fresh(), 0, $admin);
     }
 }

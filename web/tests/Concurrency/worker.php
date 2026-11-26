@@ -7,6 +7,7 @@
 |   php tests/Concurrency/worker.php pledge   <investor id> <campaign id> <cents>
 |   php tests/Concurrency/worker.php withdraw <user id> <cents>
 |   php tests/Concurrency/worker.php settle   <campaign id>
+|   php tests/Concurrency/worker.php repay    <borrower id> <campaign id> <schedule id>
 |
 | It prints "CONNECTION <id>" first (the test watches that connection in the MySQL process list to
 | know when it is waiting on the lock), then "RESULT <json>" with ok / error.
@@ -15,6 +16,7 @@
 use App\Models\Campaign;
 use App\Models\User;
 use App\Services\PledgeService;
+use App\Services\RepaymentService;
 use App\Services\SettlementService;
 use App\Services\WalletLedger;
 use Illuminate\Contracts\Console\Kernel;
@@ -35,6 +37,7 @@ try {
         'pledge' => app(PledgeService::class)->pledge(User::findOrFail($args[0]), Campaign::findOrFail($args[1]), (int) $args[2])->id,
         'withdraw' => app(WalletLedger::class)->withdraw(User::findOrFail($args[0]), (int) $args[1]),
         'settle' => app(SettlementService::class)->settle((int) $args[0]),
+        'repay' => app(RepaymentService::class)->payNext(User::findOrFail($args[0]), Campaign::findOrFail($args[1]), (int) $args[2])->id,
     };
     $result = ['ok' => true, 'detail' => $detail];
 } catch (Throwable $e) {
