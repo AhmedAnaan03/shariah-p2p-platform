@@ -27,6 +27,9 @@ class WalletTransaction extends Model
 
     public const PLEDGE_REFUND = 'pledge_refund';
 
+    /** A funded campaign's escrow paid out to the borrower's wallet, in one transfer (PB-34). */
+    public const DISBURSEMENT = 'disbursement';
+
     public const CREDIT = 'credit';
 
     public const DEBIT = 'debit';
@@ -37,7 +40,7 @@ class WalletTransaction extends Model
         self::WITHDRAWAL => 'Withdrawal',
         self::PLEDGE => 'Pledge',
         self::PLEDGE_REFUND => 'Pledge refund',
-        'disbursement' => 'Disbursement',
+        self::DISBURSEMENT => 'Disbursement',
         'repayment' => 'Repayment',
         'return_payout' => 'Return payout',
     ];

@@ -26,6 +26,10 @@ use App\Services\WalletLedger;
  *  - "Solar water heaters…" closes in 10 minutes with MVR 4,000 left: pledge it to see the funded path;
  *  - "Coconut oil press…" closes in 5 minutes far short of its target: every pledge is refunded.
  * All of it goes through the ledger and pledge services, so the seeded ledger reconciles.
+ *
+ * paidOut() (PB-34) adds two campaigns already funded and paid out, so their schedules can be
+ * seen straight away and moved with the demo controls: a Murabahah of sme@example.com's and a
+ * Mudarabah of borrower@example.com's, both part-funded by the demo investors.
  */
 final class MarketplaceCampaigns
 {
@@ -117,6 +121,42 @@ final class MarketplaceCampaigns
         if ($demoInvestor !== null) {
             $pledges->pledge($demoInvestor, $short, 1_000_00);
         }
+    }
+
+    /**
+     * PB-34: two campaigns funded by their last pledge and so paid out at once, each with its
+     * schedule starting a month after seeding.
+     *  - "Laundry machines for the guest house" (sme@example.com): Murabahah, MVR 20,000 + MVR 1,600
+     *    markup over 12 months; investor@example.com pledged MVR 5,000.
+     *  - "Food truck for Malé evenings" (borrower@example.com): Mudarabah 60 : 40, MVR 30,000 over 6
+     *    months of planned capital returns; investor@example.com MVR 10,000, shariah-investor@example.com MVR 5,000.
+     */
+    public static function paidOut(User $demoInvestor, ?User $shariahInvestor, User $sme, User $borrower): void
+    {
+        $ledger = app(WalletLedger::class);
+        $pledges = app(PledgeService::class);
+        $crowd = User::factory()->investor()->verified()->submitted()->create(['name' => 'Raufa Saeed']);
+        InvestorProfile::factory()->for($crowd)->create(['risk_acknowledged_at' => now()->subWeek()]);
+        $ledger->topUp($crowd, 100_000_00);
+
+        $laundry = self::paidOutCampaign($sme, 'murabahah', ['asset_description' => 'Two commercial washing machines and a dryer', 'markup_amount' => 1_600], 'Laundry machines for the guest house', 20_000, 12);
+        $pledges->pledge($demoInvestor, $laundry, 5_000_00);
+        $pledges->pledge($crowd, $laundry, 15_000_00);
+
+        $truck = self::paidOutCampaign($borrower, 'mudarabah', ['investor_profit_share_percent' => 60], 'Food truck for Malé evenings', 30_000, 6);
+        $pledges->pledge($demoInvestor, $truck, 10_000_00);
+        $pledges->pledge($shariahInvestor ?? $crowd, $truck, 5_000_00);
+        $pledges->pledge($crowd, $truck, 15_000_00);
+    }
+
+    private static function paidOutCampaign(User $borrower, string $contract, array $terms, string $title, int $amount, int $tenure): Campaign
+    {
+        return Campaign::factory()->{$contract}()->live(now()->addDays(20))->for($borrower, 'borrower')->create([
+            'title' => $title, 'purpose' => 'growth', 'description' => self::DESCRIPTIONS['growth'],
+            'business_background' => 'A verified Amanah P2P borrower; this campaign was funded and paid out.',
+            'amount_requested' => $amount, 'tenure_months' => $tenure, 'submitted_at' => now()->subDays(15),
+            ...$terms,
+        ]);
     }
 
     private static function closingSoon(string $name, string $business, string $contract, array $terms, string $title, int $amount, int $tenure, int $minutes, ?User $borrower = null): Campaign

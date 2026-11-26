@@ -140,7 +140,7 @@ class ListFiltersTest extends TestCase
         $this->assertSame([], $titles('?search=%25'), 'A typed % is matched literally, not as a wildcard.');
 
         $this->actingAs($borrower)->get('/borrower/campaigns?search=nothing')
-            ->assertInertia(fn (Assert $page) => $page->where('hasAny', true)->has('campaigns', 0)->has('filterOptions.status', 4));
+            ->assertInertia(fn (Assert $page) => $page->where('hasAny', true)->has('campaigns', 0)->has('filterOptions.status', 7)); // PB-34: + funded, not funded, repaying
     }
 
     // ----- Investor marketplace -----

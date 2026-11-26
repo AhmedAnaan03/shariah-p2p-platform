@@ -89,6 +89,12 @@ class Campaign extends Model
     public const STATUS_FAILED = 'failed';
 
     /**
+     * Paid out to the borrower, with a schedule (PB-34). For a Mudarabah the schedule is planned
+     * capital returns, not a debt; pages show it as "Returning capital".
+     */
+    public const STATUS_REPAYING = 'repaying';
+
+    /**
      * @var array<string, mixed>
      */
     protected $attributes = [
@@ -107,7 +113,13 @@ class Campaign extends Model
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
             'funded_at' => 'datetime',
+            'disbursed_at' => 'datetime',
         ];
+    }
+
+    public function isMudarabah(): bool
+    {
+        return $this->contract_type === self::CONTRACT_MUDARABAH;
     }
 
     /**

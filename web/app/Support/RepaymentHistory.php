@@ -16,6 +16,10 @@ use App\Models\User;
  * - Overdue: due date passed and not paid (status late, or still due).
  *
  * The campaign being viewed is left out: it has no instalments until it is funded.
+ *
+ * Mudarabah campaigns count as funded, but their rows are left out of the instalment figures:
+ * they are planned capital returns, not debts, so a passed date isn't a late repayment (PB-34;
+ * PB-29 decides what the business's reports mean for this record).
  */
 final class RepaymentHistory
 {
@@ -32,10 +36,11 @@ final class RepaymentHistory
         $campaigns = $borrower->campaigns()
             ->whereIn('status', self::FUNDED_STATUSES)
             ->when($except, fn ($q) => $q->whereKeyNot($except->getKey()))
-            ->get(['id', 'status']);
+            ->get(['id', 'status', 'contract_type']);
 
         $today = now()->setTimezone(Campaign::LOCAL_TIMEZONE)->toDateString();
-        $schedules = RepaymentSchedule::whereIn('campaign_id', $campaigns->pluck('id'))
+        $debts = $campaigns->where('contract_type', '!=', Campaign::CONTRACT_MUDARABAH);
+        $schedules = RepaymentSchedule::whereIn('campaign_id', $debts->pluck('id'))
             ->whereDate('due_date', '<=', $today)
             ->get();
 

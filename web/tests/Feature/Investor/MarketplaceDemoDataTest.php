@@ -47,8 +47,8 @@ class MarketplaceDemoDataTest extends TestCase
         // PB-18: seeded through the ledger, so it reconciles.
         $this->assertSame([], LedgerReconciler::problems());
         $investor = User::where('email', 'investor@example.com')->first();
-        $this->assertSame(49_000_00, app(WalletLedger::class)->balanceFor($investor), 'MVR 50,000 less the MVR 1,000 pledge.');
-        $this->assertSame(40_000_00, app(WalletLedger::class)->balanceFor(User::where('email', 'shariah-investor@example.com')->first()));
+        $this->assertSame(34_000_00, app(WalletLedger::class)->balanceFor($investor), 'MVR 50,000 less the MVR 1,000 pledge and MVR 15,000 in paid-out campaigns.');
+        $this->assertSame(35_000_00, app(WalletLedger::class)->balanceFor(User::where('email', 'shariah-investor@example.com')->first()));
 
         // PB-20: one campaign to fund by pledging the last MVR 4,000, one that will miss its target.
         $nearly = Campaign::where('title', 'Solar water heaters for the guest house')->sole();
@@ -66,8 +66,26 @@ class MarketplaceDemoDataTest extends TestCase
         $this->travel(6)->minutes();
         $this->artisan('campaigns:settle-deadlines')->assertSuccessful();
         $this->assertSame(Campaign::STATUS_FAILED, $short->fresh()->status);
-        $this->assertSame(50_000_00, app(WalletLedger::class)->balanceFor($investor));
+        $this->assertSame(35_000_00, app(WalletLedger::class)->balanceFor($investor), 'The MVR 1,000 came back.');
         $this->assertSame(Campaign::STATUS_LIVE, $nearly->fresh()->status, 'Still open for another few minutes.');
+        $this->assertSame([], LedgerReconciler::problems());
+    }
+
+    public function test_two_demo_campaigns_are_already_paid_out_with_schedules(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $laundry = Campaign::where('title', 'Laundry machines for the guest house')->sole();
+        $truck = Campaign::where('title', 'Food truck for Malé evenings')->sole();
+        $this->assertSame([Campaign::STATUS_REPAYING, 12], [$laundry->status, $laundry->repaymentSchedules()->count()]);
+        $this->assertSame([Campaign::STATUS_REPAYING, 6], [$truck->status, $truck->repaymentSchedules()->count()]);
+        $this->assertSame(25_000_00, app(WalletLedger::class)->balanceFor(User::where('email', 'sme@example.com')->first()), 'MVR 5,000 top-up + MVR 20,000 paid out.');
+        $this->assertSame(30_000_00, app(WalletLedger::class)->balanceFor(User::where('email', 'borrower@example.com')->first()));
+
+        $this->actingAs(User::where('email', 'investor@example.com')->first())->get("/investor/campaigns/{$truck->id}")
+            ->assertInertia(fn (Assert $page) => $page->where('schedule.labels.row', 'Planned capital return')->where('schedule.yourPledged', '10000.00'));
+        $this->actingAs(User::where('email', 'sme@example.com')->first())->get("/borrower/campaigns/{$laundry->id}")
+            ->assertInertia(fn (Assert $page) => $page->where('schedule.total', '21600.00'));
         $this->assertSame([], LedgerReconciler::problems());
     }
 }

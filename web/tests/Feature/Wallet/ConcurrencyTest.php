@@ -38,7 +38,7 @@ class ConcurrencyTest extends TestCase
 
     /** Tables the tests write, in an order that respects their foreign keys. */
     private const TABLES = [
-        'wallet_transactions', 'pledges', 'audit_logs', 'wallet_accounts', 'campaign_financials',
+        'wallet_transactions', 'pledges', 'audit_logs', 'wallet_accounts', 'repayment_schedules', 'campaign_financials',
         'kyc_documents', 'campaigns', 'investor_profiles', 'borrower_profiles', 'users',
     ];
 
@@ -99,7 +99,7 @@ class ConcurrencyTest extends TestCase
         $this->assertSame(9, collect($results)->where('ok', false)->where('error', 'PledgeRefused')->count());
         $this->assertSame(1, Pledge::where('campaign_id', $campaign->id)->count());
         $this->assertSame('5000.00', (string) Pledge::where('campaign_id', $campaign->id)->sum('amount'), 'Never more than the target.');
-        $this->assertSame(Campaign::STATUS_FUNDED, $campaign->fresh()->status);
+        $this->assertSame(Campaign::STATUS_REPAYING, $campaign->fresh()->status, 'Funded once, then paid out once (PB-34).');
         $this->assertSame(1, $investors->filter(fn (User $investor) => $this->balance($investor) === 0)->count());
         $this->assertSame(9, $investors->filter(fn (User $investor) => $this->balance($investor) === 5_000_00)->count());
         $this->assertLedgerReconciles();

@@ -20,6 +20,12 @@ through their own migrations, and this file is updated when they do.
   because the investors' return depends on profit the business reports later (PB-29); a fixed
   figure would be a guaranteed return. Conventional and Murabahah instalments must state it,
   as zero or more. The `RepaymentSchedule` model enforces this (see below).
+- **A Mudarabah schedule is planned capital returns, not a debt (PB-34).** Its rows share the
+  table with conventional and Murabahah instalments, but `due_date` is the planned date and
+  `capital_due` the planned capital return: capital is returned according to the business's
+  results, and in a genuine business loss investors bear the loss of capital in proportion to
+  their share (except negligence or misconduct, PB-29). The columns carry MySQL comments saying
+  so, and the app never labels these rows "instalment", "due", "owed" or "late".
 - **Personal identifiers are encrypted.** `national_id_no` uses Laravel's `encrypted` cast, so
   the database only ever holds ciphertext. The column is `text` because the encrypted value
   (about 200 characters) is longer than the ID itself, and it can't be indexed or searched.
@@ -164,6 +170,7 @@ erDiagram
         timestamp submitted_at "nullable"
         timestamp approved_at "nullable"
         timestamp funded_at "nullable"
+        timestamp disbursed_at "nullable, paid out to the borrower (PB-34); schedule starts a month later"
     }
 
     campaign_financials {
@@ -214,7 +221,7 @@ erDiagram
         bigint campaign_id FK
         smallint instalment_no
         date due_date
-        decimal capital_due
+        decimal capital_due "Mudarabah: planned capital return, not a debt (PB-34)"
         decimal return_due "nullable, NULL for mudarabah, required and >= 0 otherwise (model rule)"
         enum status "due | paid | late"
         timestamp paid_at "nullable"
@@ -291,6 +298,7 @@ rules that depend on a related row live in the Eloquent model and are covered by
 
 | Model | Rule | Why |
 |---|---|---|
+| `Campaign` | Once `funded_at` is stored, the agreed terms (`amount_requested`, `tenure_months`, `contract_type`, `interest_rate_percent`, `markup_amount`, `asset_description`, `investor_profit_share_percent`) can't change; a save that changes one throws `ContractRuleViolation` (PB-28). | A Murabahah's markup is disclosed and fixed when the contract is agreed, so the sale price repaid is always the one investors and the borrower saw. The rule compares with the stored row, which a CHECK can't do. |
 | `RepaymentSchedule` | Two-way `return_due` rule, checked on every save (insert and update) through Eloquent; a violation throws `ContractRuleViolation`. **Mudarabah:** `return_due` must be NULL; any value, including 0, is rejected. **Conventional and Murabahah:** `return_due` is required (NULL rejected) and must be zero or more (negative rejected). | A Mudarabah return depends on reported profit (PB-29), so a predetermined figure, even zero, would be a guaranteed return. Conventional and Murabahah instalments always carry an interest or markup share, which can be 0 but never negative. |
 
 Model rules only run when rows are saved through Eloquent. A raw `DB::table()->insert()`, a

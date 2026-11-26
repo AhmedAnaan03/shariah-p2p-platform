@@ -7,6 +7,7 @@ use App\Models\InvestorProfile;
 use App\Models\Pledge;
 use App\Models\User;
 use App\Models\WalletAccount;
+use App\Notifications\CampaignDisbursed;
 use App\Notifications\FundingOutcome;
 use App\Services\PledgeService;
 use App\Services\WalletLedger;
@@ -133,7 +134,7 @@ class PledgeTest extends TestCase
 
         $this->pledge($investor, $campaign, 49.99)->assertSessionHasErrors(['amount' => 'The smallest pledge is MVR 50.00.']);
         $this->pledge($investor, $campaign, 50)->assertSessionHasNoErrors();
-        $this->assertSame(Campaign::STATUS_FUNDED, $campaign->fresh()->status);
+        $this->assertNotNull($campaign->fresh()->funded_at);
     }
 
     public function test_the_pledge_that_reaches_the_target_funds_the_campaign_and_tells_everyone(): void
@@ -147,13 +148,16 @@ class PledgeTest extends TestCase
         $this->pledge($last, $campaign, 5_000)->assertSessionHas('status', 'Your pledge of MVR 5,000.00 completed this campaign’s funding.');
 
         $campaign->refresh();
-        $this->assertSame(Campaign::STATUS_FUNDED, $campaign->status);
         $this->assertNotNull($campaign->funded_at);
-        $this->assertSame(2, Pledge::where('campaign_id', $campaign->id)->where('status', 'held')->distinct('investor_id')->count('investor_id'), 'Still held in escrow until PB-34 pays out.');
-        Notification::assertSentTo($campaign->borrower, FundingOutcome::class, fn (FundingOutcome $n) => $n->outcome === FundingOutcome::FUNDED_BORROWER);
-        Notification::assertSentTo($first, FundingOutcome::class, fn (FundingOutcome $n) => $n->outcome === FundingOutcome::FUNDED_INVESTOR && $n->cents === 5_000_00);
-        Notification::assertSentTo($last, FundingOutcome::class, fn (FundingOutcome $n) => $n->cents === 5_000_00);
+        // PB-34: and paid out straight away, so every pledge is settled.
+        $this->assertSame(Campaign::STATUS_REPAYING, $campaign->status);
+        $this->assertSame(3, Pledge::where('campaign_id', $campaign->id)->where('status', 'settled')->count());
+        Notification::assertSentTo($campaign->borrower, CampaignDisbursed::class, fn (CampaignDisbursed $n) => $n->audience === CampaignDisbursed::BORROWER);
+        Notification::assertSentTo($first, CampaignDisbursed::class, fn (CampaignDisbursed $n) => $n->audience === CampaignDisbursed::INVESTOR && $n->pledgedCents === 5_000_00);
+        Notification::assertSentTo($last, CampaignDisbursed::class, fn (CampaignDisbursed $n) => $n->pledgedCents === 5_000_00);
+        Notification::assertNotSentTo($first, FundingOutcome::class);
         $this->assertDatabaseHas('audit_logs', ['action' => 'campaign.funded']);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'campaign.disbursed']);
 
         // Funded: closed to further pledges, and gone from the marketplace.
         $this->pledge($this->investor(topUpCents: 1_000_00), $campaign, 100)->assertForbidden();

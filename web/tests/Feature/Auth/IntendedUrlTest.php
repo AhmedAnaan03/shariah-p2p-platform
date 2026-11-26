@@ -114,7 +114,7 @@ class IntendedUrlTest extends TestCase
         $investor = $this->withPassword($this->investor(topUpCents: 5_000_00));
         $campaign = $this->liveCampaign(targetMvr: 5_000);
         app(PledgeService::class)->pledge($investor, $campaign, 5_000_00);
-        $this->assertSame(Campaign::STATUS_FUNDED, $campaign->fresh()->status);
+        $this->assertSame(Campaign::STATUS_REPAYING, $campaign->fresh()->status, 'Funded and paid out (PB-34).');
 
         $this->openWhileSignedOut("/investor/campaigns/{$campaign->id}");
         $this->signIn($investor)->assertRedirect("/investor/campaigns/{$campaign->id}");

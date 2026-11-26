@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Campaign;
 use App\Models\Pledge;
 use App\Models\WalletAccount;
 use App\Models\WalletTransaction;
@@ -21,6 +22,9 @@ use Illuminate\Support\Facades\DB;
  *  5. Each campaign's escrow holds exactly the sum of its held pledges.
  *  6. Every pledge's money moved exactly as its status says: a held pledge has one pledge transfer,
  *     a refunded pledge one pledge and one refund transfer.
+ *  7. Every paid-out campaign (PB-34) has exactly one disbursement transfer, from its own escrow
+ *     to its own borrower's wallet, of exactly its settled pledges; settled pledges never exist
+ *     without one. With rule 5 this proves a paid-out escrow is back to zero.
  */
 final class LedgerReconciler
 {
@@ -94,6 +98,56 @@ final class LedgerReconciler
             if ($pledge->status !== 'refunded' && isset($moves[WalletTransaction::PLEDGE_REFUND])) {
                 $problems[] = "Pledge {$pledge->id} ({$pledge->status}) was refunded but isn't marked refunded.";
             }
+        }
+
+        // 7. Disbursements.
+        array_push($problems, ...self::disbursementProblems());
+
+        return $problems;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function disbursementProblems(): array
+    {
+        $problems = [];
+        $legs = DB::table('wallet_transactions as t')
+            ->join('wallet_accounts as a', 'a.id', '=', 't.wallet_account_id')
+            ->where('t.type', WalletTransaction::DISBURSEMENT)
+            ->get(['t.transfer_ref', 't.direction', 't.amount', 'a.type as account_type', 'a.campaign_id', 'a.user_id']);
+        $debits = $legs->where('direction', WalletTransaction::DEBIT);
+        $credits = $legs->where('direction', WalletTransaction::CREDIT)->keyBy('transfer_ref');
+
+        $settled = Pledge::where('status', 'settled')->selectRaw('campaign_id, SUM(amount) as total')->groupBy('campaign_id')
+            ->pluck('total', 'campaign_id')->map(fn ($total) => Money::fromDatabase($total));
+        $borrowers = Campaign::whereIn('id', $settled->keys()->merge($debits->pluck('campaign_id'))->filter()->unique())->pluck('borrower_id', 'id');
+
+        foreach ($debits as $debit) {
+            if ($debit->account_type !== WalletAccount::TYPE_ESCROW) {
+                $problems[] = "Disbursement {$debit->transfer_ref} is not paid from a campaign's escrow.";
+
+                continue;
+            }
+            $to = $credits[$debit->transfer_ref] ?? null;
+            if ($to === null || $to->account_type !== WalletAccount::TYPE_USER || (int) $to->user_id !== (int) ($borrowers[$debit->campaign_id] ?? 0)) {
+                $problems[] = "Disbursement {$debit->transfer_ref} for campaign {$debit->campaign_id} is not paid to that campaign's borrower.";
+            }
+        }
+
+        $byCampaign = $debits->where('account_type', WalletAccount::TYPE_ESCROW)->groupBy('campaign_id');
+        foreach ($byCampaign as $campaignId => $paid) {
+            if ($paid->count() !== 1) {
+                $problems[] = "Campaign {$campaignId} was paid out {$paid->count()} times.";
+            }
+            $paidCents = $paid->sum(fn ($leg) => Money::fromDatabase($leg->amount));
+            $settledCents = $settled[$campaignId] ?? 0;
+            if ($paidCents !== $settledCents) {
+                $problems[] = "Campaign {$campaignId}: paid out ".Money::fromCents($paidCents).' but its settled pledges total '.Money::fromCents($settledCents).'.';
+            }
+        }
+        foreach ($settled->keys()->diff($byCampaign->keys()) as $campaignId) {
+            $problems[] = "Campaign {$campaignId} has settled pledges but was never paid out.";
         }
 
         return $problems;

@@ -40,7 +40,7 @@ class SettlementTest extends TestCase
         $pledges->pledge($bilal, $campaign, 2_000_00);
 
         Carbon::setTestNow(now()->addHours(2)); // the deadline passes
-        $this->artisan('campaigns:settle-deadlines')->expectsOutput('Funded: 0. Not funded: 1. Pledges refunded: 3.')->assertSuccessful();
+        $this->artisan('campaigns:settle-deadlines')->expectsOutput('Funded: 0. Not funded: 1. Pledges refunded: 3. Paid out: 0.')->assertSuccessful();
 
         $campaign->refresh();
         $this->assertSame(Campaign::STATUS_FAILED, $campaign->status);
@@ -64,7 +64,7 @@ class SettlementTest extends TestCase
         Carbon::setTestNow(now()->addHours(2));
 
         $this->artisan('campaigns:settle-deadlines')->assertSuccessful();
-        $this->artisan('campaigns:settle-deadlines')->expectsOutput('Funded: 0. Not funded: 0. Pledges refunded: 0.')->assertSuccessful();
+        $this->artisan('campaigns:settle-deadlines')->expectsOutput('Funded: 0. Not funded: 0. Pledges refunded: 0. Paid out: 0.')->assertSuccessful();
 
         $this->assertSame(1, WalletTransaction::where('type', 'pledge_refund')->where('direction', 'credit')->count());
         $this->assertSame(1_000_00, $this->balance($investor));
@@ -75,23 +75,24 @@ class SettlementTest extends TestCase
     {
         $campaign = $this->liveCampaign(deadline: now()->subMinute());
 
-        $this->artisan('campaigns:settle-deadlines')->expectsOutput('Funded: 0. Not funded: 1. Pledges refunded: 0.');
+        $this->artisan('campaigns:settle-deadlines')->expectsOutput('Funded: 0. Not funded: 1. Pledges refunded: 0. Paid out: 0.');
         $this->assertSame(Campaign::STATUS_FAILED, $campaign->fresh()->status);
         Notification::assertSentTo($campaign->borrower, FundingOutcome::class);
     }
 
-    public function test_a_fully_pledged_campaign_still_live_at_its_deadline_is_funded(): void
+    public function test_a_fully_pledged_campaign_still_live_at_its_deadline_is_funded_and_paid_out(): void
     {
-        // Normally the last pledge funds it at once; this covers one left live by any other path.
+        // Normally the last pledge funds it at once; this covers one left live by any other path:
+        // the whole target held in escrow, but the campaign still live.
         $campaign = $this->liveCampaign(targetMvr: 1_000, deadline: now()->addHour());
         $investor = $this->investor(topUpCents: 1_000_00);
-        app(PledgeService::class)->pledge($investor, $campaign, 1_000_00);
-        $campaign->refresh()->forceFill(['status' => Campaign::STATUS_LIVE, 'funded_at' => null])->save();
+        $this->heldPledge($investor, $campaign, 1_000_00);
         Carbon::setTestNow(now()->addHours(2));
 
-        $this->artisan('campaigns:settle-deadlines')->expectsOutput('Funded: 1. Not funded: 0. Pledges refunded: 0.');
-        $this->assertSame(Campaign::STATUS_FUNDED, $campaign->fresh()->status);
-        $this->assertSame(0, $this->balance($investor), 'Nothing refunded: the money stays in escrow.');
+        $this->artisan('campaigns:settle-deadlines')->expectsOutput('Funded: 1. Not funded: 0. Pledges refunded: 0. Paid out: 1.');
+        $this->assertSame(Campaign::STATUS_REPAYING, $campaign->fresh()->status, 'PB-34: funded, then paid out in the same run.');
+        $this->assertSame(0, $this->balance($investor), 'Nothing refunded.');
+        $this->assertSame(1_000_00, $this->balance($campaign->borrower));
         $this->assertLedgerReconciles();
     }
 
@@ -101,7 +102,7 @@ class SettlementTest extends TestCase
         $submitted = Campaign::factory()->submitted()->create();
         $suspended = tap(Campaign::factory()->live(now()->subDay())->create(), fn ($c) => $c->forceFill(['status' => 'suspended'])->save());
 
-        $this->artisan('campaigns:settle-deadlines')->expectsOutput('Funded: 0. Not funded: 0. Pledges refunded: 0.');
+        $this->artisan('campaigns:settle-deadlines')->expectsOutput('Funded: 0. Not funded: 0. Pledges refunded: 0. Paid out: 0.');
 
         $this->assertSame([Campaign::STATUS_LIVE, Campaign::STATUS_SUBMITTED, 'suspended'], [$open->fresh()->status, $submitted->fresh()->status, $suspended->fresh()->status]);
     }
@@ -118,7 +119,7 @@ class SettlementTest extends TestCase
     public function test_the_funding_emails_never_say_interest_or_guaranteed_and_say_the_money_is_simulated(): void
     {
         $campaign = Campaign::factory()->murabahah()->live()->create();
-        foreach ([FundingOutcome::FUNDED_BORROWER, FundingOutcome::FUNDED_INVESTOR, FundingOutcome::FAILED_BORROWER, FundingOutcome::REFUNDED_INVESTOR] as $outcome) {
+        foreach ([FundingOutcome::FAILED_BORROWER, FundingOutcome::REFUNDED_INVESTOR] as $outcome) {
             $mail = (new FundingOutcome($campaign, $outcome, 1_000_00))->toMail($campaign->borrower);
             $text = implode(' ', [$mail->subject, ...$mail->introLines, ...$mail->outroLines]);
 
