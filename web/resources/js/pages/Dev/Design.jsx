@@ -24,6 +24,10 @@ import Money from '../../components/Money';
 import MoneyInput from '../../components/MoneyInput';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import CampaignCard from '../../components/CampaignCard';
+import ChartFrame from '../../components/ChartFrame';
+import RepaymentScheduleChart from '../../components/RepaymentScheduleChart';
+import RepaymentTimeline from '../../components/RepaymentTimeline';
+import { chartData, chartLegend, chartTable, scheduleTakeaway, timelineItems } from '../../lib/schedule';
 import FundingRing from '../../components/FundingRing';
 import Pagination from '../../components/Pagination';
 import ProgressBar from '../../components/ProgressBar';
@@ -88,6 +92,7 @@ export default function Design() {
                     <Feedback />
                     <DataDisplay />
                     <Campaigns />
+                    <Schedules />
                     <Overlays />
                     <Shell mode={mode} setMode={setMode} />
                 </main>
@@ -165,6 +170,78 @@ function Campaigns() {
                 }}
                 noun={['campaign', 'campaigns']}
             />
+        </Section>
+    );
+}
+
+// PB-34: sample schedules as SchedulePresenter sends them (a Murabahah and a Mudarabah).
+const MURABAHAH_SCHEDULE = {
+    labels: { kind: 'instalments', title: 'Repayment schedule', row: 'Instalment', rows: 'Instalments', date: 'Due date', capital: 'Capital', return: 'Markup', amount: 'Instalment', chartTitle: 'Capital and markup by month' },
+    count: 6,
+    capitalTotal: '30000.00',
+    returnTotal: '2400.00',
+    total: '32400.00',
+    firstDateLabel: '26 Dec 2026',
+    rows: [
+        ['paid', 'Paid'],
+        ['paid', 'Paid'],
+        ['late', '3 days late'],
+        ['due', 'Due today'],
+        ['upcoming', 'Due 26 Apr 2027'],
+        ['upcoming', 'Due 26 May 2027'],
+    ].map(([state, stateLabel], i) => ({
+        id: i + 1,
+        label: `Instalment ${i + 1}`,
+        dateLabel: `26 ${['Dec 2026', 'Jan 2027', 'Feb 2027', 'Mar 2027', 'Apr 2027', 'May 2027'][i]}`,
+        monthLabel: ['Dec 2026', 'Jan 2027', 'Feb 2027', 'Mar 2027', 'Apr 2027', 'May 2027'][i],
+        capital: '5000.00',
+        return: '400.00',
+        amount: '5400.00',
+        state,
+        stateLabel,
+    })),
+};
+
+const MUDARABAH_SCHEDULE = {
+    labels: { kind: 'capital_returns', title: 'Planned capital return schedule', row: 'Planned capital return', rows: 'Planned capital returns', date: 'Planned date', capital: 'Planned capital return', return: null, amount: 'Planned capital return', chartTitle: 'Planned capital returns by month' },
+    count: 4,
+    capitalTotal: '20000.00',
+    returnTotal: null,
+    total: '20000.00',
+    firstDateLabel: '26 Dec 2026',
+    rows: [
+        ['awaiting', 'Planned date passed, awaiting business report'],
+        ['due', 'Planned for today'],
+        ['upcoming', 'Planned for 26 Feb 2027'],
+        ['upcoming', 'Planned for 26 Mar 2027'],
+    ].map(([state, stateLabel], i) => ({
+        id: i + 1,
+        label: `Planned capital return ${i + 1}`,
+        dateLabel: `26 ${['Dec 2026', 'Jan 2027', 'Feb 2027', 'Mar 2027'][i]}`,
+        monthLabel: ['Dec 2026', 'Jan 2027', 'Feb 2027', 'Mar 2027'][i],
+        capital: '5000.00',
+        return: null,
+        amount: '5000.00',
+        state,
+        stateLabel,
+    })),
+};
+
+function Schedules() {
+    return (
+        <Section id="schedules" title="Schedules" description="RepaymentTimeline, ChartFrame and RepaymentScheduleChart (PB-34). A Mudarabah schedule is planned capital returns, never “late”.">
+            {[MURABAHAH_SCHEDULE, MUDARABAH_SCHEDULE].map((schedule) => (
+                <div key={schedule.labels.kind} className="grid gap-6 @bp-lg/shell:grid-cols-5">
+                    <Card className="@bp-lg/shell:col-span-3">
+                        <ChartFrame title={schedule.labels.chartTitle} takeaway={scheduleTakeaway(schedule)} legend={chartLegend(schedule.labels)} table={chartTable(schedule)}>
+                            <RepaymentScheduleChart data={chartData(schedule.rows)} capitalLabel={schedule.labels.capital} returnLabel={schedule.labels.return} />
+                        </ChartFrame>
+                    </Card>
+                    <Card title={schedule.labels.title} className="@bp-lg/shell:col-span-2">
+                        <RepaymentTimeline items={timelineItems(schedule.rows)} label={schedule.labels.title} limit={4} />
+                    </Card>
+                </div>
+            ))}
         </Section>
     );
 }

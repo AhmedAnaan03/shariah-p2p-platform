@@ -1,20 +1,28 @@
 import Alert from '../../../components/Alert';
 import Card from '../../../components/Card';
+import ChartFrame from '../../../components/ChartFrame';
 import ContractBadge from '../../../components/ContractBadge';
 import DescriptionList from '../../../components/DescriptionList';
 import DocumentList from '../../../components/DocumentList';
 import FundingRing from '../../../components/FundingRing';
 import Money from '../../../components/Money';
+import RepaymentScheduleChart from '../../../components/RepaymentScheduleChart';
+import RepaymentTimeline from '../../../components/RepaymentTimeline';
 import StatusBadge from '../../../components/StatusBadge';
 import TextLink from '../../../components/TextLink';
 import { investorsText } from '../../../lib/campaigns';
-import { formatDate } from '../../../lib/format';
+import { formatDate, formatMoney } from '../../../lib/format';
+import { chartData, chartLegend, chartTable, isCapitalReturn, scheduleTakeaway, timelineItems } from '../../../lib/schedule';
 
 /**
  * One of the borrower's own requests (PB-13, PB-14): its review status and, after a decision,
  * the administrator's reason. The decision email links here.
+ *
+ * Once it is funded and paid out (PB-34, PB-28), the schedule: a summary, the months as a chart
+ * of capital and return, and a timeline of every row. A Mudarabah's schedule is planned capital
+ * returns, not a debt, and every label for it comes from the server already worded that way.
  */
-export default function CampaignShow({ campaign, funding, finances, creditHistory, creditReport, back }) {
+export default function CampaignShow({ campaign, funding, schedule, finances, creditHistory, creditReport, back }) {
     return (
         <>
             <TextLink href={back.url} icon="arrow-left">
@@ -27,15 +35,17 @@ export default function CampaignShow({ campaign, funding, finances, creditHistor
                 actions={
                     <>
                         <ContractBadge type={campaign.contract_type} />
-                        <StatusBadge status={campaign.status} />
+                        <StatusBadge status={campaign.badge_status} />
                     </>
                 }
             >
-                <StatusAlert campaign={campaign} />
+                <StatusAlert campaign={campaign} schedule={schedule} />
             </Card>
 
-            {/* PB-20: funding progress, updated with every pledge. */}
-            {funding && (
+            {schedule && <ScheduleCard schedule={schedule} />}
+
+            {/* PB-20: funding progress, updated with every pledge. Once paid out, the schedule replaces it. */}
+            {funding && !schedule && (
                 <Card title="Funding" description="Pledges are held in escrow until the campaign closes. All or nothing: if the target isn't reached by the deadline, every pledge goes back to its investor.">
                     <FundingRing value={funding.raised} max={campaign.amount_requested}>
                         <DescriptionList
@@ -90,7 +100,46 @@ export default function CampaignShow({ campaign, funding, finances, creditHistor
     );
 }
 
-function StatusAlert({ campaign }) {
+/** PB-34: the schedule's figures, its chart and its timeline. */
+function ScheduleCard({ schedule }) {
+    const { labels } = schedule;
+    const capitalReturn = isCapitalReturn(schedule);
+    const summary = capitalReturn
+        ? [
+              ['Paid out on', schedule.disbursedOnLabel, true],
+              [labels.rows, schedule.count, true],
+              ['Capital planned to be returned', <Money key="capital" value={schedule.capitalTotal} />],
+              ['First planned date', schedule.firstDateLabel, true],
+          ]
+        : [
+              ['Paid out on', schedule.disbursedOnLabel, true],
+              [labels.rows, schedule.count, true],
+              ['Capital', <Money key="capital" value={schedule.capitalTotal} />],
+              [labels.return, <Money key="return" value={schedule.returnTotal} />],
+              ['Total to repay', <Money key="total" value={schedule.total} />],
+              ['First due date', schedule.firstDateLabel, true],
+          ];
+
+    return (
+        <Card title={labels.title} description={schedule.note}>
+            <div className="space-y-6">
+                <DescriptionList columns={capitalReturn ? 4 : 3} items={summary} />
+                <div className="grid gap-6 @bp-lg/shell:grid-cols-5">
+                    <div className="@bp-lg/shell:col-span-3">
+                        <ChartFrame title={labels.chartTitle} takeaway={scheduleTakeaway(schedule)} legend={chartLegend(labels)} table={chartTable(schedule)}>
+                            <RepaymentScheduleChart data={chartData(schedule.rows)} capitalLabel={labels.capital} returnLabel={labels.return} />
+                        </ChartFrame>
+                    </div>
+                    <div className="@bp-lg/shell:col-span-2">
+                        <RepaymentTimeline items={timelineItems(schedule.rows)} label={labels.title} />
+                    </div>
+                </div>
+            </div>
+        </Card>
+    );
+}
+
+function StatusAlert({ campaign, schedule }) {
     switch (campaign.status) {
         case 'submitted':
             return <Alert tone="info">An administrator is reviewing your request. You’ll be told the outcome by email and here.</Alert>;
@@ -99,7 +148,17 @@ function StatusAlert({ campaign }) {
         case 'funded':
             return (
                 <Alert tone="success" title="Fully funded" role="note">
-                    Investors pledged the full amount. The money is held in escrow until it is paid out to you.
+                    Investors pledged the full amount. It is being paid out to your wallet, and your schedule will appear here.
+                </Alert>
+            );
+        case 'repaying':
+            return isCapitalReturn(schedule) ? (
+                <Alert tone="success" title="Funded and paid out" role="note">
+                    Investors’ capital of {formatMoney(campaign.amount_requested)} was paid into your wallet on {schedule.disbursedOnLabel}. The first planned capital return is on {schedule.firstDateLabel}.
+                </Alert>
+            ) : (
+                <Alert tone="success" title="Funded and paid out" role="note">
+                    {formatMoney(campaign.amount_requested)} was paid into your wallet on {schedule?.disbursedOnLabel}. Your first instalment is due on {schedule?.firstDateLabel}.
                 </Alert>
             );
         case 'failed':

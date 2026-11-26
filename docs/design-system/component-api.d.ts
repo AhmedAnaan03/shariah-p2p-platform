@@ -124,7 +124,8 @@ export interface DataTableProps<R extends { id: string | number }> { columns: Da
 export declare function DataTable<R extends { id: string | number }>(props: DataTableProps<R>): React.ReactElement;
 export interface DescriptionListProps { items: [Node, Node, boolean?][]; columns?: number }
 export declare function DescriptionList(props: DescriptionListProps): React.ReactElement;
-export interface RepaymentTimelineProps { items: { state: 'paid' | 'due' | 'late'; due: string; paidOn?: string; lateBy?: string; amount: number; of?: number }[] }
+/** PB-34: one row per instalment or (Mudarabah) planned capital return. `stateLabel` is worded by the server ("Due today", "3 days late", "Planned date passed, awaiting business report"); 'upcoming' is a date still ahead and 'awaiting' a passed Mudarabah date, which is never 'late'. Shows `limit` rows from the next unpaid one, with "Show all". */
+export interface RepaymentTimelineProps { items: { id?: string | number; label: Node; state: 'paid' | 'due' | 'upcoming' | 'late' | 'awaiting'; stateLabel: Node; amount: number | string }[]; limit?: number; label?: string }
 export declare function RepaymentTimeline(props: RepaymentTimelineProps): React.ReactElement;
 /** variant 'nav' (PB-53): the wizard's progress bar; `current` is the step on screen and a step with `href` is a link. */
 export interface OnboardingStepperProps { steps: { title: Node; description?: Node; done?: boolean; href?: string | null; actionLabel?: Node }[]; current?: number; orientation?: 'horizontal' | 'vertical'; variant?: 'checklist' | 'nav' }
@@ -189,7 +190,8 @@ export interface ReturnsChartProps { data: { month: string; expected: number; re
 export declare function ReturnsChart(props: ReturnsChartProps): React.ReactElement;
 export interface PayoutsChartProps { data: { month: string; amount: number; status: 'received' | 'expected' }[]; height?: number }
 export declare function PayoutsChart(props: PayoutsChartProps): React.ReactElement;
-export interface RepaymentScheduleChartProps { data: { label: string; capital: number; ret: number }[]; height?: number }
+/** PB-34: Recharts stacked bars, capital below and return above. `returnLabel` null (Mudarabah) draws capital only, labelled as planned capital returns. */
+export interface RepaymentScheduleChartProps { data: { label: string; capital: number; ret: number }[]; height?: number; capitalLabel?: string; returnLabel?: string | null }
 export declare function RepaymentScheduleChart(props: RepaymentScheduleChartProps): React.ReactElement;
 export interface HorizontalBarChartProps { data: { label: string; value: number; color?: string }[]; format?: (v: number) => string }
 export declare function HorizontalBarChart(props: HorizontalBarChartProps): React.ReactElement;

@@ -45,6 +45,7 @@
         "@radix-ui/react-tooltip": "1.4.1",
         "motion": "14.14.0",
         "react": "^19.3.1",
-        "react-dom": "^19.3.1"
+        "react-dom": "^19.3.1",
+        "recharts": "3.11.1"
     }
 }

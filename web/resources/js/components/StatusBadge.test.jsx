@@ -12,6 +12,7 @@ describe('StatusBadge', () => {
         ['failed', 'Failed'],
         ['closed', 'Funding closed'],
         ['repaying', 'Repaying'],
+        ['returning', 'Returning capital'], // PB-34: a paid-out Mudarabah
         ['completed', 'Fully repaid'],
         ['defaulted', 'Defaulted'],
     ])('labels "%s" as "%s"', (status, label) => {
