@@ -21,7 +21,7 @@ class ReconcileLedger extends Command
     {
         $problems = LedgerReconciler::problems();
         if ($problems === []) {
-            $this->info('The ledger reconciles: double entry, balance chains, no negative wallets, money conserved, escrow matches pledges.');
+            $this->info('The ledger reconciles: double entry, balance chains, no negative wallets, money conserved, escrow matches pledges, repayments and Mudarabah reports match their payouts, no capital account below zero.');
 
             return self::SUCCESS;
         }

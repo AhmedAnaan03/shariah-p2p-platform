@@ -11,6 +11,7 @@ use App\Support\CampaignPresenter;
 use App\Support\ListFilters;
 use App\Support\MarketplaceFilters;
 use App\Support\Money;
+use App\Support\MudarabahPresenter;
 use App\Support\RepaymentHistory;
 use App\Support\ReturnUrl;
 use App\Support\SchedulePresenter;
@@ -117,6 +118,8 @@ class CampaignController extends Controller
             'standing' => CampaignPresenter::standing($campaign),
             // PB-34: once paid out, the schedule and this investor's share of every row.
             'schedule' => SchedulePresenter::forInvestor($campaign, $user),
+            // PB-29: for a Mudarabah, this investor's capital account and their part of each report.
+            'mudarabah' => MudarabahPresenter::forInvestor($campaign, $user),
             // The investor's own pledges here and what happened to each (held, refunded, settled).
             'myPledges' => $myPledges->map(fn ($pledge) => [
                 'id' => $pledge->id,

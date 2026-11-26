@@ -2,6 +2,7 @@ import { useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import Alert from '../../../components/Alert';
 import Badge from '../../../components/Badge';
+import BusinessReportTable from '../../../components/BusinessReportTable';
 import Button from '../../../components/Button';
 import Card from '../../../components/Card';
 import ConfirmDialog from '../../../components/ConfirmDialog';
@@ -18,8 +19,9 @@ import Term from '../../../components/Term';
 import TextLink from '../../../components/TextLink';
 import { CAMPAIGN_PAGE_TEXT as TEXT, investorsText } from '../../../lib/campaigns';
 import { DEFINITIONS, isShariahContract, MURABAHAH, SHARIAH_DISCLAIMER } from '../../../lib/contracts';
-import { daysLeft, daysLeftText, formatDate, formatMoney } from '../../../lib/format';
+import { daysLeft, daysLeftText, EMPTY, formatDate, formatMoney } from '../../../lib/format';
 import { useModePreview } from '../../../lib/mode';
+import { REPORT_TEXT } from '../../../lib/mudarabah';
 import { isCapitalReturn, SCHEDULE_STATES } from '../../../lib/schedule';
 import { pledgeConsequence, pledgeLabel, pledgeProblem, toCents } from '../../../lib/wallet';
 
@@ -41,7 +43,7 @@ import { pledgeConsequence, pledgeLabel, pledgeProblem, toCents } from '../../..
  * Once it is paid out (PB-34, PB-28), the schedule comes first, with the investor's share of every
  * row. A Mudarabah's schedule is planned capital returns, not a debt (labels from the server).
  */
-export default function CampaignShow({ campaign, creditHistory, repaymentHistory, risk, pledge, pledging, standing, schedule, myPledges, shariahOnlyNote, back }) {
+export default function CampaignShow({ campaign, creditHistory, repaymentHistory, risk, pledge, pledging, standing, schedule, mudarabah, myPledges, shariahOnlyNote, back }) {
     useModePreview(shariahOnlyNote ? 'conventional' : null);
     const shariah = isShariahContract(campaign.contract_type);
     const days = daysLeft(campaign.funding_deadline);
@@ -143,6 +145,8 @@ export default function CampaignShow({ campaign, creditHistory, repaymentHistory
 
                 <div className="space-y-6 @bp-lg/shell:col-span-2">
                     {schedule && <YourSchedule schedule={schedule} />}
+
+                    {mudarabah && <YourCapitalAccount mudarabah={mudarabah} />}
 
                     <Card title="Terms and expected return">
                         <div className="space-y-5">
@@ -248,7 +252,9 @@ function YourSchedule({ schedule }) {
                         { key: 'label', label: labels.row },
                         { key: 'dateLabel', label: labels.date },
                         { key: 'amount', label: labels.amount, align: 'right', mono: true, render: (row) => <Money value={row.amount} /> },
-                        { key: 'share', label: 'Your share', align: 'right', mono: true, render: (row) => <Money value={row.share} /> },
+                        { key: 'share', label: capitalReturn ? 'Your planned share' : 'Your share', align: 'right', mono: true, render: (row) => <Money value={row.share} /> },
+                        // PB-36, PB-29: what was actually paid to this investor for the row.
+                        { key: 'received', label: 'You received', align: 'right', mono: true, render: (row) => (row.received ? <Money value={row.received} /> : EMPTY) },
                         {
                             key: 'state',
                             label: 'Status',
@@ -261,6 +267,27 @@ function YourSchedule({ schedule }) {
                     ]}
                     rows={schedule.rows}
                 />
+            </div>
+        </Card>
+    );
+}
+
+/**
+ * PB-29: this investor's capital account in a Mudarabah, and their part of every approved
+ * business report. Worded by the server so nothing reads as a debt or a fixed return.
+ */
+function YourCapitalAccount({ mudarabah }) {
+    return (
+        <Card title={REPORT_TEXT.accountTitle} description={mudarabah.note}>
+            <div className="space-y-5">
+                <DescriptionList columns={4} items={mudarabah.account.map((row) => [row.label, <Money key={row.key} value={row.value} />])} />
+                {mudarabah.reports.length > 0 ? (
+                    <BusinessReportTable reports={mudarabah.reports} yours caption="Approved business reports, with your part of each" />
+                ) : (
+                    <EmptyState kind="documents" title={REPORT_TEXT.noApprovedTitle} compact>
+                        {REPORT_TEXT.noApproved}
+                    </EmptyState>
+                )}
             </div>
         </Card>
     );
