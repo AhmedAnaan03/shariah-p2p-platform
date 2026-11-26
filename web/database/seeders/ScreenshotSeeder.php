@@ -21,6 +21,8 @@ use Illuminate\Http\UploadedFile;
  * PB-13 to PB-15 add a verified borrower with requests in every state, a campaign review queue
  * (a Murabahah with a credit report first) and live campaigns for the marketplace. PB-16 and
  * PB-17 add MarketplaceCampaigns: more than a page of campaigns, one with a repayment history.
+ * PB-35 and PB-29 add a paid instalment and a Mudarabah business (mudarabah-borrower@example.com)
+ * with an approved report, a report waiting for review and a period ready to report.
  *
  * Only for `npm run screenshots` / `npm run check:a11y`, which run it on their own throwaway
  * database (shariah_p2p_screenshots), never on the development or test database. Addresses,
@@ -104,9 +106,13 @@ class ScreenshotSeeder extends Seeder
         // PB-34: two paid-out campaigns with schedules. The verified SME's Murabahah is the
         // borrower-schedule page; the investor's last pledge (and so the wallet's first campaign
         // link, the pledged-campaign page) is a Mudarabah's planned capital return schedule.
-        $truckOwner = User::factory()->borrower()->verified()->submitted()->create(['name' => 'Hussain Shamil']);
+        $truckOwner = User::factory()->borrower()->verified()->submitted()->create(['name' => 'Hussain Shamil', 'email' => 'mudarabah-borrower@example.com', 'password' => $password]);
         BorrowerProfile::factory()->individual()->for($truckOwner)->create(DemoData::address('hulhumale'));
         MarketplaceCampaigns::paidOut($investor, null, User::where('email', 'verified-borrower@example.com')->sole(), $truckOwner);
+
+        // PB-35, PB-29: a paid instalment, Mudarabah reports (approved and waiting) and a period
+        // ready to report, for the repayment card, the report pages and the admin review.
+        MarketplaceCampaigns::repaymentsAndReports(User::where('email', 'verified-borrower@example.com')->sole(), $truckOwner, User::where('email', 'admin@example.com')->sole());
     }
 
     /**

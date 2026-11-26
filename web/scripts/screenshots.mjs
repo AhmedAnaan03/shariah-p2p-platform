@@ -69,6 +69,7 @@ const ACCOUNTS = {
     onboardingInvestor: 'onboarding-investor@example.com',
     readyBorrower: 'ready-borrower@example.com',
     verifiedBorrower: 'verified-borrower@example.com',
+    mudarabahBorrower: 'mudarabah-borrower@example.com',
     admin: 'admin@example.com',
 };
 
@@ -99,7 +100,9 @@ const PAGES = [
     ['verifiedBorrower', 'borrower-campaigns', '/borrower/campaigns'],
     ['verifiedBorrower', 'borrower-campaign-create', '/borrower/campaigns/create'],
     ['verifiedBorrower', 'borrower-campaign-show', null],
-    ['verifiedBorrower', 'borrower-schedule', null], // PB-34: a paid-out Murabahah with its chart and timeline
+    ['verifiedBorrower', 'borrower-schedule', null], // PB-34: a paid-out Murabahah with its chart and timeline; PB-35: its repayment card
+    ['mudarabahBorrower', 'borrower-mudarabah', null], // PB-29: a Mudarabah's capital account and business reports
+    ['mudarabahBorrower', 'borrower-report-form', null], // PB-29: the business report form
     ['investor', 'marketplace', '/investor/campaigns'],
     ['investor', 'marketplace-campaign', null], // PB-17: the first card's campaign page (PB-19: with the pledge form)
     ['investor', 'investor-wallet', '/investor/wallet'], // PB-18
@@ -107,11 +110,14 @@ const PAGES = [
     ['verifiedBorrower', 'borrower-wallet', '/borrower/wallet'],
     ['admin', 'admin-campaigns', '/admin/campaigns'],
     ['admin', 'admin-campaign-review', null],
+    ['admin', 'admin-reports', '/admin/reports'], // PB-29
+    ['admin', 'admin-report-review', null], // PB-29: a report waiting for a decision
     ['admin', 'admin-demo-controls', '/admin/demo'], // PB-34: demo tool, local only
     ['guest', 'design-preview', '/dev/design'],
 ];
 
-// Pages whose URL is the first matching link on another page, found at run time.
+// Pages whose URL is the first matching link on another page, found at run time, with an
+// optional suffix added to its path.
 const FIRST_LINK = {
     'admin-review': ['/admin/verifications', 'a[href*="/admin/verifications/"]'],
     'admin-campaign-review': ['/admin/campaigns', 'a[href*="/admin/campaigns/"]'],
@@ -119,6 +125,9 @@ const FIRST_LINK = {
     'borrower-schedule': ['/borrower/campaigns?status=repaying', 'a[href*="/borrower/campaigns/"]:not([href$="/create"])'],
     'marketplace-campaign': ['/investor/campaigns', 'a[href*="/investor/campaigns/"]'],
     'pledged-campaign': ['/investor/wallet', 'a[href*="/investor/campaigns/"]'],
+    'borrower-mudarabah': ['/borrower/campaigns?status=repaying&search=Food', 'a[href*="/borrower/campaigns/"]:not([href$="/create"])'],
+    'borrower-report-form': ['/borrower/campaigns?status=repaying&search=kiosk', 'a[href*="/borrower/campaigns/"]:not([href$="/create"])', '/reports/create'],
+    'admin-report-review': ['/admin/reports?status=submitted', 'a[href*="/admin/reports/"]'],
 };
 
 const failures = [];
@@ -348,10 +357,10 @@ try {
         if (ONLY.length && !ONLY.includes(name)) continue;
         let url = path;
         if (!url) {
-            const [from, selector] = FIRST_LINK[name];
+            const [from, selector, suffix = ''] = FIRST_LINK[name];
             const page = await contexts[account].newPage();
             await page.goto(`${BASE}${from}`, { waitUntil: 'networkidle0' });
-            url = new URL(await page.$eval(selector, (a) => a.href)).pathname;
+            url = new URL(await page.$eval(selector, (a) => a.href)).pathname + suffix;
             await page.close();
         }
         console.log(name);

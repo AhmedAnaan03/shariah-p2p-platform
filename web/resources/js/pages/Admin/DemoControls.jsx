@@ -21,6 +21,10 @@ const MUDARABAH = 'mudarabah';
  *
  * The buttons are worded per contract: a Mudarabah's rows are planned capital returns, not
  * debts, so they are "planned for today" rather than "due", and never "overdue".
+ *
+ * PB-35: "overdue" marks the instalment late at once. PB-29: a Mudarabah also gets "sample
+ * report" buttons (a profit or a loss) that submit its next period's report, moving the period to
+ * today first if needed, and open the admin review page to decide it.
  */
 export default function DemoControls({ campaigns, hasAny, filters, filterOptions, defaultOverdueDays }) {
     const { url } = usePage();
@@ -29,6 +33,12 @@ export default function DemoControls({ campaigns, hasAny, filters, filterOptions
     function advance(campaign, mode) {
         setBusy(`${campaign.id}-${mode}`);
         router.post(campaign.url, { mode }, { preserveScroll: true, onFinish: () => setBusy(null) });
+    }
+
+    // PB-29: a sample business report for a Mudarabah's next period; it opens the review page.
+    function sampleReport(campaign, outcome) {
+        setBusy(`${campaign.id}-${outcome}`);
+        router.post(campaign.sampleReportUrl, { outcome }, { onFinish: () => setBusy(null) });
     }
 
     const columns = [
@@ -59,6 +69,18 @@ export default function DemoControls({ campaigns, hasAny, filters, filterOptions
                             {mudarabah ? `Date ${defaultOverdueDays} days ago` : `Make ${defaultOverdueDays} days overdue`}
                             <span className="sr-only"> {row.title}</span>
                         </Button>
+                        {row.sampleReportUrl && (
+                            <>
+                                <Button size="sm" variant="secondary" iconLeft="trend-up" disabled={!row.next} loading={busy === `${row.id}-profit`} onClick={() => sampleReport(row, 'profit')}>
+                                    Sample report: profit
+                                    <span className="sr-only"> {row.title}</span>
+                                </Button>
+                                <Button size="sm" variant="secondary" iconLeft="warning-circle" disabled={!row.next} loading={busy === `${row.id}-loss`} onClick={() => sampleReport(row, 'loss')}>
+                                    Sample report: loss
+                                    <span className="sr-only"> {row.title}</span>
+                                </Button>
+                            </>
+                        )}
                     </div>
                 );
             },
@@ -68,13 +90,13 @@ export default function DemoControls({ campaigns, hasAny, filters, filterOptions
     return (
         <>
             <Alert tone="warning" title="Demo tool" role="note">
-                These controls change schedule dates so repayments and late payments can be shown without waiting a month. They exist only on a developer’s machine (the local environment), never in
-                production. Every change is recorded in the audit log.
+                These controls change schedule dates so repayments and late payments can be shown without waiting a month, and submit sample Mudarabah business reports. They exist only on a
+                developer’s machine (the local environment), never in production. Every change is recorded in the audit log.
             </Alert>
 
             <Card
                 title="Repaying campaigns"
-                description="Move a schedule so its next unpaid row falls today or in the past. Every later row moves by the same number of days."
+                description="Move a schedule so its next unpaid row falls today or in the past; every later row moves by the same number of days. For a Mudarabah, submit a sample report for the next period, then decide it on the review page."
                 actions={<Badge tone="warning" icon="clock">Demo only</Badge>}
             >
                 {hasAny && (
