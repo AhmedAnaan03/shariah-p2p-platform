@@ -146,7 +146,10 @@ final class CampaignPresenter
             Campaign::STATUS_REPAYING => $campaign->isMudarabah()
                 ? ['info', 'Funded and returning capital', 'The capital was paid out to the business, which plans to return it monthly. '.SchedulePresenter::MUDARABAH_CAPITAL_NOTE]
                 : ['info', 'Funded and repaying', 'The money was paid out to the borrower, who is repaying it in monthly instalments.'],
-            'completed' => ['success', 'Fully repaid', 'The borrower has repaid this campaign in full.'],
+            // PB-36, PB-29: a Mudarabah's capital is settled, never "repaid".
+            Campaign::STATUS_COMPLETED => $campaign->isMudarabah()
+                ? ['success', 'Capital settled', 'The capital is settled: returned to the investors, or reduced by a genuine business loss.']
+                : ['success', 'Fully repaid', 'The borrower has repaid this campaign in full.'],
             'defaulted' => ['danger', 'Defaulted', 'The borrower has stopped repaying this campaign.'],
             Campaign::STATUS_SUSPENDED => ['warning', 'Suspended', 'The platform has paused this campaign, so it is closed to new pledges.'],
             default => ['info', 'Not open for pledges', 'This campaign is not open for pledges.'],
@@ -170,6 +173,7 @@ final class CampaignPresenter
         return match (true) {
             $campaign->status === Campaign::STATUS_LIVE && ! $campaign->isListed() => 'closed',
             $campaign->status === Campaign::STATUS_REPAYING && $campaign->isMudarabah() => 'returning',
+            $campaign->status === Campaign::STATUS_COMPLETED && $campaign->isMudarabah() => 'capital-settled',
             default => $campaign->status,
         };
     }

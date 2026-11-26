@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Account\ThemePreferenceController;
+use App\Http\Controllers\Admin\BusinessReportController as AdminBusinessReportController;
 use App\Http\Controllers\Admin\CampaignController as AdminCampaignController;
 use App\Http\Controllers\Admin\DemoControlsController;
 use App\Http\Controllers\Admin\VerificationController;
@@ -9,7 +10,9 @@ use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Auth\SessionController;
+use App\Http\Controllers\Borrower\BusinessReportController as BorrowerBusinessReportController;
 use App\Http\Controllers\Borrower\CampaignController as BorrowerCampaignController;
+use App\Http\Controllers\Borrower\RepaymentController;
 use App\Http\Controllers\Investor\CampaignController as InvestorCampaignController;
 use App\Http\Controllers\Investor\PledgeController;
 use App\Http\Controllers\Investor\ShariahPreferenceController;
@@ -117,6 +120,14 @@ Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('b
     Route::get('/campaigns/create', [BorrowerCampaignController::class, 'create'])->name('campaigns.create');
     Route::post('/campaigns', [BorrowerCampaignController::class, 'store'])->name('campaigns.store');
     Route::get('/campaigns/{campaign}', [BorrowerCampaignController::class, 'show'])->name('campaigns.show');
+
+    // PB-35: pay the next instalment, or everything left at once, from the wallet.
+    Route::post('/campaigns/{campaign}/repayments', [RepaymentController::class, 'store'])->name('campaigns.repayments.store');
+    Route::post('/campaigns/{campaign}/payoff', [RepaymentController::class, 'payOff'])->name('campaigns.payoff');
+
+    // PB-29: a Mudarabah business reports a period.
+    Route::get('/campaigns/{campaign}/reports/create', [BorrowerBusinessReportController::class, 'create'])->name('campaigns.reports.create');
+    Route::post('/campaigns/{campaign}/reports', [BorrowerBusinessReportController::class, 'store'])->name('campaigns.reports.store');
 });
 
 Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('investor.')->group(function () use ($onboardingRoutes, $walletRoutes) {
@@ -154,6 +165,11 @@ Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin')->name('admin.'
     Route::get('/campaigns', [AdminCampaignController::class, 'index'])->name('campaigns.index');
     Route::get('/campaigns/{campaign}', [AdminCampaignController::class, 'show'])->name('campaigns.show');
     Route::post('/campaigns/{campaign}/decision', [AdminCampaignController::class, 'decide'])->name('campaigns.decide');
+
+    // PB-29: Mudarabah business reports, approved (with the loss's cause) or rejected.
+    Route::get('/reports', [AdminBusinessReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/{report}', [AdminBusinessReportController::class, 'show'])->name('reports.show');
+    Route::post('/reports/{report}/decision', [AdminBusinessReportController::class, 'decide'])->name('reports.decide');
 });
 
 /*
@@ -173,5 +189,7 @@ if (app()->environment('local')) {
     Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin/demo')->name('admin.demo.')->group(function () {
         Route::get('/', [DemoControlsController::class, 'index'])->name('index');
         Route::post('/campaigns/{campaign}/advance', [DemoControlsController::class, 'advance'])->whereNumber('campaign')->name('advance');
+        // PB-29: submit a sample Mudarabah business report (a profit or a loss).
+        Route::post('/campaigns/{campaign}/sample-report', [DemoControlsController::class, 'sampleReport'])->whereNumber('campaign')->name('sample-report');
     });
 }

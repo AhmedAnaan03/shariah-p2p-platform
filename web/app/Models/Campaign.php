@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Exceptions\ContractRuleViolation;
+use App\Support\Money;
 use Database\Factories\CampaignFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -96,6 +97,13 @@ class Campaign extends Model
     public const STATUS_REPAYING = 'repaying';
 
     /**
+     * Finished (PB-36, PB-29): every instalment paid, or for a Mudarabah all capital settled
+     * (returned, or reduced by a genuine loss). Pages show a Mudarabah as "Capital settled",
+     * never "repaid".
+     */
+    public const STATUS_COMPLETED = 'completed';
+
+    /**
      * The terms that fix what a funded contract is worth (PB-28): the asset cost (or amount),
      * the tenure, the contract type and its return term. Once a campaign is funded, investors
      * have agreed to them, so none can change: a Murabahah's markup is disclosed and fixed.
@@ -125,6 +133,7 @@ class Campaign extends Model
             'approved_at' => 'datetime',
             'funded_at' => 'datetime',
             'disbursed_at' => 'datetime',
+            'completed_at' => 'datetime',
         ];
     }
 
@@ -183,6 +192,15 @@ class Campaign extends Model
     public function fundingDeadlineLabel(): ?string
     {
         return $this->funding_deadline ? self::localDate($this->funding_deadline) : null;
+    }
+
+    /**
+     * Today's date in the Maldives ("2026-11-27"): what due dates and planned dates are compared
+     * with (PB-35, PB-29).
+     */
+    public static function today(): string
+    {
+        return now()->setTimezone(self::LOCAL_TIMEZONE)->toDateString();
     }
 
     /**
@@ -407,6 +425,31 @@ class Campaign extends Model
     public function repaymentSchedules(): HasMany
     {
         return $this->hasMany(RepaymentSchedule::class);
+    }
+
+    /**
+     * A Mudarabah's period reports (PB-29), approved, rejected and waiting.
+     */
+    public function businessReports(): HasMany
+    {
+        return $this->hasMany(BusinessReport::class);
+    }
+
+    /**
+     * Each investor's share of every repayment or approved report (PB-36, PB-29).
+     */
+    public function investorPayouts(): HasMany
+    {
+        return $this->hasMany(InvestorPayout::class);
+    }
+
+    /**
+     * The investor's percentage of a Mudarabah's profit in basis points ("60.00" → 6000), so the
+     * profit share is worked out in whole numbers.
+     */
+    public function investorShareBasisPoints(): int
+    {
+        return (int) Money::toCents((string) $this->investor_profit_share_percent);
     }
 
     public function riskScores(): HasMany

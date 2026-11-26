@@ -1,9 +1,16 @@
+import { router } from '@inertiajs/react';
+import { useState } from 'react';
 import Alert from '../../../components/Alert';
+import Badge from '../../../components/Badge';
+import Button from '../../../components/Button';
 import Card from '../../../components/Card';
+import ConfirmDialog from '../../../components/ConfirmDialog';
 import ChartFrame from '../../../components/ChartFrame';
 import ContractBadge from '../../../components/ContractBadge';
 import DescriptionList from '../../../components/DescriptionList';
+import BusinessReportTable from '../../../components/BusinessReportTable';
 import DocumentList from '../../../components/DocumentList';
+import EmptyState from '../../../components/EmptyState';
 import FundingRing from '../../../components/FundingRing';
 import Money from '../../../components/Money';
 import RepaymentScheduleChart from '../../../components/RepaymentScheduleChart';
@@ -12,7 +19,9 @@ import StatusBadge from '../../../components/StatusBadge';
 import TextLink from '../../../components/TextLink';
 import { investorsText } from '../../../lib/campaigns';
 import { formatDate, formatMoney } from '../../../lib/format';
-import { chartData, chartLegend, chartTable, isCapitalReturn, scheduleTakeaway, timelineItems } from '../../../lib/schedule';
+import { chartData, chartLegend, chartTable, isCapitalReturn, SCHEDULE_STATES, scheduleTakeaway, timelineItems } from '../../../lib/schedule';
+import { REPORT_TEXT } from '../../../lib/mudarabah';
+import { toCents } from '../../../lib/wallet';
 
 /**
  * One of the borrower's own requests (PB-13, PB-14): its review status and, after a decision,
@@ -21,8 +30,12 @@ import { chartData, chartLegend, chartTable, isCapitalReturn, scheduleTakeaway, 
  * Once it is funded and paid out (PB-34, PB-28), the schedule: a summary, the months as a chart
  * of capital and return, and a timeline of every row. A Mudarabah's schedule is planned capital
  * returns, not a debt, and every label for it comes from the server already worded that way.
+ *
+ * PB-35: a conventional or Murabahah borrower pays the next instalment, or pays off early, from
+ * here, each confirmed in a dialog that shows the amount and how it is worked out. PB-29: a
+ * Mudarabah business sees its capital account and reports each period instead.
  */
-export default function CampaignShow({ campaign, funding, schedule, finances, creditHistory, creditReport, back }) {
+export default function CampaignShow({ campaign, funding, schedule, repayment, mudarabah, finances, creditHistory, creditReport, back }) {
     return (
         <>
             <TextLink href={back.url} icon="arrow-left">
@@ -41,6 +54,10 @@ export default function CampaignShow({ campaign, funding, schedule, finances, cr
             >
                 <StatusAlert campaign={campaign} schedule={schedule} />
             </Card>
+
+            {repayment && <RepaymentCard repayment={repayment} />}
+
+            {mudarabah && <BusinessReportsCard mudarabah={mudarabah} />}
 
             {schedule && <ScheduleCard schedule={schedule} />}
 
@@ -97,6 +114,148 @@ export default function CampaignShow({ campaign, funding, schedule, finances, cr
                 </Card>
             </div>
         </>
+    );
+}
+
+/**
+ * PB-35: pay the next instalment, or everything left at once. Each payment is confirmed first,
+ * and the dialog's button shows a spinner and can't be pressed again while it is sent; the server
+ * also refuses a second payment of the same instalment, so a double click never pays twice.
+ */
+function RepaymentCard({ repayment }) {
+    const [confirming, setConfirming] = useState(null);
+    const [processing, setProcessing] = useState(false);
+    const { next, payoff } = repayment;
+
+    function send(url, data) {
+        setProcessing(true);
+        router.post(url, data, {
+            preserveScroll: true,
+            onFinish: () => {
+                setProcessing(false);
+                setConfirming(null);
+            },
+        });
+    }
+
+    if (repayment.completed || !next) {
+        return (
+            <Card title="Repayments">
+                <Alert tone="success" title="Paid in full" role="note">
+                    Every instalment of this campaign is paid, and the investors have received their shares. {repayment.noFeesNote}
+                </Alert>
+            </Card>
+        );
+    }
+
+    const short = toCents(repayment.balance) < toCents(next.amount);
+    const state = SCHEDULE_STATES[next.state] ?? SCHEDULE_STATES.upcoming;
+
+    return (
+        <Card title="Repayments" description={repayment.note}>
+            <div className="space-y-5">
+                <DescriptionList
+                    columns={4}
+                    items={[
+                        ['Your wallet', <Money key="balance" value={repayment.balance} />],
+                        ['Next instalment', `${next.label}, ${next.dateLabel}`],
+                        ['Amount', <Money key="amount" value={next.amount} />],
+                        [
+                            'Status',
+                            <Badge key="state" tone={state.tone} icon={state.icon} size="sm">
+                                {next.stateLabel}
+                            </Badge>,
+                        ],
+                    ]}
+                />
+                {short && (
+                    <Alert tone="warning" role="note" action={<TextLink href="/borrower/wallet">Top up your wallet</TextLink>}>
+                        Your wallet holds less than this instalment. Top up first: it is simulated, no real money.
+                    </Alert>
+                )}
+                <div className="flex flex-wrap gap-3">
+                    <Button iconLeft="coins" disabled={short} onClick={() => setConfirming('next')}>
+                        Pay {next.label.toLowerCase()}: {formatMoney(next.amount)}
+                    </Button>
+                    {payoff && (
+                        <Button variant="secondary" onClick={() => setConfirming('payoff')}>
+                            Pay off in full: {formatMoney(payoff.total)}
+                        </Button>
+                    )}
+                </div>
+                <Alert tone="info" role="note">
+                    {repayment.noFeesNote}
+                </Alert>
+            </div>
+
+            <ConfirmDialog
+                open={confirming === 'next'}
+                onClose={() => setConfirming(null)}
+                onConfirm={() => send(repayment.payUrl, { schedule_id: next.id })}
+                title={`Pay ${next.label.toLowerCase()}?`}
+                amount={next.amount}
+                rows={[
+                    ['From', 'Your wallet'],
+                    ['Capital', formatMoney(next.capital)],
+                    [repayment.returnLabel, formatMoney(next.return)],
+                    ['Due', next.dateLabel],
+                ]}
+                consequence="The money leaves your wallet and is shared out to the investors straight away, in proportion to what each pledged."
+                simulated
+                confirmLabel={`Confirm payment of ${formatMoney(next.amount)}`}
+                loading={processing}
+            />
+            {payoff && (
+                <ConfirmDialog
+                    open={confirming === 'payoff'}
+                    onClose={() => setConfirming(null)}
+                    onConfirm={() => send(payoff.url, { amount: payoff.total })}
+                    title="Pay off everything that is left?"
+                    amount={payoff.total}
+                    rows={payoff.rows}
+                    consequence={payoff.explanation}
+                    simulated
+                    confirmLabel={`Confirm payoff of ${formatMoney(payoff.total)}`}
+                    loading={processing}
+                />
+            )}
+        </Card>
+    );
+}
+
+/**
+ * PB-29: a Mudarabah's capital account, the next period to report and every report so far.
+ * Every label comes from the server (MudarabahPresenter), worded so nothing reads as a debt.
+ */
+function BusinessReportsCard({ mudarabah }) {
+    const { next, account, reports } = mudarabah;
+
+    return (
+        <Card title={REPORT_TEXT.cardTitle} description={mudarabah.note}>
+            <div className="space-y-5">
+                <DescriptionList columns={4} items={account.map((row) => [row.label, <Money key={row.key} value={row.value} />])} />
+                {next &&
+                    (next.allowed ? (
+                        <div className="flex flex-wrap items-center gap-3">
+                            <Button href={next.createUrl} iconLeft="clipboard-text">
+                                Report {next.label.toLowerCase()}
+                            </Button>
+                            <p className="text-body-sm text-text-secondary">Planned date: {next.dateLabel}. Your wallet: {formatMoney(mudarabah.balance)}.</p>
+                        </div>
+                    ) : (
+                        <Alert tone="info" role="note" title={`Next: ${next.label}, ${next.dateLabel}`}>
+                            {next.reason}
+                        </Alert>
+                    ))}
+                {reports.length > 0 ? (
+                    <BusinessReportTable reports={reports} />
+                ) : (
+                    <EmptyState kind="documents" title={REPORT_TEXT.noReportsTitle} compact>
+                        {REPORT_TEXT.noReports}
+                    </EmptyState>
+                )}
+            </div>
+        </Card>
     );
 }
 
@@ -159,6 +318,16 @@ function StatusAlert({ campaign, schedule }) {
             ) : (
                 <Alert tone="success" title="Funded and paid out" role="note">
                     {formatMoney(campaign.amount_requested)} was paid into your wallet on {schedule?.disbursedOnLabel}. Your first instalment is due on {schedule?.firstDateLabel}.
+                </Alert>
+            );
+        case 'completed':
+            return isCapitalReturn(schedule) ? (
+                <Alert tone="success" title={REPORT_TEXT.settledTitle} role="note">
+                    {REPORT_TEXT.settled}
+                </Alert>
+            ) : (
+                <Alert tone="success" title="Paid in full" role="note">
+                    Every instalment is paid. There were no late fees or penalty charges.
                 </Alert>
             );
         case 'failed':

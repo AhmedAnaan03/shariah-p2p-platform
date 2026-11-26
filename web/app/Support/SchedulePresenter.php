@@ -2,8 +2,10 @@
 
 namespace App\Support;
 
+use App\Models\BusinessReport;
 use App\Models\Campaign;
-use App\Models\Pledge;
+use App\Models\InvestorPayout;
+use App\Models\Repayment;
 use App\Models\RepaymentSchedule;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -19,7 +21,8 @@ use Illuminate\Support\Collection;
  *   is late.
  * - Mudarabah: a planned capital return schedule, not a debt. It is never called an instalment,
  *   "due" or "owed", and a passed date is never "late": it is "planned date passed, awaiting
- *   business report" until PB-29 defines what the business reports and what follows.
+ *   business report" until the business reports the period (PB-29); then "report submitted,
+ *   awaiting review", and once approved "report approved".
  *
  * Dates are Maldives dates, like every other date shown.
  */
@@ -41,6 +44,30 @@ final class SchedulePresenter
     public const STATE_AWAITING = 'awaiting';
 
     public const AWAITING_LABEL = 'Planned date passed, awaiting business report';
+
+    /** A Mudarabah period whose business report is waiting for an administrator (PB-29). */
+    public const STATE_REVIEW = 'review';
+
+    /** A Mudarabah period not needed because the capital was settled earlier (PB-29). */
+    public const STATE_CLOSED = 'closed';
+
+    /**
+     * Every label a row can carry beyond the date-based ones, in one place for the wording tests
+     * (PB-35, PB-29).
+     */
+    public const LABELS = [
+        'paid' => 'Paid',
+        'paid_late' => 'Paid late',
+        'paid_early' => 'Paid early',
+        'paid_early_no_interest' => 'Paid early, interest not charged',
+        'report_approved' => 'Report approved',
+        'report_review' => 'Report submitted, awaiting review',
+        'report_rejected' => 'Report not accepted, a new report is needed',
+        'not_needed' => 'Not needed: capital settled',
+    ];
+
+    /** Shown with every instalment schedule (PB-35, decisions.md). */
+    public const NO_FEES_NOTE = 'There are no late fees or penalty charges: a late instalment costs the same as one paid on time.';
 
     /**
      * What borrowers and investors are told about a Mudarabah's capital (PB-34 review), on its
@@ -184,7 +211,7 @@ final class SchedulePresenter
      */
     private static function schedules(Campaign $campaign): Collection
     {
-        return $campaign->repaymentSchedules()->orderBy('instalment_no')->get();
+        return $campaign->repaymentSchedules()->with(['repayments', 'businessReports'])->orderBy('instalment_no')->get();
     }
 
     /**
@@ -194,11 +221,31 @@ final class SchedulePresenter
      */
     private static function weights(Campaign $campaign): array
     {
-        return Pledge::where('campaign_id', $campaign->id)->where('status', 'settled')
-            ->selectRaw('investor_id, SUM(amount) as total')->groupBy('investor_id')->orderBy('investor_id')
-            ->pluck('total', 'investor_id')
-            ->map(fn ($total) => Money::fromDatabase($total))
-            ->all();
+        return CampaignInvestors::weights($campaign);
+    }
+
+    /**
+     * What one investor received for each row (PB-36, PB-29), by schedule id: the money, and for a
+     * Mudarabah any genuine loss allocated to them.
+     *
+     * @return array<int, array{received: int, loss: int}>
+     */
+    private static function received(Campaign $campaign, int $investorId): array
+    {
+        $rows = InvestorPayout::where('investor_payouts.campaign_id', $campaign->id)->where('investor_id', $investorId)
+            ->leftJoin('repayments', 'repayments.id', '=', 'investor_payouts.repayment_id')
+            ->leftJoin('business_reports', 'business_reports.id', '=', 'investor_payouts.business_report_id')
+            ->selectRaw('COALESCE(repayments.repayment_schedule_id, business_reports.repayment_schedule_id) as schedule_id,
+                SUM(investor_payouts.capital_amount + investor_payouts.loss_restored_amount + investor_payouts.return_amount) as received,
+                SUM(investor_payouts.loss_amount) as loss')
+            ->groupBy('schedule_id')->get();
+
+        $byRow = [];
+        foreach ($rows as $row) {
+            $byRow[(int) $row->schedule_id] = ['received' => Money::fromDatabase($row->received), 'loss' => Money::fromDatabase($row->loss)];
+        }
+
+        return $byRow;
     }
 
     /**
@@ -232,9 +279,10 @@ final class SchedulePresenter
     private static function rows(Campaign $campaign, Collection $schedules, array $weights = [], ?int $investorId = null): array
     {
         $labels = self::labels($campaign);
-        $today = now()->setTimezone(Campaign::LOCAL_TIMEZONE)->toDateString();
+        $today = Campaign::today();
+        $received = $investorId === null ? [] : self::received($campaign, $investorId);
 
-        return $schedules->map(function (RepaymentSchedule $schedule) use ($campaign, $labels, $today, $weights, $investorId) {
+        return $schedules->map(function (RepaymentSchedule $schedule) use ($campaign, $labels, $today, $weights, $investorId, $received) {
             $capital = Money::fromDatabase($schedule->capital_due);
             $return = $schedule->return_due === null ? null : Money::fromDatabase($schedule->return_due);
             [$state, $stateLabel] = self::state($campaign, $schedule, $today);
@@ -253,10 +301,16 @@ final class SchedulePresenter
                 'stateLabel' => $stateLabel,
             ];
 
+            $repayment = $schedule->repayments->first();
+            $row['paidAmount'] = $repayment ? (string) $repayment->amount : null;
+
             if ($investorId !== null) {
                 $share = InstalmentSplit::shares($capital, $weights)[$investorId]
                     + ($return === null ? 0 : InstalmentSplit::shares($return, $weights)[$investorId]);
                 $row['share'] = Money::fromCents($share);
+                $mine = $received[$schedule->id] ?? null;
+                $row['received'] = $mine === null ? null : Money::fromCents($mine['received']);
+                $row['lossBorne'] = $mine === null || $mine['loss'] === 0 ? null : Money::fromCents($mine['loss']);
             }
 
             return $row;
@@ -274,7 +328,19 @@ final class SchedulePresenter
         $date = $schedule->due_date->toDateString();
 
         if ($schedule->status === 'paid') {
-            return [self::STATE_PAID, $mudarabah ? 'Capital returned' : 'Paid'];
+            return [self::STATE_PAID, $mudarabah ? self::LABELS['report_approved'] : self::paidLabel($campaign, $schedule)];
+        }
+        if ($mudarabah) {
+            $latest = $schedule->businessReports->sortByDesc('id')->first();
+            if ($latest?->status === BusinessReport::STATUS_SUBMITTED) {
+                return [self::STATE_REVIEW, self::LABELS['report_review']];
+            }
+            if ($campaign->status === Campaign::STATUS_COMPLETED) {
+                return [self::STATE_CLOSED, self::LABELS['not_needed']];
+            }
+            if ($date < $today && $latest?->status === BusinessReport::STATUS_REJECTED) {
+                return [self::STATE_AWAITING, self::LABELS['report_rejected']];
+            }
         }
         if ($date > $today) {
             return [self::STATE_UPCOMING, ($mudarabah ? 'Planned for ' : 'Due ').self::dateLabel($schedule->due_date)];
@@ -288,6 +354,24 @@ final class SchedulePresenter
         $days = (int) Carbon::parse($date)->diffInDays(Carbon::parse($today));
 
         return [self::STATE_LATE, $days === 1 ? '1 day late' : "{$days} days late"];
+    }
+
+    /**
+     * How a paid instalment was paid: on time, late (after its due date, Maldives time), or early
+     * as part of a payoff (PB-35). A conventional payoff charges no interest for periods not
+     * reached yet, which the label says.
+     */
+    private static function paidLabel(Campaign $campaign, RepaymentSchedule $schedule): string
+    {
+        $repayment = $schedule->repayments->first();
+        if ($repayment?->kind === Repayment::KIND_EARLY_PAYOFF) {
+            $waived = Money::fromDatabase($schedule->return_due) - Money::fromDatabase($repayment->return_amount);
+
+            return $waived > 0 ? self::LABELS['paid_early_no_interest'] : self::LABELS['paid_early'];
+        }
+        $paidOn = $schedule->paid_at?->copy()->setTimezone(Campaign::LOCAL_TIMEZONE)->toDateString();
+
+        return $paidOn !== null && $paidOn > $schedule->due_date->toDateString() ? self::LABELS['paid_late'] : self::LABELS['paid'];
     }
 
     private static function dateLabel(Carbon $date): string

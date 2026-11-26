@@ -30,6 +30,8 @@ const STATUSES = {
     // PB-34: a paid-out Mudarabah. Its schedule is planned capital returns, not a debt.
     returning: ['info', 'arrows-clockwise', 'Returning capital'],
     completed: ['success', 'seal-check', 'Fully repaid'],
+    // PB-29: a completed Mudarabah. Its capital is settled, never "repaid".
+    'capital-settled': ['success', 'seal-check', 'Capital settled'],
     held: ['info', 'lock', 'Held in escrow'],
     refunded: ['neutral', 'arrows-clockwise', 'Refunded'],
     settled: ['success', 'check', 'Settled'],

@@ -13,6 +13,8 @@ use App\Support\CampaignPresenter;
 use App\Support\InvestorDisclosure;
 use App\Support\ListFilters;
 use App\Support\Money;
+use App\Support\MudarabahPresenter;
+use App\Support\RepaymentPresenter;
 use App\Support\ReturnUrl;
 use App\Support\SchedulePresenter;
 use Illuminate\Http\RedirectResponse;
@@ -40,6 +42,8 @@ class CampaignController extends Controller
         Campaign::STATUS_FAILED => 'Not funded',
         // PB-34: a paid-out Mudarabah shows "Returning capital", the others "Repaying".
         Campaign::STATUS_REPAYING => 'Repaying or returning capital',
+        // PB-36, PB-29: paid in full, or a Mudarabah's capital settled.
+        Campaign::STATUS_COMPLETED => 'Paid in full or capital settled',
     ];
 
     public function index(Request $request): Response
@@ -124,13 +128,17 @@ class CampaignController extends Controller
         return Inertia::render('Borrower/Campaigns/Show', [
             'campaign' => CampaignPresenter::details($campaign),
             // PB-20: how much investors have pledged so far, once the campaign is open.
-            'funding' => in_array($campaign->status, [Campaign::STATUS_LIVE, Campaign::STATUS_FUNDED, Campaign::STATUS_FAILED, Campaign::STATUS_REPAYING], true) ? [
+            'funding' => in_array($campaign->status, [Campaign::STATUS_LIVE, Campaign::STATUS_FUNDED, Campaign::STATUS_FAILED, Campaign::STATUS_REPAYING, Campaign::STATUS_COMPLETED], true) ? [
                 'raised' => (float) ($campaign->raised_amount ?? 0),
                 'investors' => (int) ($campaign->investors_count ?? 0),
                 'remaining' => Money::fromCents(PledgeService::remainingCents($campaign)),
             ] : null,
             // PB-34, PB-28: the schedule once the money has been paid out (null before).
             'schedule' => SchedulePresenter::forBorrower($campaign),
+            // PB-35: paying instalments (conventional, Murabahah); null otherwise.
+            'repayment' => RepaymentPresenter::forBorrower($campaign, $request->user()),
+            // PB-29: a Mudarabah's capital account and business reports; null otherwise.
+            'mudarabah' => MudarabahPresenter::forBorrower($campaign, $request->user()),
             'finances' => CampaignPresenter::finances($campaign->financials),
             'creditHistory' => CampaignPresenter::creditHistory($campaign->financials),
             'creditReport' => $campaign->creditReport?->toListItem(),

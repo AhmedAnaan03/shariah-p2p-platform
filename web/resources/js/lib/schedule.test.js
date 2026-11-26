@@ -69,8 +69,11 @@ describe('schedule', () => {
         expect(nextRow([])).toBeNull();
     });
 
-    it('has a look for every state, and awaiting is not shown as late', () => {
-        expect(Object.keys(SCHEDULE_STATES)).toEqual(['paid', 'due', 'upcoming', 'late', 'awaiting']);
-        expect(SCHEDULE_STATES.awaiting.tone).not.toBe(SCHEDULE_STATES.late.tone);
+    it('has a look for every state, and no Mudarabah state is shown as late', () => {
+        // PB-29 adds review (a report waiting for an administrator) and closed (capital settled).
+        expect(Object.keys(SCHEDULE_STATES)).toEqual(['paid', 'due', 'upcoming', 'late', 'awaiting', 'review', 'closed']);
+        for (const state of ['awaiting', 'review', 'closed']) {
+            expect(SCHEDULE_STATES[state].tone).not.toBe(SCHEDULE_STATES.late.tone);
+        }
     });
 });

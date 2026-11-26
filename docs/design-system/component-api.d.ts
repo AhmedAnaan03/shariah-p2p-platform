@@ -125,8 +125,11 @@ export declare function DataTable<R extends { id: string | number }>(props: Data
 export interface DescriptionListProps { items: [Node, Node, boolean?][]; columns?: number }
 export declare function DescriptionList(props: DescriptionListProps): React.ReactElement;
 /** PB-34: one row per instalment or (Mudarabah) planned capital return. `stateLabel` is worded by the server ("Due today", "3 days late", "Planned date passed, awaiting business report"); 'upcoming' is a date still ahead and 'awaiting' a passed Mudarabah date, which is never 'late'. Shows `limit` rows from the next unpaid one, with "Show all". */
-export interface RepaymentTimelineProps { items: { id?: string | number; label: Node; state: 'paid' | 'due' | 'upcoming' | 'late' | 'awaiting'; stateLabel: Node; amount: number | string }[]; limit?: number; label?: string }
+export interface RepaymentTimelineProps { items: { id?: string | number; label: Node; state: 'paid' | 'due' | 'upcoming' | 'late' | 'awaiting' | 'review' | 'closed'; stateLabel: Node; amount: number | string }[]; limit?: number; label?: string }
 export declare function RepaymentTimeline(props: RepaymentTimelineProps): React.ReactElement;
+/** PB-29: a Mudarabah's business reports, one row each: period, result (profit or loss), capital returned, status and what the decision did. Labels come from the server, never debt words. `yours` shows an investor's own part of each approved report instead of the whole outcome. */
+export interface BusinessReportTableProps { reports: { id: number; periodLabel: string; plannedDateLabel: string; resultLabel: string; result: string; capitalReturned: string; status: 'submitted' | 'approved' | 'rejected'; statusLabel: string; causeLabel?: string | null; reason?: string | null; outcome: [string, string][]; yours?: { capital: string; restored: string; profit: string; loss: string } | null }[]; yours?: boolean; caption?: string }
+export declare function BusinessReportTable(props: BusinessReportTableProps): React.ReactElement;
 /** variant 'nav' (PB-53): the wizard's progress bar; `current` is the step on screen and a step with `href` is a link. */
 export interface OnboardingStepperProps { steps: { title: Node; description?: Node; done?: boolean; href?: string | null; actionLabel?: Node }[]; current?: number; orientation?: 'horizontal' | 'vertical'; variant?: 'checklist' | 'nav' }
 export declare function OnboardingStepper(props: OnboardingStepperProps): React.ReactElement;

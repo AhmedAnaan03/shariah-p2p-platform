@@ -129,8 +129,11 @@ final class IntendedUrl
             'investor.campaigns.show' => fn (User $user, Route $route) => Gate::forUser($user)->inspect('browse', $route->parameter('campaign'))->allowed(),
             // CampaignPolicy::view: a borrower's own requests only.
             'borrower.campaigns.show' => fn (User $user, Route $route) => Gate::forUser($user)->allows('view', $route->parameter('campaign')),
+            // PB-29: the business's own Mudarabah (the form redirects if no period can be reported).
+            'borrower.campaigns.reports.create' => fn (User $user, Route $route) => Gate::forUser($user)->allows('view', $route->parameter('campaign')),
             // role:admin is all it needs.
             'admin.campaigns.show' => fn () => true,
+            'admin.reports.show' => fn () => true,
             // VerificationController::show: administrators are never in the queue.
             'admin.verifications.show' => fn (User $user, Route $route) => ! $route->parameter('user')->hasRole(Role::ADMIN),
             // OnboardingController::show: a step of this user's wizard (a later one redirects).

@@ -31,6 +31,13 @@ class KycDocument extends Model
     public const TYPE_CREDIT_REPORT = 'credit_report';
 
     /**
+     * The optional supporting document of a Mudarabah business report (PB-29). Like a credit
+     * report it belongs to a campaign (the same CHECK), and only the business and administrators
+     * can open it.
+     */
+    public const TYPE_BUSINESS_REPORT = 'business_report';
+
+    /**
      * Plain-language names for the document_type enum. ('other' exists in the schema but is
      * not offered yet.)
      */
@@ -42,6 +49,7 @@ class KycDocument extends Model
         'other' => 'Other document',
         self::TYPE_CREDIT_REPORT => 'MMA credit report',
         'salary_slip' => 'Salary slip',
+        self::TYPE_BUSINESS_REPORT => 'Business report document',
     ];
 
     /**

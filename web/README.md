@@ -107,6 +107,25 @@ With `composer run dev` running, this happens within a minute of the deadline; o
 `php artisan campaigns:settle-deadlines` once the deadline has passed. Emails go to
 `storage/logs/laravel.log` (`MAIL_MAILER=log`).
 
+### Repayments, payouts and Mudarabah reports (PB-35, PB-36, PB-29)
+
+```sh
+php artisan repayments:mark-late                    # mark instalments past their due date late (the scheduler runs it every minute)
+php artisan demo:advance-schedule 12 --overdue=7    # DEMO, local only: campaign 12's next row 7 days ago
+php artisan demo:sample-report 12 --loss            # DEMO, local only: submit a sample Mudarabah report (a loss)
+```
+
+- A conventional or Murabahah borrower pays from the campaign page: the next instalment, or
+  everything left at once. Each payment goes into the campaign's escrow and straight out to the
+  investors, split by their pledges, in one transaction. There are no late fees.
+- A Mudarabah business reports each period (revenue, costs, capital returned) from the campaign
+  page; an administrator approves or rejects it under **Business reports**. Only approval moves
+  money.
+- **Demo controls** (admin, local only) can make an instalment due today or overdue, and submit a
+  sample Mudarabah report (profit or loss) that opens on the review page.
+- `php artisan wallet:reconcile` also checks every repayment, report and payout, and that no
+  Mudarabah capital account goes below zero.
+
 On a developer machine (`APP_ENV=local`) the design preview at
 <http://localhost:8000/dev/design> shows every shared component in every state, with a
 conventional / Shariah mode toggle. It is never registered in tests or production.

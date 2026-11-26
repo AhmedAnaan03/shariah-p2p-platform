@@ -3,6 +3,7 @@
 namespace Tests\Feature\Repayments;
 
 use App\Console\Commands\AdvanceDemoSchedule;
+use App\Models\BusinessReport;
 use App\Models\Campaign;
 use App\Models\User;
 use App\Services\DemoClock;
@@ -54,6 +55,18 @@ class DemoClockTest extends TestCase
 
         $this->assertSame('2026-11-19', $this->dates($campaign)[0]);
         $this->assertSame([SchedulePresenter::STATE_LATE, '7 days late'], $this->firstState($campaign));
+        // PB-35: the stored status follows at once, without waiting for repayments:mark-late.
+        $this->assertSame('late', $campaign->repaymentSchedules()->where('instalment_no', 1)->value('status'));
+    }
+
+    public function test_moving_a_late_instalment_back_to_today_makes_it_due_again(): void
+    {
+        [$campaign] = $this->paidOutCampaign('murabahah', 10_000, 3, [10_000]);
+        app(DemoClock::class)->advance($campaign, 7);
+
+        app(DemoClock::class)->advance($campaign, 0);
+
+        $this->assertSame('due', $campaign->repaymentSchedules()->where('instalment_no', 1)->value('status'));
     }
 
     public function test_an_overdue_mudarabah_row_awaits_the_business_report_instead_of_being_late(): void
@@ -117,6 +130,7 @@ class DemoClockTest extends TestCase
         $this->assertFalse(Route::has('admin.demo.index'));
         $this->actingAs($admin)->get('/admin/demo')->assertNotFound();
         $this->actingAs($admin)->post("/admin/demo/campaigns/{$campaign->id}/advance", ['mode' => 'due'])->assertNotFound();
+        $this->actingAs($admin)->post("/admin/demo/campaigns/{$campaign->id}/sample-report", ['outcome' => 'profit'])->assertNotFound();
         $this->actingAs($campaign->borrower)->get('/admin/demo')->assertNotFound();
         $this->assertSame(['2026-12-26', '2027-01-26', '2027-02-26'], $this->dates($campaign), 'Nothing moved.');
     }
@@ -135,6 +149,16 @@ class DemoClockTest extends TestCase
             ->expectsOutput(AdvanceDemoSchedule::ONLY_LOCAL)
             ->assertFailed();
         $this->assertSame(['2026-12-26', '2027-01-26', '2027-02-26'], $this->dates($campaign), 'Nothing moved.');
+    }
+
+    public function test_the_sample_report_command_refuses_to_run_outside_local(): void
+    {
+        [$campaign] = $this->paidOutCampaign('mudarabah', 10_000, 3, [10_000]);
+
+        $this->artisan('demo:sample-report', ['campaign' => $campaign->id])
+            ->expectsOutput(AdvanceDemoSchedule::ONLY_LOCAL)
+            ->assertFailed();
+        $this->assertSame(0, BusinessReport::count());
     }
 
     /**

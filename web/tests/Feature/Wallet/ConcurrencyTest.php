@@ -3,7 +3,10 @@
 namespace Tests\Feature\Wallet;
 
 use App\Models\Campaign;
+use App\Models\InvestorPayout;
 use App\Models\Pledge;
+use App\Models\Repayment;
+use App\Models\RepaymentSchedule;
 use App\Models\User;
 use App\Models\WalletAccount;
 use App\Models\WalletTransaction;
@@ -38,7 +41,7 @@ class ConcurrencyTest extends TestCase
 
     /** Tables the tests write, in an order that respects their foreign keys. */
     private const TABLES = [
-        'wallet_transactions', 'pledges', 'audit_logs', 'wallet_accounts', 'repayment_schedules', 'campaign_financials',
+        'wallet_transactions', 'investor_payouts', 'business_reports', 'repayments', 'pledges', 'audit_logs', 'wallet_accounts', 'repayment_schedules', 'campaign_financials',
         'kyc_documents', 'campaigns', 'investor_profiles', 'borrower_profiles', 'users',
     ];
 
@@ -172,6 +175,33 @@ class ConcurrencyTest extends TestCase
         $this->assertSame(5_000_00, $this->balance($late));
         $this->assertSame(3, WalletTransaction::where('type', 'pledge_refund')->where('direction', 'credit')
             ->whereIn('pledge_id', Pledge::where('campaign_id', $campaign->id)->pluck('id'))->count());
+        $this->assertLedgerReconciles();
+    }
+
+    /**
+     * PB-35: a double click on "pay" sends the same instalment twice at the same moment. One
+     * payment goes through; the other waits for the campaign lock, finds the instalment paid and
+     * is refused, so the borrower is charged once and the investors are paid once.
+     */
+    public function test_a_double_click_on_pay_pays_the_instalment_only_once(): void
+    {
+        [$campaign] = $this->paidOutCampaign('murabahah', 10_000, 3, [6_000, 4_000], ['markup_amount' => 1_000]);
+        $borrower = $campaign->borrower;
+        $first = RepaymentSchedule::where('campaign_id', $campaign->id)->orderBy('instalment_no')->firstOrFail();
+        $before = $this->balance($borrower);
+
+        $results = $this->race(
+            table: 'campaigns',
+            lock: fn () => Campaign::whereKey($campaign->id)->lockForUpdate()->first(),
+            workers: [['repay', $borrower->id, $campaign->id, $first->id], ['repay', $borrower->id, $campaign->id, $first->id]],
+        );
+
+        $this->assertSame(1, collect($results)->where('ok', true)->count(), 'Exactly one payment goes through.');
+        $refused = collect($results)->firstWhere('ok', false);
+        $this->assertSame(['RepaymentRefused', 'Instalment 1 is already paid. Nothing more was taken from your wallet.'], [$refused['error'], $refused['message']]);
+        $this->assertSame($before - 3_666_66, $this->balance($borrower), 'Charged once.');
+        $this->assertSame(1, Repayment::where('repayment_schedule_id', $first->id)->count());
+        $this->assertSame(2, InvestorPayout::count(), 'Each investor paid once.');
         $this->assertLedgerReconciles();
     }
 

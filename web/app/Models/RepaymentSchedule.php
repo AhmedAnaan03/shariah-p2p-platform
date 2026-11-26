@@ -97,4 +97,12 @@ class RepaymentSchedule extends Model
     {
         return $this->hasMany(Repayment::class);
     }
+
+    /**
+     * A Mudarabah period's reports (PB-29): at most one submitted or approved at a time.
+     */
+    public function businessReports(): HasMany
+    {
+        return $this->hasMany(BusinessReport::class);
+    }
 }

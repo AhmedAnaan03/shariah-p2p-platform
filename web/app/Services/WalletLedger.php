@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Exceptions\InsufficientFunds;
 use App\Models\AuditLog;
+use App\Models\BusinessReport;
 use App\Models\Pledge;
+use App\Models\Repayment;
 use App\Models\User;
 use App\Models\WalletAccount;
 use App\Models\WalletTransaction;
@@ -68,8 +70,16 @@ class WalletLedger
      *
      * @throws InsufficientFunds when $from is a user or escrow wallet without enough money
      */
-    public function transfer(WalletAccount $from, WalletAccount $to, int $cents, string $type, ?Pledge $pledge = null, ?string $description = null): string
-    {
+    public function transfer(
+        WalletAccount $from,
+        WalletAccount $to,
+        int $cents,
+        string $type,
+        ?Pledge $pledge = null,
+        ?string $description = null,
+        ?Repayment $repayment = null,
+        ?BusinessReport $businessReport = null,
+    ): string {
         if ($cents <= 0) {
             throw new InvalidArgumentException('A transfer must be for more than zero.');
         }
@@ -77,7 +87,9 @@ class WalletLedger
             throw new InvalidArgumentException('A transfer needs two different accounts.');
         }
 
-        return self::run(function () use ($from, $to, $cents, $type, $pledge, $description) {
+        $links = ['pledge_id' => $pledge?->id, 'repayment_id' => $repayment?->id, 'business_report_id' => $businessReport?->id];
+
+        return self::run(function () use ($from, $to, $cents, $type, $links, $description) {
             // Lock both rows, lowest id first, before reading either balance.
             WalletAccount::whereKey([$from->id, $to->id])->orderBy('id')->lockForUpdate()->get();
 
@@ -88,8 +100,8 @@ class WalletLedger
             $toBalance = $this->lockedBalance($to);
 
             $ref = (string) Str::uuid();
-            $this->entry($from, $ref, $type, WalletTransaction::DEBIT, $cents, $fromBalance - $cents, $pledge, $description);
-            $this->entry($to, $ref, $type, WalletTransaction::CREDIT, $cents, $toBalance + $cents, $pledge, $description);
+            $this->entry($from, $ref, $type, WalletTransaction::DEBIT, $cents, $fromBalance - $cents, $links, $description);
+            $this->entry($to, $ref, $type, WalletTransaction::CREDIT, $cents, $toBalance + $cents, $links, $description);
 
             return $ref;
         });
@@ -164,7 +176,10 @@ class WalletLedger
         return $account ? $this->balance($account) : 0;
     }
 
-    private function entry(WalletAccount $account, string $ref, string $type, string $direction, int $cents, int $balanceAfter, ?Pledge $pledge, ?string $description): void
+    /**
+     * @param  array{pledge_id: ?int, repayment_id: ?int, business_report_id: ?int}  $links  what the money is for, on both legs
+     */
+    private function entry(WalletAccount $account, string $ref, string $type, string $direction, int $cents, int $balanceAfter, array $links, ?string $description): void
     {
         $entry = new WalletTransaction([
             'wallet_type' => $account->type,
@@ -173,7 +188,7 @@ class WalletLedger
             'direction' => $direction,
             'amount' => Money::fromCents($cents),
             'balance_after' => Money::fromCents($balanceAfter),
-            'pledge_id' => $pledge?->id,
+            ...$links,
             'description' => $description,
         ]);
         $entry->walletAccount()->associate($account);

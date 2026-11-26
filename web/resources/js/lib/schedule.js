@@ -17,6 +17,9 @@ export const SCHEDULE_STATES = {
     upcoming: { tone: 'neutral', icon: 'calendar-blank' },
     late: { tone: 'danger', icon: 'warning' },
     awaiting: { tone: 'info', icon: 'hourglass' },
+    // PB-29: a Mudarabah period whose report is waiting for review, or not needed once settled.
+    review: { tone: 'info', icon: 'clipboard-text' },
+    closed: { tone: 'neutral', icon: 'lock' },
 };
 
 /** The chart's series colours, from the theme (they change with the mode and theme). */

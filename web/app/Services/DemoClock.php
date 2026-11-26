@@ -60,6 +60,9 @@ class DemoClock
                 $row->save();
             }
 
+            // PB-35: the late status follows the new dates at once, not a minute later.
+            RepaymentService::refreshLateStatus($campaign);
+
             AuditLog::record('demo.schedule_moved', $campaign, [
                 'days_moved' => $days,
                 'next_instalment' => $next->instalment_no,
