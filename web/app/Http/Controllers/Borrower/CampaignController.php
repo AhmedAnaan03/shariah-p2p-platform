@@ -8,9 +8,11 @@ use App\Http\Requests\Kyc\StoreKycDocumentRequest;
 use App\Models\Campaign;
 use App\Models\KycDocument;
 use App\Services\CampaignSubmissionService;
+use App\Services\PledgeService;
 use App\Support\CampaignPresenter;
 use App\Support\InvestorDisclosure;
 use App\Support\ListFilters;
+use App\Support\Money;
 use App\Support\ReturnUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -112,10 +114,16 @@ class CampaignController extends Controller
         // Someone else's request answers 404 (CampaignPolicy::view).
         Gate::authorize('view', $campaign);
 
-        $campaign->load(['financials', 'creditReport']);
+        $campaign = Campaign::whereKey($campaign->id)->withFunding()->with(['financials', 'creditReport'])->firstOrFail();
 
         return Inertia::render('Borrower/Campaigns/Show', [
             'campaign' => CampaignPresenter::details($campaign),
+            // PB-20: how much investors have pledged so far, once the campaign is open.
+            'funding' => in_array($campaign->status, [Campaign::STATUS_LIVE, Campaign::STATUS_FUNDED, Campaign::STATUS_FAILED], true) ? [
+                'raised' => (float) ($campaign->raised_amount ?? 0),
+                'investors' => (int) ($campaign->investors_count ?? 0),
+                'remaining' => Money::fromCents(PledgeService::remainingCents($campaign)),
+            ] : null,
             'finances' => CampaignPresenter::finances($campaign->financials),
             'creditHistory' => CampaignPresenter::creditHistory($campaign->financials),
             'creditReport' => $campaign->creditReport?->toListItem(),

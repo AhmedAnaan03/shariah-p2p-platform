@@ -10,10 +10,12 @@ use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\Borrower\CampaignController as BorrowerCampaignController;
 use App\Http\Controllers\Investor\CampaignController as InvestorCampaignController;
+use App\Http\Controllers\Investor\PledgeController;
 use App\Http\Controllers\Investor\ShariahPreferenceController;
 use App\Http\Controllers\KycDocumentController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\Wallet\WalletController;
 use App\Http\Controllers\WelcomeController;
 use App\Models\Role;
 use App\Support\OnboardingSteps;
@@ -85,11 +87,23 @@ $onboardingRoutes = function (string $role): void {
 };
 
 /*
+| The simulated wallet (PB-18), for borrowers and investors, registered inside each group below so
+| it inherits the role gate. No user id in the URLs: it is always the signed-in user's own wallet.
+*/
+$walletRoutes = function (): void {
+    Route::get('/wallet', [WalletController::class, 'show'])->name('wallet.show');
+    Route::post('/wallet/top-up', [WalletController::class, 'topUp'])->name('wallet.top-up');
+    Route::post('/wallet/withdraw', [WalletController::class, 'withdraw'])->name('wallet.withdraw');
+};
+
+/*
 | One portal per role. Every route a later item adds for a role goes inside its group, so it
 | inherits the gate: e.g. a borrower opening /investor/... gets 403 Forbidden.
 */
-Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('borrower.')->group(function () use ($onboardingRoutes) {
+Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('borrower.')->group(function () use ($onboardingRoutes, $walletRoutes) {
     Route::get('/', [PortalController::class, 'borrower'])->name('portal');
+
+    $walletRoutes();
 
     $onboardingRoutes(Role::BORROWER);
 
@@ -104,8 +118,10 @@ Route::middleware(['auth', 'role:'.Role::BORROWER])->prefix('borrower')->name('b
     Route::get('/campaigns/{campaign}', [BorrowerCampaignController::class, 'show'])->name('campaigns.show');
 });
 
-Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('investor.')->group(function () use ($onboardingRoutes) {
+Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('investor.')->group(function () use ($onboardingRoutes, $walletRoutes) {
     Route::get('/', [PortalController::class, 'investor'])->name('portal');
+
+    $walletRoutes();
 
     $onboardingRoutes(Role::INVESTOR);
 
@@ -121,6 +137,9 @@ Route::middleware(['auth', 'role:'.Role::INVESTOR])->prefix('investor')->name('i
     // investor may see: open campaigns, and only Shariah ones while Shariah-only is on (PB-31).
     Route::get('/campaigns', [InvestorCampaignController::class, 'index'])->name('campaigns.index');
     Route::get('/campaigns/{campaign}', [InvestorCampaignController::class, 'show'])->whereNumber('campaign')->name('campaigns.show');
+    // PB-19: pledge from the wallet into the campaign's escrow.
+    Route::post('/campaigns/{campaign}/pledges', [PledgeController::class, 'store'])->whereNumber('campaign')
+        ->middleware('can:pledge,campaign')->name('campaigns.pledges.store');
 });
 
 Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin')->name('admin.')->group(function () {

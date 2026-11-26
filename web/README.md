@@ -62,11 +62,50 @@ export PATH="/opt/homebrew/opt/mysql@8.4/bin:$PATH"
 ## Running locally
 
 ```sh
-npm run dev            # terminal 1: Vite dev server (hot reload for React/Tailwind)
-php artisan serve      # terminal 2: Laravel at http://localhost:8000
+composer run dev       # everything in one terminal (recommended)
 ```
 
-Or run `npm run build` once and only `php artisan serve`.
+`composer run dev` (Laravel's `php artisan dev`) starts, side by side:
+
+- `server`: Laravel at http://localhost:8000
+- `vite`: the Vite dev server (hot reload for React/Tailwind)
+- `queue`: the queue worker
+- `logs`: the log viewer (`pail`)
+- `scheduler`: `php artisan schedule:work`, which runs the scheduled jobs every minute. Added in
+  PB-20 (`AppServiceProvider`, local only) so funding deadlines are settled automatically while the
+  app runs.
+
+Or run the pieces yourself: `npm run dev` and `php artisan serve` in two terminals (no
+scheduler; run the deadline job by hand, below), or `npm run build` once and only
+`php artisan serve`.
+
+### Wallet, pledging and funding deadlines (PB-18 to PB-20)
+
+Money is simulated: every movement is a pair of ledger entries (`WalletLedger`), and no real
+payment ever happens.
+
+```sh
+php artisan campaigns:settle-deadlines   # settle every campaign past its deadline, now
+php artisan wallet:reconcile             # prove every balance reconciles with the ledger
+php artisan schedule:list                # what the scheduler runs (settle-deadlines, every minute)
+```
+
+`campaigns:settle-deadlines` is what the scheduler runs every minute: a live campaign past its
+funding deadline becomes **funded** if its target was reached, otherwise **not funded**, and
+every pledge goes back from escrow to its investor's wallet. Running it again changes nothing.
+In production a cron entry runs `php artisan schedule:run` every minute instead.
+
+After `php artisan migrate:fresh --seed`, two demo campaigns close soon so both outcomes can
+be watched (times are from when you seeded):
+
+| Campaign | Closes | What happens |
+|---|---|---|
+| Solar water heaters for the guest house | in 10 minutes | `sme@example.com`'s own campaign (its request page shows the funding progress). MVR 4,000 is left: pledge it as `investor@example.com` and it is funded at once; otherwise it is refunded at the deadline. |
+| Coconut oil press | in 5 minutes | Far short of its target, with a MVR 1,000 pledge from `investor@example.com`: at the deadline every pledge is refunded and the investor's wallet goes back to MVR 50,000. |
+
+With `composer run dev` running, this happens within a minute of the deadline; otherwise run
+`php artisan campaigns:settle-deadlines` once the deadline has passed. Emails go to
+`storage/logs/laravel.log` (`MAIL_MAILER=log`).
 
 On a developer machine (`APP_ENV=local`) the design preview at
 <http://localhost:8000/dev/design> shows every shared component in every state, with a

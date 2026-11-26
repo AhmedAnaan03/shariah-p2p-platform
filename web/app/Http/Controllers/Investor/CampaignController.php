@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Investor;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
 use App\Policies\CampaignPolicy;
+use App\Services\PledgeService;
+use App\Services\WalletLedger;
 use App\Support\CampaignPresenter;
 use App\Support\ListFilters;
 use App\Support\MarketplaceFilters;
+use App\Support\Money;
 use App\Support\RepaymentHistory;
 use App\Support\ReturnUrl;
 use Illuminate\Http\RedirectResponse;
@@ -20,9 +23,10 @@ use Inertia\Response;
 /**
  * The marketplace (PB-15, extended in PB-16) and a campaign's page (PB-17).
  *
- * Both start from Campaign::visibleTo(), which lists only open campaigns and, while the investor
- * has Shariah-only on, only Murabahah and Mudarabah (PB-31). The campaign page also checks the
- * 'browse' policy, so a hidden campaign can't be opened by typing its address.
+ * The marketplace starts from Campaign::visibleTo(), which lists only open campaigns and, while
+ * the investor has Shariah-only on, only Murabahah and Mudarabah (PB-31). The campaign page
+ * checks the 'browse' policy, so a hidden campaign can't be opened by typing its address, but an
+ * investor can always open a campaign they pledged to, whatever has happened to it since.
  */
 class CampaignController extends Controller
 {
@@ -64,7 +68,7 @@ class CampaignController extends Controller
         ]);
     }
 
-    public function show(Request $request, Campaign $campaign): Response|RedirectResponse
+    public function show(Request $request, Campaign $campaign, WalletLedger $ledger): Response|RedirectResponse
     {
         $access = Gate::inspect('browse', $campaign);
         // PB-31: a conventional campaign while Shariah-only is on. Back to the marketplace with
@@ -81,8 +85,10 @@ class CampaignController extends Controller
         $campaign = Campaign::whereKey($campaign->id)->withFunding()
             ->with(['borrower.borrowerProfile', 'currentRiskScore', 'financials'])
             ->firstOrFail();
+        $user = $request->user();
         $pledge = Gate::inspect('pledge', $campaign);
         $score = $campaign->currentRiskScore;
+        $myPledges = $campaign->pledges()->where('investor_id', $user->id)->orderBy('id')->get();
 
         return Inertia::render('Investor/Campaigns/Show', [
             'campaign' => CampaignPresenter::forInvestor($campaign),
@@ -97,6 +103,30 @@ class CampaignController extends Controller
                 'model' => $score->model_version,
             ] : null,
             'pledge' => ['allowed' => $pledge->allowed(), 'reason' => $pledge->message()],
+            // PB-19: what the pledge form needs. Money as "12500.00" strings, exact.
+            'pledging' => [
+                'url' => route('investor.campaigns.pledges.store', $campaign),
+                'walletUrl' => route('investor.wallet.show'),
+                'balance' => Money::fromCents($ledger->balanceFor($user)),
+                'remaining' => Money::fromCents($remaining = PledgeService::remainingCents($campaign)),
+                'minimum' => Money::fromCents(min(PledgeService::MIN_CENTS, $remaining)),
+                'mine' => Money::fromCents($myPledges->where('status', 'held')->sum(fn ($pledge) => Money::fromDatabase($pledge->amount))),
+            ],
+            // Where a campaign that is no longer open stands, in place of the pledge form.
+            'standing' => CampaignPresenter::standing($campaign),
+            // The investor's own pledges here and what happened to each (held, refunded, settled).
+            'myPledges' => $myPledges->map(fn ($pledge) => [
+                'id' => $pledge->id,
+                'amount' => $pledge->amount,
+                'status' => $pledge->status,
+                'created_at' => $pledge->created_at?->toIso8601String(),
+            ])->values(),
+            // A conventional campaign they pledged to before turning Shariah-only on: shown, with
+            // a note, rather than sending them away from their own investment (the policy lets
+            // only pledgers through in this case).
+            'shariahOnlyNote' => $user->investorProfile?->shariah_only && ! $campaign->isShariah()
+                ? CampaignPolicy::SHARIAH_ONLY_PLEDGED
+                : null,
             // PB-54: back to the marketplace with its filters and page.
             'back' => ReturnUrl::back($request, 'investor.campaigns.index'),
         ]);

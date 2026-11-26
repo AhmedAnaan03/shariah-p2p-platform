@@ -100,7 +100,10 @@ const PAGES = [
     ['verifiedBorrower', 'borrower-campaign-create', '/borrower/campaigns/create'],
     ['verifiedBorrower', 'borrower-campaign-show', null],
     ['investor', 'marketplace', '/investor/campaigns'],
-    ['investor', 'marketplace-campaign', null], // PB-17: the first card's campaign page
+    ['investor', 'marketplace-campaign', null], // PB-17: the first card's campaign page (PB-19: with the pledge form)
+    ['investor', 'investor-wallet', '/investor/wallet'], // PB-18
+    ['investor', 'pledged-campaign', null], // PB-19, PB-20: a campaign the investor funded, from the wallet history's link
+    ['verifiedBorrower', 'borrower-wallet', '/borrower/wallet'],
     ['admin', 'admin-campaigns', '/admin/campaigns'],
     ['admin', 'admin-campaign-review', null],
     ['guest', 'design-preview', '/dev/design'],
@@ -112,6 +115,7 @@ const FIRST_LINK = {
     'admin-campaign-review': ['/admin/campaigns', 'a[href*="/admin/campaigns/"]'],
     'borrower-campaign-show': ['/borrower/campaigns', 'a[href*="/borrower/campaigns/"]:not([href$="/create"])'],
     'marketplace-campaign': ['/investor/campaigns', 'a[href*="/investor/campaigns/"]'],
+    'pledged-campaign': ['/investor/wallet', 'a[href*="/investor/campaigns/"]'],
 };
 
 const failures = [];

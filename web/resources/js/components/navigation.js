@@ -12,6 +12,7 @@ export const NAVIGATION = {
                 items: [
                     { href: '/borrower', label: 'Overview', icon: 'house' },
                     { href: '/borrower/campaigns', label: 'Financing requests', icon: 'hand-coins' },
+                    { href: '/borrower/wallet', label: 'Wallet', icon: 'wallet' },
                     { href: '/borrower/onboarding', label: 'Account setup', icon: 'user-check' },
                 ],
             },
@@ -24,6 +25,7 @@ export const NAVIGATION = {
                 items: [
                     { href: '/investor', label: 'Overview', icon: 'house' },
                     { href: '/investor/campaigns', label: 'Marketplace', icon: 'storefront' },
+                    { href: '/investor/wallet', label: 'Wallet', icon: 'wallet' },
                     { href: '/investor/onboarding', label: 'Account setup', icon: 'user-check' },
                 ],
             },

@@ -7,16 +7,40 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * One ledger entry. Only the wallet ledger code (PB-18) creates these, inside a DB transaction.
+ * One ledger entry. Only WalletLedger (PB-18) creates these: always two per transfer (a debit
+ * and a credit of the same amount sharing transfer_ref), inside a DB transaction. Never updated.
  */
 #[Fillable([
-    'transfer_ref', 'type', 'direction', 'amount', 'balance_after',
+    'wallet_type', 'transfer_ref', 'type', 'direction', 'amount', 'balance_after',
     'pledge_id', 'repayment_id', 'description',
 ])]
 class WalletTransaction extends Model
 {
     // Append-only table: it has created_at but no updated_at column.
     public const UPDATED_AT = null;
+
+    public const TOP_UP = 'top_up';
+
+    public const WITHDRAWAL = 'withdrawal';
+
+    public const PLEDGE = 'pledge';
+
+    public const PLEDGE_REFUND = 'pledge_refund';
+
+    public const CREDIT = 'credit';
+
+    public const DEBIT = 'debit';
+
+    /** How each type reads in a wallet's history. */
+    public const LABELS = [
+        self::TOP_UP => 'Top-up',
+        self::WITHDRAWAL => 'Withdrawal',
+        self::PLEDGE => 'Pledge',
+        self::PLEDGE_REFUND => 'Pledge refund',
+        'disbursement' => 'Disbursement',
+        'repayment' => 'Repayment',
+        'return_payout' => 'Return payout',
+    ];
 
     protected function casts(): array
     {

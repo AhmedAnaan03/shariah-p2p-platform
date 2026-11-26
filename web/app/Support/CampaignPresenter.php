@@ -124,6 +124,38 @@ final class CampaignPresenter
     }
 
     /**
+     * Where a campaign that is no longer open for pledges stands, for the investor's campaign
+     * page (it replaces the pledge form). null while the campaign is open.
+     *
+     * @return array{status: string, tone: string, title: string, body: string}|null
+     */
+    public static function standing(Campaign $campaign): ?array
+    {
+        if ($campaign->isListed()) {
+            return null;
+        }
+
+        [$tone, $title, $body] = match ($campaign->status) {
+            // Past its deadline, waiting for the scheduled job (PB-20) to settle it.
+            Campaign::STATUS_LIVE => ['info', 'Funding has closed', 'The deadline has passed and the result is being settled. If the target was reached the campaign is funded; if not, every pledge is refunded to the investors’ wallets.'],
+            Campaign::STATUS_FUNDED => ['success', 'Fully funded', 'The target was reached. The money stays in the campaign’s escrow until it is paid out to the borrower.'],
+            Campaign::STATUS_FAILED => ['warning', 'Not funded', 'The target wasn’t reached by the deadline, so every pledge was refunded to the investors’ wallets.'],
+            'repaying' => ['info', 'Funded and repaying', 'The money was paid out to the borrower, who is repaying it in instalments.'],
+            'completed' => ['success', 'Fully repaid', 'The borrower has repaid this campaign in full.'],
+            'defaulted' => ['danger', 'Defaulted', 'The borrower has stopped repaying this campaign.'],
+            Campaign::STATUS_SUSPENDED => ['warning', 'Suspended', 'The platform has paused this campaign, so it is closed to new pledges.'],
+            default => ['info', 'Not open for pledges', 'This campaign is not open for pledges.'],
+        };
+
+        return [
+            'status' => $campaign->status === Campaign::STATUS_LIVE ? 'closed' : $campaign->status,
+            'tone' => $tone,
+            'title' => $title,
+            'body' => $body,
+        ];
+    }
+
+    /**
      * The SME's sector, or "Individual borrower".
      */
     public static function sectorLabel(?BorrowerProfile $profile): string

@@ -22,6 +22,15 @@ const STATUSES = {
     submitted: ['warning', 'hourglass', 'Awaiting review'],
     suspended: ['danger', 'prohibit', 'Suspended'],
     approved: ['success', 'check-circle', 'Approved'],
+
+    // Campaigns after funding (PB-20) and pledges (PB-19): what an investor sees on a campaign
+    // they pledged to. "closed" is a live campaign past its deadline, waiting to be settled.
+    closed: ['neutral', 'lock', 'Funding closed'],
+    repaying: ['info', 'arrows-clockwise', 'Repaying'],
+    completed: ['success', 'seal-check', 'Fully repaid'],
+    held: ['info', 'lock', 'Held in escrow'],
+    refunded: ['neutral', 'arrows-clockwise', 'Refunded'],
+    settled: ['success', 'check', 'Settled'],
 };
 
 /**

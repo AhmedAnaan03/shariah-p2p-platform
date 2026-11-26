@@ -4,8 +4,11 @@ namespace Database\Seeders;
 
 use App\Models\BorrowerProfile;
 use App\Models\Campaign;
+use App\Models\InvestorProfile;
 use App\Models\RepaymentSchedule;
 use App\Models\User;
+use App\Services\PledgeService;
+use App\Services\WalletLedger;
 
 /**
  * Live campaigns for the marketplace (PB-16, PB-17, PB-31), shared by DatabaseSeeder (the demo
@@ -14,8 +17,15 @@ use App\Models\User;
  * mode has something to show. One SME has an earlier campaign it is repaying, so its new
  * campaign's page has a repayment history.
  *
- * No pledges and no risk scores: funding shows 0% until PB-19 and grades "Not yet scored" until
- * PB-25. Every name and business is invented.
+ * No risk scores: grades say "Not yet scored" until PB-25. Every name and business is invented.
+ *
+ * funding() (PB-18 to PB-20) adds money: four "crowd" investors pledge to a few campaigns so the
+ * progress rings show something, and two campaigns close within minutes of seeding so both
+ * deadline outcomes can be watched (`composer dev` runs the scheduler, or run
+ * `php artisan campaigns:settle-deadlines` once the deadline has passed):
+ *  - "Solar water heaters…" closes in 10 minutes with MVR 4,000 left: pledge it to see the funded path;
+ *  - "Coconut oil press…" closes in 5 minutes far short of its target: every pledge is refunded.
+ * All of it goes through the ledger and pledge services, so the seeded ledger reconciles.
  */
 final class MarketplaceCampaigns
 {
@@ -65,6 +75,61 @@ final class MarketplaceCampaigns
         }
 
         self::bakeryWithRepaymentHistory();
+    }
+
+    /**
+     * Wallets and pledges. $demoInvestor (investor@example.com) gets a pledge in the campaign that
+     * will miss its target, so its refund shows up in that wallet; $demoBorrower (sme@example.com)
+     * owns the campaign that is nearly funded, so a borrower login shows its funding progress.
+     */
+    public static function funding(?User $demoInvestor = null, ?User $demoBorrower = null): void
+    {
+        $ledger = app(WalletLedger::class);
+        $pledges = app(PledgeService::class);
+
+        $crowd = collect(['Naail Hameed', 'Shirufa Ali', 'Imran Mohamed', 'Lamya Waheed'])->map(function (string $name) use ($ledger) {
+            $investor = User::factory()->investor()->verified()->submitted()->create(['name' => $name]);
+            InvestorProfile::factory()->for($investor)->create(['risk_acknowledged_at' => now()->subWeek()]);
+            $ledger->topUp($investor, 200_000_00);
+
+            return $investor;
+        });
+
+        // Progress on a few marketplace campaigns.
+        foreach (['Cold room for the fish market' => [12_000, 18_000], 'Dive compressor and tanks' => [25_000, 20_000, 15_000], 'Hydroponic greenhouse' => [20_000]] as $title => $amounts) {
+            $campaign = Campaign::where('title', $title)->firstOrFail();
+            foreach ($amounts as $i => $mvr) {
+                $pledges->pledge($crowd[$i], $campaign, $mvr * 100);
+            }
+        }
+
+        // Closes in 10 minutes with MVR 4,000 left: pledge the rest to watch it become funded.
+        $nearly = self::closingSoon('Ibrahim Shareef', 'Sunrise Lodge Thoddoo', 'murabahah', ['asset_description' => 'Solar water heaters for 12 rooms', 'markup_amount' => 3_200], 'Solar water heaters for the guest house', 40_000, 24, 10, $demoBorrower);
+        foreach ([14_000, 12_000, 10_000] as $i => $mvr) {
+            $pledges->pledge($crowd[$i], $nearly, $mvr * 100);
+        }
+
+        // Closes in 5 minutes far short of its target: every pledge will be refunded.
+        $short = self::closingSoon('Mohamed Arif', 'Kaashidhoo Coconut Co.', 'mudarabah', ['investor_profit_share_percent' => 55], 'Coconut oil press', 60_000, 18, 5);
+        foreach ([5_000, 4_000] as $i => $mvr) {
+            $pledges->pledge($crowd[$i + 2], $short, $mvr * 100);
+        }
+        if ($demoInvestor !== null) {
+            $pledges->pledge($demoInvestor, $short, 1_000_00);
+        }
+    }
+
+    private static function closingSoon(string $name, string $business, string $contract, array $terms, string $title, int $amount, int $tenure, int $minutes, ?User $borrower = null): Campaign
+    {
+        $business = $borrower?->borrowerProfile?->business_name ?? $business;
+        $borrower ??= self::borrower($name, $business, 'food_and_beverage', 'addu');
+
+        return Campaign::factory()->{$contract}()->live(now()->addMinutes($minutes))->for($borrower, 'borrower')->create([
+            'title' => $title, 'purpose' => 'growth', 'description' => self::DESCRIPTIONS['growth'],
+            'business_background' => "{$business} has traded for several years and is verified on Amanah P2P.",
+            'amount_requested' => $amount, 'tenure_months' => $tenure, 'submitted_at' => now()->subDays(20),
+            ...$terms,
+        ]);
     }
 
     private static function borrower(string $name, ?string $business, ?string $sector, string $address): User
