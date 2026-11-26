@@ -3,13 +3,22 @@
 namespace Tests\Feature;
 
 use App\Http\Requests\Campaign\StoreCampaignRequest;
+use App\Models\BusinessReport;
 use App\Models\Campaign;
 use App\Models\InvestorProfile;
 use App\Models\User;
+use App\Models\WalletTransaction;
+use App\Notifications\BusinessReportDecided;
+use App\Notifications\CampaignCompleted;
 use App\Notifications\CampaignDecided;
 use App\Notifications\CampaignDisbursed;
+use App\Services\BusinessReportService;
 use App\Services\CampaignReviewService;
+use App\Services\RepaymentService;
+use App\Services\WalletLedger;
 use App\Support\CampaignPresenter;
+use App\Support\MudarabahPresenter;
+use App\Support\RepaymentPresenter;
 use App\Support\SchedulePresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -230,5 +239,131 @@ class ShariahWordingTest extends TestCase
         $this->assertStringContainsString('planned capital return', $comments['capital_due']);
         $this->assertStringContainsString('not a debt due date', $comments['due_date']);
         $this->assertStringContainsString('always NULL for Mudarabah', $comments['return_due']);
+    }
+
+    // ----- Repayments, payouts and Mudarabah reports (PB-35, PB-36, PB-29) -----
+
+    /**
+     * Every Mudarabah label in one list: the presenters' constants, the schedule's report states,
+     * a completed Mudarabah's status, and its wallet entries.
+     *
+     * @return list<string>
+     */
+    private static function mudarabahLabels(): array
+    {
+        $completed = CampaignPresenter::standing(Campaign::factory()->mudarabah()->create(['status' => Campaign::STATUS_COMPLETED]));
+
+        return [
+            MudarabahPresenter::RULES_NOTE,
+            ...array_values(MudarabahPresenter::ACCOUNT_LABELS),
+            ...array_values(MudarabahPresenter::OUTCOME_LABELS),
+            ...array_values(MudarabahPresenter::CAUSE_LABELS),
+            ...array_values(MudarabahPresenter::CAUSE_DESCRIPTIONS),
+            ...array_values(MudarabahPresenter::REPORT_STATUS_LABELS),
+            SchedulePresenter::LABELS['report_approved'],
+            SchedulePresenter::LABELS['report_review'],
+            SchedulePresenter::LABELS['report_rejected'],
+            SchedulePresenter::LABELS['not_needed'],
+            $completed['title'],
+            $completed['body'],
+            WalletTransaction::LABELS[WalletTransaction::MUDARABAH_PAYMENT],
+            WalletTransaction::LABELS[WalletTransaction::MUDARABAH_PAYOUT],
+        ];
+    }
+
+    public function test_every_new_mudarabah_label_never_says_interest_or_guaranteed_and_never_reads_as_a_debt(): void
+    {
+        foreach (self::mudarabahLabels() as $label) {
+            $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, $label);
+            $this->assertDoesNotMatchRegularExpression(ShariahWording::DEBT, $label, "Reads as a debt: {$label}");
+        }
+        $this->assertSame('capital-settled', CampaignPresenter::badgeStatus(Campaign::factory()->mudarabah()->create(['status' => Campaign::STATUS_COMPLETED])));
+    }
+
+    public function test_the_murabahah_repayment_labels_never_say_interest_or_guaranteed(): void
+    {
+        foreach ([RepaymentPresenter::MURABAHAH_PAYOFF, RepaymentPresenter::IN_ORDER, SchedulePresenter::NO_FEES_NOTE,
+            SchedulePresenter::LABELS['paid'], SchedulePresenter::LABELS['paid_late'], SchedulePresenter::LABELS['paid_early']] as $label) {
+            $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, $label);
+        }
+    }
+
+    public function test_the_repayment_panel_and_completion_emails_of_a_murabahah_never_say_interest_or_guaranteed(): void
+    {
+        Notification::fake();
+        [$campaign, [$investor]] = $this->paidOutCampaign('murabahah', 10_000, 3, [10_000], ['markup_amount' => 1_000]);
+        app(WalletLedger::class)->topUp($campaign->borrower, 1_000_00);
+
+        $props = $this->actingAs($campaign->borrower)->get("/borrower/campaigns/{$campaign->id}")->viewData('page')['props'];
+        $this->assertNotNull($props['repayment']);
+        $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, json_encode($props));
+
+        app(RepaymentService::class)->payOff($campaign->borrower, $campaign, RepaymentService::quote($campaign)['total']);
+        foreach ([[$campaign->borrower, CampaignCompleted::class], [$investor, CampaignCompleted::class]] as [$user, $class]) {
+            Notification::assertSentTo($user, $class, function (CampaignCompleted $n) use ($user) {
+                $mail = $n->toMail($user);
+                $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, implode(' ', [$mail->subject, ...$mail->introLines, ...$mail->outroLines]));
+
+                return true;
+            });
+        }
+    }
+
+    /**
+     * Every path of a Mudarabah: profit, genuine loss, negligence, rejection, a loss restored from
+     * later profit, and the final settlement. Every page (the business's, an investor's and the
+     * administrator's) and every email for them.
+     */
+    public function test_every_mudarabah_report_path_page_and_email_never_says_interest_or_guaranteed_or_reads_as_a_debt(): void
+    {
+        Notification::fake();
+        Carbon::setTestNow('2026-11-26 10:00:00');
+        [$campaign, [$investor]] = $this->paidOutCampaign('mudarabah', 10_000, 3, [10_000], ['title' => 'Food truck for Malé evenings']);
+        app(WalletLedger::class)->topUp($campaign->borrower, 5_000_00);
+        $admin = User::factory()->admin()->create();
+        $reports = app(BusinessReportService::class);
+        $submit = function (int $revenue, int $costs, int $capital) use ($campaign, $reports) {
+            $next = $campaign->repaymentSchedules()->where('status', '!=', 'paid')->orderBy('instalment_no')->first();
+            Carbon::setTestNow($next->due_date->copy()->setTime(10, 0));
+
+            return $reports->submit($campaign->borrower, $campaign, ['revenue' => $revenue, 'costs' => $costs, 'capital_returned' => $capital]);
+        };
+
+        $rejected = $submit(1_000_00, 2_000_00, 0);
+        $reports->reject($admin, $rejected, 'The costs do not match the accounts.');
+        $reports->approve($admin, $submit(1_000_00, 2_000_00, 0), BusinessReport::CAUSE_BUSINESS);
+        $reports->approve($admin, $submit(1_000_00, 1_500_00, 0), BusinessReport::CAUSE_NEGLIGENCE, 'Stock was left unrefrigerated.');
+        $outstanding = 10_000_00 - 1_000_00;
+        $final = $submit(4_000_00, 1_000_00, $outstanding);
+
+        $texts = [];
+        foreach ([[$campaign->borrower, "/borrower/campaigns/{$campaign->id}", ['mudarabah', 'schedule']], [$investor, "/investor/campaigns/{$campaign->id}", ['mudarabah', 'schedule', 'standing']], [$admin, "/admin/reports/{$final->id}", ['report', 'account', 'previews', 'note', 'causes']]] as [$user, $url, $keys]) {
+            $props = $this->actingAs($user)->get($url)->assertOk()->viewData('page')['props'];
+            $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, json_encode($props), $url);
+            $texts[$url] = json_encode(array_intersect_key($props, array_flip($keys)), JSON_UNESCAPED_UNICODE);
+        }
+        $texts['create'] = json_encode($this->actingAs($campaign->borrower)->get("/borrower/campaigns/{$campaign->id}")->viewData('page')['props']['mudarabah']);
+
+        $reports->approve($admin, $final);
+        $this->assertSame(Campaign::STATUS_COMPLETED, $campaign->fresh()->status);
+        $texts['completed'] = json_encode(array_intersect_key($this->actingAs($investor)->get("/investor/campaigns/{$campaign->id}")->viewData('page')['props'], array_flip(['mudarabah', 'schedule', 'standing'])), JSON_UNESCAPED_UNICODE);
+
+        foreach ([BusinessReportDecided::class, CampaignCompleted::class] as $class) {
+            foreach ([$campaign->borrower, $investor] as $user) {
+                Notification::assertSentTo($user, $class, function ($n) use ($user, &$texts) {
+                    $mail = $n->toMail($user);
+                    $texts[] = implode(' ', [$mail->subject, ...$mail->introLines, ...$mail->outroLines, $mail->actionText]);
+
+                    return true;
+                });
+            }
+        }
+
+        foreach ($texts as $where => $text) {
+            // Ignore URLs and prop names: only the words people read.
+            $words = preg_replace(['#"[a-zA-Z]+":#', '#https?://\S+|/[a-z]+/[a-z/0-9?=&_%.-]+#'], ' ', $text);
+            $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, $words, (string) $where);
+            $this->assertDoesNotMatchRegularExpression(ShariahWording::DEBT, $words, "Reads as a debt in {$where}");
+        }
     }
 }

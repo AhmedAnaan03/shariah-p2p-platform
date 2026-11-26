@@ -39,6 +39,7 @@ export const NAVIGATION = {
                     { href: '/admin', label: 'Overview', icon: 'house' },
                     { href: '/admin/verifications', label: 'Verifications', icon: 'user-list' },
                     { href: '/admin/campaigns', label: 'Campaigns', icon: 'clipboard-text' },
+                    { href: '/admin/reports', label: 'Business reports', icon: 'scales' },
                 ],
             },
         ],
