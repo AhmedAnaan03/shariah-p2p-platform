@@ -22,6 +22,8 @@ class CampaignPolicy
 
     public const SHARIAH_ONLY_HIDDEN = 'That campaign uses a conventional contract, so it is hidden while Shariah-only mode is on. Turn Shariah-only off in the top bar to see it.';
 
+    public const SHARIAH_ONLY_PLEDGED = 'This campaign uses a conventional contract. You can still see it because you pledged to it, but it stays hidden from the marketplace while Shariah-only mode is on, and you can’t pledge to it again.';
+
     /**
      * Only a verified borrower may submit a request (PB-13 acceptance criterion).
      */
@@ -52,17 +54,30 @@ class CampaignPolicy
     }
 
     /**
-     * Whether an investor may open a campaign's marketplace page (PB-17, PB-31). The investor
-     * routes are already behind role:investor.
+     * Whether an investor may open a campaign's page (PB-17, PB-31, PB-19).
      *
-     * - Not open (draft, waiting, rejected, suspended, past its deadline): 404, as if it didn't
-     *   exist, so unpublished requests can't be found by trying ids.
+     * - Their own investment: an investor who has pledged to a campaign can always open it,
+     *   whatever its status (live, funded, failed, repaying, completed, defaulted) and even if
+     *   Shariah-only mode now hides it. The page then says where the campaign stands.
+     * - Anyone else, not open (draft, waiting, rejected, suspended, funded, failed, past its
+     *   deadline): 404, as if it didn't exist, so unpublished requests can't be found by trying
+     *   ids.
      * - Conventional while Shariah-only is on: refused with its own code, so the controller
      *   can send the investor back to the marketplace with an explanation instead of an error.
+     *
+     * The marketplace itself still lists open campaigns only (Campaign::visibleTo()).
      */
     public function browse(User $user, Campaign $campaign): Response
     {
-        if (! $user->hasRole(Role::INVESTOR) || ! $campaign->isListed()) {
+        if (! $user->hasRole(Role::INVESTOR)) {
+            return Response::denyAsNotFound();
+        }
+
+        if (self::hasPledged($user, $campaign)) {
+            return Response::allow();
+        }
+
+        if (! $campaign->isListed()) {
             return Response::denyAsNotFound();
         }
 
@@ -71,5 +86,13 @@ class CampaignPolicy
         }
 
         return Response::allow();
+    }
+
+    /**
+     * Whether $user has ever pledged to $campaign, including pledges since refunded.
+     */
+    public static function hasPledged(User $user, Campaign $campaign): bool
+    {
+        return $campaign->pledges()->where('investor_id', $user->id)->exists();
     }
 }

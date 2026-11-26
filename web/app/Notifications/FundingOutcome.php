@@ -68,11 +68,15 @@ class FundingOutcome extends Notification
                 ->line('Your pledge of '.Money::format((int) $this->cents).' has been returned to your wallet.'),
         };
 
-        $url = in_array($this->outcome, [self::FUNDED_BORROWER, self::FAILED_BORROWER], true)
-            ? route('borrower.campaigns.show', $this->campaign)
-            : route('investor.wallet.show');
+        // A funded campaign leaves the marketplace, but stays open to the investors who pledged
+        // to it (CampaignPolicy::browse), so their email links straight to it.
+        [$label, $url] = match ($this->outcome) {
+            self::FUNDED_BORROWER, self::FAILED_BORROWER => ['View your request', route('borrower.campaigns.show', $this->campaign)],
+            self::FUNDED_INVESTOR => ['View the campaign', route('investor.campaigns.show', $this->campaign)],
+            self::REFUNDED_INVESTOR => ['View your wallet', route('investor.wallet.show')],
+        };
 
-        return $mail->line(self::SIMULATED)->action($url === route('investor.wallet.show') ? 'View your wallet' : 'View your request', $url);
+        return $mail->line(self::SIMULATED)->action($label, $url);
     }
 
     /**

@@ -11,6 +11,7 @@ import Money from '../../components/Money';
 import MoneyInput from '../../components/MoneyInput';
 import Pagination from '../../components/Pagination';
 import Table from '../../components/Table';
+import TextLink from '../../components/TextLink';
 import WalletCard from '../../components/WalletCard';
 import { formatDate, formatMoney, formatTime } from '../../lib/format';
 import { SIMULATED } from '../../lib/wallet';
@@ -75,7 +76,11 @@ export default function WalletShow({ available, held, transactions, hasAny, filt
                             columns={[
                                 { key: 'created_at', label: 'Date', mono: true, render: (row) => `${formatDate(row.created_at)} ${formatTime(row.created_at)}` },
                                 { key: 'type', label: 'Type', render: (row) => <Badge size="sm">{row.type_label}</Badge> },
-                                { key: 'description', label: 'Details', render: (row) => row.description ?? '' },
+                                {
+                                    key: 'description',
+                                    label: 'Details',
+                                    render: (row) => (row.campaign_url ? <TextLink href={row.campaign_url}>{row.description}</TextLink> : (row.description ?? '')),
+                                },
                                 { key: 'amount', label: 'Amount', align: 'right', render: (row) => <Money value={row.amount} sign /> },
                                 { key: 'balance_after', label: 'Balance after', align: 'right', render: (row) => <Money value={row.balance_after} /> },
                             ]}

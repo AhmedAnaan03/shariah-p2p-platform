@@ -8,6 +8,7 @@ use App\Models\InvestorProfile;
 use App\Models\KycDocument;
 use App\Models\User;
 use App\Services\KycDocumentStore;
+use App\Services\PledgeService;
 use App\Services\WalletLedger;
 use Illuminate\Database\Seeder;
 use Illuminate\Http\UploadedFile;
@@ -94,6 +95,11 @@ class ScreenshotSeeder extends Seeder
         // Wallets and pledges (PB-18 to PB-20).
         app(WalletLedger::class)->topUp($investor, 50_000_00);
         MarketplaceCampaigns::funding($investor);
+        // The demo investor completes one campaign, so its funded page (reached from the wallet
+        // history's link) can be checked: the status in place of the pledge form, and their
+        // pledges with their status.
+        $nearly = Campaign::where('title', 'Solar water heaters for the guest house')->sole();
+        app(PledgeService::class)->pledge($investor, $nearly, PledgeService::remainingCents($nearly));
     }
 
     /**

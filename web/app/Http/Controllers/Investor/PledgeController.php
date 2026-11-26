@@ -32,8 +32,10 @@ class PledgeController extends Controller
 
         $campaign->refresh();
 
-        return back()->with('status', $campaign->status === Campaign::STATUS_FUNDED
-            ? 'You pledged '.Money::format($request->cents()).' and the campaign is now fully funded.'
+        // Back to the campaign page (with its return_to). It stays open to this investor once the
+        // campaign is funded, because they have pledged to it (CampaignPolicy::browse).
+        return back(fallback: route('investor.campaigns.show', $campaign))->with('status', $campaign->status === Campaign::STATUS_FUNDED
+            ? 'Your pledge of '.Money::format($request->cents()).' completed this campaign’s funding.'
             : 'You pledged '.Money::format($request->cents()).'. It is held in escrow until the campaign closes.');
     }
 }

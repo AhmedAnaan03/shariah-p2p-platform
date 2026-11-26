@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Wallet\TopUpRequest;
 use App\Http\Requests\Wallet\WithdrawRequest;
 use App\Models\Pledge;
+use App\Models\Role;
 use App\Models\WalletAccount;
 use App\Models\WalletTransaction;
 use App\Services\WalletLedger;
@@ -39,7 +40,8 @@ class WalletController extends Controller
         $query = WalletTransaction::where('wallet_account_id', $account?->id ?? 0)
             ->when($filters->get('type'), fn ($q, $type) => $q->where('type', $type));
         $filters->applySearch($query, ['description']);
-        $page = $query->orderByDesc('id')->paginate(self::PER_PAGE)->withQueryString();
+        $page = $query->with('pledge:id,campaign_id')->orderByDesc('id')->paginate(self::PER_PAGE)->withQueryString();
+        $investor = $user->hasRole(Role::INVESTOR);
 
         return Inertia::render('Wallet/Show', [
             'available' => Money::fromCents($ledger->balanceFor($user)),
@@ -50,6 +52,9 @@ class WalletController extends Controller
                     'type' => $entry->type,
                     'type_label' => WalletTransaction::LABELS[$entry->type] ?? $entry->type,
                     'description' => $entry->description,
+                    // A pledge or its refund links to the campaign, which stays open to the
+                    // investor who pledged to it whatever its status (CampaignPolicy::browse).
+                    'campaign_url' => $investor && $entry->pledge ? route('investor.campaigns.show', $entry->pledge->campaign_id) : null,
                     // Money into the wallet is positive, out of it negative.
                     'amount' => ($entry->direction === WalletTransaction::DEBIT ? '-' : '').$entry->amount,
                     'balance_after' => (string) $entry->balance_after,

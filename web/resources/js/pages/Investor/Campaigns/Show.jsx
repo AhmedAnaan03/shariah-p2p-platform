@@ -12,11 +12,14 @@ import FundingRing from '../../../components/FundingRing';
 import Money from '../../../components/Money';
 import MoneyInput from '../../../components/MoneyInput';
 import RiskGradeCard from '../../../components/RiskGradeCard';
+import StatusBadge from '../../../components/StatusBadge';
+import Table from '../../../components/Table';
 import Term from '../../../components/Term';
 import TextLink from '../../../components/TextLink';
 import { CAMPAIGN_PAGE_TEXT as TEXT, investorsText } from '../../../lib/campaigns';
 import { DEFINITIONS, isShariahContract, MURABAHAH, SHARIAH_DISCLAIMER } from '../../../lib/contracts';
-import { daysLeft, daysLeftText, formatMoney } from '../../../lib/format';
+import { daysLeft, daysLeftText, formatDate, formatMoney } from '../../../lib/format';
+import { useModePreview } from '../../../lib/mode';
 import { pledgeConsequence, pledgeLabel, pledgeProblem, toCents } from '../../../lib/wallet';
 
 /**
@@ -27,9 +30,15 @@ import { pledgeConsequence, pledgeLabel, pledgeProblem, toCents } from '../../..
  *
  * The risk grade area is reserved and labelled until the campaign is scored (PB-25, PB-26).
  * A Shariah-only investor can't reach a conventional campaign's page: the server sends them
- * back to the marketplace (PB-31).
+ * back to the marketplace (PB-31). The exception is a campaign they pledged to before turning
+ * Shariah-only on: it is their own investment, so it stays open to them with a note, shown in
+ * conventional mode because its terms name an interest rate.
+ *
+ * Once a campaign is no longer open (funded, not funded, repaying, ...), only investors who
+ * pledged to it can open it, and its status replaces the pledge form (`standing`).
  */
-export default function CampaignShow({ campaign, creditHistory, repaymentHistory, risk, pledge, pledging, back }) {
+export default function CampaignShow({ campaign, creditHistory, repaymentHistory, risk, pledge, pledging, standing, myPledges, shariahOnlyNote, back }) {
+    useModePreview(shariahOnlyNote ? 'conventional' : null);
     const shariah = isShariahContract(campaign.contract_type);
     const days = daysLeft(campaign.funding_deadline);
     const { borrower, projected_return: projected } = campaign;
@@ -51,12 +60,22 @@ export default function CampaignShow({ campaign, creditHistory, repaymentHistory
                 actions={
                     <>
                         <ContractBadge type={campaign.contract_type} />
-                        <Badge tone="info" icon="clock">
-                            {daysLeftText(days)}
-                        </Badge>
+                        {standing ? (
+                            <StatusBadge status={standing.status} />
+                        ) : (
+                            <Badge tone="info" icon="clock">
+                                {daysLeftText(days)}
+                            </Badge>
+                        )}
                     </>
                 }
             />
+
+            {shariahOnlyNote && (
+                <Alert tone="info" role="note" title="Shown because you pledged to it">
+                    {shariahOnlyNote}
+                </Alert>
+            )}
 
             <div className="grid gap-6 @bp-lg/shell:grid-cols-3">
                 {/* Funding and the risk grade come first on phones and tablets (README, "Layout across devices"). */}
@@ -74,7 +93,11 @@ export default function CampaignShow({ campaign, creditHistory, repaymentHistory
                                 />
                             </FundingRing>
                             <DescriptionList items={[['Funding deadline', campaign.funding_deadline_label, true]]} columns={1} />
-                            {pledge.allowed ? (
+                            {standing ? (
+                                <Alert tone={standing.tone} role="note" title={standing.title}>
+                                    {standing.body}
+                                </Alert>
+                            ) : pledge.allowed ? (
                                 <PledgeForm campaign={campaign} pledging={pledging} />
                             ) : (
                                 <Alert tone="warning" role="note" title="Pledging is locked">
@@ -83,6 +106,20 @@ export default function CampaignShow({ campaign, creditHistory, repaymentHistory
                             )}
                         </div>
                     </Card>
+
+                    {myPledges.length > 0 && (
+                        <Card title="Your pledges" description="Every pledge you made to this campaign and what happened to it.">
+                            <Table
+                                caption="Your pledges to this campaign"
+                                columns={[
+                                    { key: 'created_at', label: 'Date', render: (row) => formatDate(row.created_at) },
+                                    { key: 'amount', label: 'Amount', align: 'right', mono: true, render: (row) => <Money value={row.amount} /> },
+                                    { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} size="sm" /> },
+                                ]}
+                                rows={myPledges}
+                            />
+                        </Card>
+                    )}
 
                     {/* Reserved for the AI-assisted risk grade (PB-25) and its explanation (PB-26). */}
                     <Card title="Risk grade" description="An AI-assisted estimate of the chance the borrower misses repayments.">

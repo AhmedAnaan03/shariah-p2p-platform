@@ -144,7 +144,7 @@ class PledgeTest extends TestCase
         $this->pledge($first, $campaign, 4_000);
         $this->pledge($first, $campaign, 1_000);
 
-        $this->pledge($last, $campaign, 5_000)->assertSessionHas('status', 'You pledged MVR 5,000.00 and the campaign is now fully funded.');
+        $this->pledge($last, $campaign, 5_000)->assertSessionHas('status', 'Your pledge of MVR 5,000.00 completed this campaign’s funding.');
 
         $campaign->refresh();
         $this->assertSame(Campaign::STATUS_FUNDED, $campaign->status);
