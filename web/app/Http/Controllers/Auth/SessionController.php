@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\IntendedUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
  * Sign in and sign out (PB-07). A "session" here is the logged-in state Laravel keeps in the
@@ -25,9 +27,10 @@ class SessionController extends Controller
     }
 
     /**
-     * Sign the user in and send them to their portal.
+     * Sign the user in and send them to the page they were trying to open, if it is theirs to
+     * open, or else to their portal.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request): SymfonyResponse
     {
         // Checks the password and the rate limit; throws a validation error if either fails.
         $request->authenticate();
@@ -35,9 +38,9 @@ class SessionController extends Controller
         // A fresh session id on sign-in prevents session fixation.
         $request->session()->regenerate();
 
-        // intended(): if 'auth' sent them here from a page they tried to open, go back there;
-        // otherwise go to their own portal.
-        return redirect()->intended(route($request->user()->portalRoute()));
+        // Not redirect()->intended(): the stored URL belongs to the browser, not to this user, so
+        // it may be another user's or another role's page. IntendedUrl checks it first.
+        return IntendedUrl::redirect($request, $request->user());
     }
 
     /**
@@ -47,6 +50,8 @@ class SessionController extends Controller
     {
         Auth::guard('web')->logout();
 
+        // invalidate() empties the session, the intended URL included, so nothing from this
+        // user's visit can steer the next sign-in in this browser.
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

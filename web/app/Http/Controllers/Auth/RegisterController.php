@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\IntendedUrl;
 use Illuminate\Auth\Events\Registered;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class RegisterController extends Controller
 {
@@ -27,10 +28,11 @@ class RegisterController extends Controller
     }
 
     /**
-     * Create the account, sign the user in and send them to their portal. By the time this
+     * Create the account, sign the user in and send them to their portal (or the page they were
+     * trying to open, if it is theirs to open: IntendedUrl). By the time this
      * runs, RegisterRequest has already validated every field.
      */
-    public function store(RegisterRequest $request): RedirectResponse
+    public function store(RegisterRequest $request): SymfonyResponse
     {
         // Only name, email and password are mass-assignable. role_id is set explicitly from
         // the validated role, and status is left to its default ('pending_verification').
@@ -44,8 +46,9 @@ class RegisterController extends Controller
         // A fresh session id on sign-in prevents session fixation.
         $request->session()->regenerate();
 
-        return redirect()
-            ->route($user->portalRoute())
-            ->with('status', 'Your account has been created.');
+        // The page they were trying to open, if the new account may open it; else the portal.
+        $request->session()->flash('status', 'Your account has been created.');
+
+        return IntendedUrl::redirect($request, $user);
     }
 }
