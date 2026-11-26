@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Account\ThemePreferenceController;
 use App\Http\Controllers\Admin\CampaignController as AdminCampaignController;
+use App\Http\Controllers\Admin\DemoControlsController;
 use App\Http\Controllers\Admin\VerificationController;
 use App\Http\Controllers\Auth\ChangePasswordController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
@@ -162,4 +163,15 @@ Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin')->name('admin.'
 */
 if (app()->environment('local')) {
     Route::get('/dev/design', fn () => Inertia::render('Dev/Design'))->name('dev.design');
+
+    /*
+    | DEMO TOOL (PB-34): move a repaying campaign's schedule so its next row is due now or
+    | overdue, to demonstrate repayments and late payments without waiting. Administrators only,
+    | and like the design preview it exists only on a developer's machine: never in production,
+    | never in the tests.
+    */
+    Route::middleware(['auth', 'role:'.Role::ADMIN])->prefix('admin/demo')->name('admin.demo.')->group(function () {
+        Route::get('/', [DemoControlsController::class, 'index'])->name('index');
+        Route::post('/campaigns/{campaign}/advance', [DemoControlsController::class, 'advance'])->whereNumber('campaign')->name('advance');
+    });
 }

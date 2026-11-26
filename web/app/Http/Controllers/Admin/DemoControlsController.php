@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Campaign;
+use App\Services\DemoClock;
+use App\Support\CampaignPresenter;
+use App\Support\ListFilters;
+use App\Support\SchedulePresenter;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+use InvalidArgumentException;
+
+/**
+ * DEMO TOOL, local environment only (PB-34): the admin "Demo controls" page. Lists repaying
+ * campaigns and moves a schedule so its next row is due now or overdue (DemoClock).
+ *
+ * The routes are only registered when APP_ENV is local (routes/web.php), so they don't exist in
+ * production or the tests; the check here is a second lock on the same door.
+ */
+class DemoControlsController extends Controller
+{
+    public function index(Request $request): Response
+    {
+        abort_unless(app()->environment('local'), 404);
+
+        // PB-54: the shared search-and-filter bar, like every list.
+        $filters = ListFilters::from($request, ['contract' => array_keys(CampaignPresenter::CONTRACT_LABELS)]);
+        $query = Campaign::where('status', Campaign::STATUS_REPAYING)
+            ->when($filters->get('contract'), fn ($q, $contract) => $q->where('contract_type', $contract));
+        $filters->applySearch($query, ['title']);
+        $campaigns = $query->orderBy('disbursed_at')->get();
+
+        return Inertia::render('Admin/DemoControls', [
+            'hasAny' => Campaign::where('status', Campaign::STATUS_REPAYING)->exists(),
+            'filters' => $filters->toArray(),
+            'filterOptions' => ['contract' => ListFilters::options(CampaignPresenter::CONTRACT_LABELS)],
+            'campaigns' => $campaigns->map(function (Campaign $campaign) {
+                $schedule = SchedulePresenter::forBorrower($campaign);
+                $next = collect($schedule['rows'] ?? [])->firstWhere('state', '!=', SchedulePresenter::STATE_PAID);
+
+                return [
+                    'id' => $campaign->id,
+                    'title' => $campaign->title,
+                    'contract_type' => $campaign->contract_type,
+                    'contract_label' => CampaignPresenter::CONTRACT_LABELS[$campaign->contract_type],
+                    'badge_status' => CampaignPresenter::badgeStatus($campaign),
+                    'next' => $next ? ['label' => $next['label'], 'dateLabel' => $next['dateLabel'], 'stateLabel' => $next['stateLabel']] : null,
+                    'url' => route('admin.demo.advance', $campaign),
+                    'reviewUrl' => route('admin.campaigns.show', $campaign),
+                ];
+            })->values(),
+            'defaultOverdueDays' => DemoClock::DEFAULT_OVERDUE_DAYS,
+        ]);
+    }
+
+    public function advance(Request $request, Campaign $campaign, DemoClock $clock): RedirectResponse
+    {
+        abort_unless(app()->environment('local'), 404);
+
+        $data = $request->validate([
+            'mode' => ['required', 'in:due,overdue'],
+        ]);
+
+        try {
+            $moved = $clock->advance($campaign, $data['mode'] === 'overdue' ? DemoClock::DEFAULT_OVERDUE_DAYS : 0, $request->user());
+        } catch (InvalidArgumentException $e) {
+            return back()->with('notice', $e->getMessage());
+        }
+
+        // "dated", not "due": the same words fit a Mudarabah's planned capital return.
+        $what = $data['mode'] === 'overdue' ? 'dated '.DemoClock::DEFAULT_OVERDUE_DAYS.' days ago' : 'dated today';
+
+        return back()->with('status', "Demo: row {$moved['next_no']} of \"{$campaign->title}\" is now {$what}.");
+    }
+}
