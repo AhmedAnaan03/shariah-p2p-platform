@@ -99,6 +99,7 @@ const PAGES = [
     ['verifiedBorrower', 'borrower-campaigns', '/borrower/campaigns'],
     ['verifiedBorrower', 'borrower-campaign-create', '/borrower/campaigns/create'],
     ['verifiedBorrower', 'borrower-campaign-show', null],
+    ['verifiedBorrower', 'borrower-schedule', null], // PB-34: a paid-out Murabahah with its chart and timeline
     ['investor', 'marketplace', '/investor/campaigns'],
     ['investor', 'marketplace-campaign', null], // PB-17: the first card's campaign page (PB-19: with the pledge form)
     ['investor', 'investor-wallet', '/investor/wallet'], // PB-18
@@ -106,6 +107,7 @@ const PAGES = [
     ['verifiedBorrower', 'borrower-wallet', '/borrower/wallet'],
     ['admin', 'admin-campaigns', '/admin/campaigns'],
     ['admin', 'admin-campaign-review', null],
+    ['admin', 'admin-demo-controls', '/admin/demo'], // PB-34: demo tool, local only
     ['guest', 'design-preview', '/dev/design'],
 ];
 
@@ -113,7 +115,8 @@ const PAGES = [
 const FIRST_LINK = {
     'admin-review': ['/admin/verifications', 'a[href*="/admin/verifications/"]'],
     'admin-campaign-review': ['/admin/campaigns', 'a[href*="/admin/campaigns/"]'],
-    'borrower-campaign-show': ['/borrower/campaigns', 'a[href*="/borrower/campaigns/"]:not([href$="/create"])'],
+    'borrower-campaign-show': ['/borrower/campaigns?status=rejected', 'a[href*="/borrower/campaigns/"]:not([href$="/create"])'],
+    'borrower-schedule': ['/borrower/campaigns?status=repaying', 'a[href*="/borrower/campaigns/"]:not([href$="/create"])'],
     'marketplace-campaign': ['/investor/campaigns', 'a[href*="/investor/campaigns/"]'],
     'pledged-campaign': ['/investor/wallet', 'a[href*="/investor/campaigns/"]'],
 };

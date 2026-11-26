@@ -5,6 +5,7 @@ namespace Tests\Feature\Wallet;
 use App\Models\Campaign;
 use App\Models\Pledge;
 use App\Models\User;
+use App\Notifications\CampaignDisbursed;
 use App\Notifications\FundingOutcome;
 use App\Policies\CampaignPolicy;
 use App\Services\PledgeService;
@@ -71,25 +72,29 @@ class PledgedCampaignPageTest extends TestCase
                 ->where('flash.status', 'Your pledge of MVR 4,000.00 completed this campaign’s funding.')
                 ->where('campaign.raised', 10_000)
                 ->where('campaign.amount_requested', 10_000)
-                ->where('standing.status', Campaign::STATUS_FUNDED)
-                ->where('standing.title', 'Fully funded')
+                ->where('standing.status', Campaign::STATUS_REPAYING)
+                ->where('standing.title', 'Funded and repaying')
                 ->where('pledge.allowed', false)
                 ->has('myPledges', 1)
                 ->where('myPledges.0.amount', '4000.00')
-                ->where('myPledges.0.status', 'held'));
+                ->where('myPledges.0.status', 'settled')
+                ->where('schedule.count', $campaign->tenure_months));
 
-        $this->assertSame(Campaign::STATUS_FUNDED, $campaign->fresh()->status);
+        $this->assertSame(Campaign::STATUS_REPAYING, $campaign->fresh()->status);
     }
 
-    public function test_an_investor_who_pledged_can_view_a_funded_campaign(): void
+    public function test_an_investor_who_pledged_can_view_a_funded_campaign_waiting_to_be_paid_out(): void
     {
         $investor = $this->investor(topUpCents: 5_000_00);
-        $campaign = $this->fundedBy($investor);
+        $campaign = $this->liveCampaign(targetMvr: 5_000);
+        $this->heldPledge($investor, $campaign, 5_000_00);
+        $campaign->forceFill(['status' => Campaign::STATUS_FUNDED, 'funded_at' => now()])->save(); // the moment before the payout
 
         $this->actingAs($investor)->get($this->page($campaign))->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('standing.status', 'funded')
-                ->where('standing.body', 'The target was reached. The money stays in the campaign’s escrow until it is paid out to the borrower.')
+                ->where('standing.body', 'The target was reached. The money is being paid out to the borrower, and the schedule will appear here.')
                 ->where('myPledges.0.status', 'held')
+                ->where('schedule', null)
                 ->where('shariahOnlyNote', null));
     }
 
@@ -111,8 +116,7 @@ class PledgedCampaignPageTest extends TestCase
     public function test_every_later_status_shows_its_own_message_and_each_pledge_its_status(): void
     {
         $investor = $this->investor(topUpCents: 5_000_00);
-        $campaign = $this->fundedBy($investor);
-        Pledge::where('campaign_id', $campaign->id)->update(['status' => 'settled']); // paid out (PB-34)
+        $campaign = $this->fundedBy($investor); // and paid out (PB-34)
 
         foreach (['repaying' => 'Funded and repaying', 'completed' => 'Fully repaid', 'defaulted' => 'Defaulted'] as $status => $title) {
             $campaign->forceFill(['status' => $status])->save();
@@ -162,7 +166,7 @@ class PledgedCampaignPageTest extends TestCase
 
         $this->actingAs($investor)->get('/investor/campaigns')->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('campaigns.total', 1)->where('campaigns.data.0.id', $open->id));
-        $this->assertSame(Campaign::STATUS_FUNDED, $funded->status);
+        $this->assertSame(Campaign::STATUS_REPAYING, $funded->status);
     }
 
     public function test_a_shariah_only_investor_can_still_view_a_conventional_campaign_they_pledged_to_with_a_note(): void
@@ -181,7 +185,7 @@ class PledgedCampaignPageTest extends TestCase
                 ->where('pledge.allowed', false)
                 ->where('myPledges.0.status', 'held'));
         $this->actingAs($investor)->get($this->page($funded))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('shariahOnlyNote', CampaignPolicy::SHARIAH_ONLY_PLEDGED)->where('standing.status', 'funded'));
+            ->assertInertia(fn (Assert $page) => $page->where('shariahOnlyNote', CampaignPolicy::SHARIAH_ONLY_PLEDGED)->where('standing.status', 'repaying'));
 
         // Pledging to it again is still refused, and it stays out of their marketplace.
         $this->actingAs($investor)->post("/investor/campaigns/{$open->id}/pledges", ['amount' => 100])->assertForbidden();
@@ -213,14 +217,14 @@ class PledgedCampaignPageTest extends TestCase
         $this->get(route('investor.campaigns.show', $campaign))->assertOk(); // and the link opens
     }
 
-    public function test_the_funded_email_links_investors_to_the_campaign_and_the_refund_email_to_the_wallet(): void
+    public function test_the_payout_email_links_investors_to_the_campaign_and_the_refund_email_to_the_wallet(): void
     {
         $investor = $this->investor(topUpCents: 6_000_00);
         $funded = $this->fundedBy($investor);
         $failed = $this->failedWith($investor);
 
-        Notification::assertSentTo($investor, FundingOutcome::class, function (FundingOutcome $n) use ($investor, $funded) {
-            return $n->outcome === FundingOutcome::FUNDED_INVESTOR && $n->campaign->is($funded)
+        Notification::assertSentTo($investor, CampaignDisbursed::class, function (CampaignDisbursed $n) use ($investor, $funded) {
+            return $n->audience === CampaignDisbursed::INVESTOR && $n->campaign->is($funded)
                 && $n->toMail($investor)->actionUrl === route('investor.campaigns.show', $funded)
                 && $n->toMail($investor)->actionText === 'View the campaign';
         });

@@ -5,23 +5,37 @@ namespace App\Services;
 use App\Models\Campaign;
 use App\Models\Pledge;
 use App\Models\User;
+use App\Notifications\CampaignDisbursed;
 use App\Notifications\FundingOutcome;
 use App\Support\Money;
+use App\Support\SchedulePresenter;
 
 /**
- * Sends the funding outcome to the borrower and each investor (PB-20), once per investor with
- * their own total, after the money has moved.
+ * Tells the borrower and each investor how a campaign's funding ended, once per investor with
+ * their own figures, after the money has moved: paid out (PB-34) or not funded and refunded
+ * (PB-20).
  */
 class FundingNotifier
 {
-    public function funded(Campaign $campaign): void
+    /**
+     * Funded and paid out: the borrower gets the amount and the first row of the schedule, each
+     * investor their pledged total and their share of that first row.
+     */
+    public function disbursed(Campaign $campaign): void
     {
-        $campaign->borrower->notify(new FundingOutcome($campaign, FundingOutcome::FUNDED_BORROWER));
+        $first = SchedulePresenter::first($campaign);
+        $campaign->borrower->notify(new CampaignDisbursed($campaign, CampaignDisbursed::BORROWER, $first['dateLabel'], $first['cents']));
 
-        $totals = Pledge::where('campaign_id', $campaign->id)->where('status', 'held')
+        $totals = Pledge::where('campaign_id', $campaign->id)->where('status', 'settled')
             ->selectRaw('investor_id, SUM(amount) as total')->groupBy('investor_id')->pluck('total', 'investor_id');
         foreach (User::whereKey($totals->keys())->get() as $investor) {
-            $investor->notify(new FundingOutcome($campaign, FundingOutcome::FUNDED_INVESTOR, Money::fromDatabase($totals[$investor->id])));
+            $investor->notify(new CampaignDisbursed(
+                $campaign,
+                CampaignDisbursed::INVESTOR,
+                $first['dateLabel'],
+                $first['shares'][$investor->id],
+                Money::fromDatabase($totals[$investor->id]),
+            ));
         }
     }
 

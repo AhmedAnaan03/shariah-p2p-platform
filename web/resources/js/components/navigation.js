@@ -46,11 +46,18 @@ export const NAVIGATION = {
 };
 
 /**
+ * DEMO TOOL (PB-34): the admin's "Demo controls" link, added only when the server says the demo
+ * tools exist (the `demoTools` prop, true on a developer's machine only).
+ */
+export const DEMO_CONTROLS = { href: '/admin/demo', label: 'Demo controls', icon: 'clock' };
+
+/**
  * The navigation for a role with the current page marked `active`. The longest matching link
  * wins, so /borrower/onboarding/address highlights "Account setup", not "Overview".
  */
-export function navigationFor(role, url) {
-    const config = NAVIGATION[role] ?? { portal: '', groups: [] };
+export function navigationFor(role, url, { demoTools = false } = {}) {
+    const base = NAVIGATION[role] ?? { portal: '', groups: [] };
+    const config = demoTools && role === 'admin' ? { ...base, groups: [...base.groups, { label: 'Demo', items: [DEMO_CONTROLS] }] } : base;
     const path = url.split('?')[0];
     const all = config.groups.flatMap((group) => group.items);
     const current = all

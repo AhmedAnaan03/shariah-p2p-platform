@@ -21,7 +21,7 @@ The live design system with previews of every component is the "Amanah P2P" Desi
   - `@fontsource-variable/bricolage-grotesque`, `@fontsource-variable/figtree` and `@fontsource/ibm-plex-mono` (weights 400 and 500). These self-host the fonts so the live demo works without internet. The theme's font stacks already use their family names.
   - `@radix-ui/react-*` primitives for dialog, dropdown-menu, popover, tabs, tooltip, select, switch, checkbox, radio-group, accordion, toast and slot.
   - `motion` (Framer Motion) for animation, and `@phosphor-icons/react` for icons.
-  - `recharts` only when the first chart is built (not in this item).
+  - `recharts` 3.11.1, pinned, added with the first chart (PB-34: `RepaymentScheduleChart`).
 - Base layer in `app.css`:
   - `body` uses `bg-bg text-text font-sans text-body` with antialiasing.
   - `h1`, `h2` and `h3` (and the `text-h1`, `text-h2`, `text-h3` and `text-display` utilities) also need `font-display`. The theme's type tokens set size, line height, tracking and weight, but not the family.

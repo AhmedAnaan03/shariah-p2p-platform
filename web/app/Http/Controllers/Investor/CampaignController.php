@@ -13,6 +13,7 @@ use App\Support\MarketplaceFilters;
 use App\Support\Money;
 use App\Support\RepaymentHistory;
 use App\Support\ReturnUrl;
+use App\Support\SchedulePresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -114,6 +115,8 @@ class CampaignController extends Controller
             ],
             // Where a campaign that is no longer open stands, in place of the pledge form.
             'standing' => CampaignPresenter::standing($campaign),
+            // PB-34: once paid out, the schedule and this investor's share of every row.
+            'schedule' => SchedulePresenter::forInvestor($campaign, $user),
             // The investor's own pledges here and what happened to each (held, refunded, settled).
             'myPledges' => $myPledges->map(fn ($pledge) => [
                 'id' => $pledge->id,

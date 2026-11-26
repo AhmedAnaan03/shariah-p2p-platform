@@ -69,7 +69,7 @@ class SchemaMatchesErdTest extends TestCase
             'markup_amount' => true, 'asset_description' => true,
             'investor_profit_share_percent' => true, 'status' => false, 'status_reason' => true,
             'funding_deadline' => true, 'submitted_at' => true, 'approved_at' => true,
-            'funded_at' => true, 'created_at' => true, 'updated_at' => true,
+            'funded_at' => true, 'disbursed_at' => true, 'created_at' => true, 'updated_at' => true,
         ],
         'campaign_financials' => [
             'id' => false, 'campaign_id' => false, 'monthly_income' => false,

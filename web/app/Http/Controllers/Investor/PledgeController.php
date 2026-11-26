@@ -34,7 +34,9 @@ class PledgeController extends Controller
 
         // Back to the campaign page (with its return_to). It stays open to this investor once the
         // campaign is funded, because they have pledged to it (CampaignPolicy::browse).
-        return back(fallback: route('investor.campaigns.show', $campaign))->with('status', $campaign->status === Campaign::STATUS_FUNDED
+        // A pledge is only accepted while the campaign is open, so funded_at being set now means
+        // this pledge funded it (by now it is usually paid out too, PB-34).
+        return back(fallback: route('investor.campaigns.show', $campaign))->with('status', $campaign->funded_at !== null
             ? 'Your pledge of '.Money::format($request->cents()).' completed this campaign’s funding.'
             : 'You pledged '.Money::format($request->cents()).'. It is held in escrow until the campaign closes.');
     }

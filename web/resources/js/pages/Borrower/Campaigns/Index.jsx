@@ -29,7 +29,7 @@ export default function CampaignsIndex({ campaigns, hasAny, canCreate, filters, 
         { key: 'contract', label: 'Contract', render: (row) => <ContractBadge type={row.contract_type} size="sm" /> },
         { key: 'amount_requested', label: 'Amount', align: 'right', render: (row) => <Money value={row.amount_requested} /> },
         { key: 'tenure_months', label: 'Tenure', align: 'right', mono: true, render: (row) => `${row.tenure_months} months` },
-        { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} size="sm" /> },
+        { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.badge_status} size="sm" /> },
         { key: 'submitted_at', label: 'Submitted', mono: true, render: (row) => formatDate(row.submitted_at) },
         {
             key: 'view',

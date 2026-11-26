@@ -70,7 +70,7 @@ export default function AdminCampaignShow({ campaign, borrower, finances, credit
                 actions={
                     <>
                         <ContractBadge type={campaign.contract_type} />
-                        <StatusBadge status={campaign.status} />
+                        <StatusBadge status={campaign.badge_status} />
                     </>
                 }
             >

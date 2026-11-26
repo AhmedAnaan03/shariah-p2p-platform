@@ -33,7 +33,7 @@ const COLLAPSED_KEY = 'amanah.sidebar.collapsed';
 export default function PortalLayout({ title, description, breadcrumbs, children }) {
     const page = usePage();
     const user = page.props.auth?.user;
-    const navigation = navigationFor(user?.role, page.url);
+    const navigation = navigationFor(user?.role, page.url, { demoTools: page.props.demoTools });
     const shariahSwitch = useShariahSwitch();
     const [menuOpen, setMenuOpen] = useState(false);
     const [collapsed, setCollapsed] = useCollapsedSidebar();

@@ -74,6 +74,10 @@ class HandleInertiaRequests extends Middleware
             // for the first paint. Guests follow their device.
             'theme' => ['choice' => $user?->theme, 'systemAtChoice' => $user?->theme_system_at_choice],
 
+            // PB-34: the demo time tool's sidebar link, for administrators on a developer's
+            // machine only (its routes exist only when APP_ENV is local).
+            'demoTools' => app()->environment('local') && $user?->hasRole(Role::ADMIN),
+
             // The top bar's Shariah-only switch, for investors only. The preference is stored on
             // the investor profile, so it can only be changed once that profile exists.
             'modeSwitch' => $user?->hasRole(Role::INVESTOR) ? [

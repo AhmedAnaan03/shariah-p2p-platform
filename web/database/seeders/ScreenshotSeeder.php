@@ -100,6 +100,13 @@ class ScreenshotSeeder extends Seeder
         // pledges with their status.
         $nearly = Campaign::where('title', 'Solar water heaters for the guest house')->sole();
         app(PledgeService::class)->pledge($investor, $nearly, PledgeService::remainingCents($nearly));
+
+        // PB-34: two paid-out campaigns with schedules. The verified SME's Murabahah is the
+        // borrower-schedule page; the investor's last pledge (and so the wallet's first campaign
+        // link, the pledged-campaign page) is a Mudarabah's planned capital return schedule.
+        $truckOwner = User::factory()->borrower()->verified()->submitted()->create(['name' => 'Hussain Shamil']);
+        BorrowerProfile::factory()->individual()->for($truckOwner)->create(DemoData::address('hulhumale'));
+        MarketplaceCampaigns::paidOut($investor, null, User::where('email', 'verified-borrower@example.com')->sole(), $truckOwner);
     }
 
     /**

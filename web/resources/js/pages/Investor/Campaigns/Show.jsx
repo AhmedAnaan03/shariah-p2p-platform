@@ -20,6 +20,7 @@ import { CAMPAIGN_PAGE_TEXT as TEXT, investorsText } from '../../../lib/campaign
 import { DEFINITIONS, isShariahContract, MURABAHAH, SHARIAH_DISCLAIMER } from '../../../lib/contracts';
 import { daysLeft, daysLeftText, formatDate, formatMoney } from '../../../lib/format';
 import { useModePreview } from '../../../lib/mode';
+import { isCapitalReturn, SCHEDULE_STATES } from '../../../lib/schedule';
 import { pledgeConsequence, pledgeLabel, pledgeProblem, toCents } from '../../../lib/wallet';
 
 /**
@@ -36,8 +37,11 @@ import { pledgeConsequence, pledgeLabel, pledgeProblem, toCents } from '../../..
  *
  * Once a campaign is no longer open (funded, not funded, repaying, ...), only investors who
  * pledged to it can open it, and its status replaces the pledge form (`standing`).
+ *
+ * Once it is paid out (PB-34, PB-28), the schedule comes first, with the investor's share of every
+ * row. A Mudarabah's schedule is planned capital returns, not a debt (labels from the server).
  */
-export default function CampaignShow({ campaign, creditHistory, repaymentHistory, risk, pledge, pledging, standing, myPledges, shariahOnlyNote, back }) {
+export default function CampaignShow({ campaign, creditHistory, repaymentHistory, risk, pledge, pledging, standing, schedule, myPledges, shariahOnlyNote, back }) {
     useModePreview(shariahOnlyNote ? 'conventional' : null);
     const shariah = isShariahContract(campaign.contract_type);
     const days = daysLeft(campaign.funding_deadline);
@@ -138,6 +142,8 @@ export default function CampaignShow({ campaign, creditHistory, repaymentHistory
                 </div>
 
                 <div className="space-y-6 @bp-lg/shell:col-span-2">
+                    {schedule && <YourSchedule schedule={schedule} />}
+
                     <Card title="Terms and expected return">
                         <div className="space-y-5">
                             <DescriptionList
@@ -213,6 +219,50 @@ export default function CampaignShow({ campaign, creditHistory, repaymentHistory
                 </div>
             </div>
         </>
+    );
+}
+
+/**
+ * PB-34: the schedule and this investor's share of every row, in proportion to their pledge.
+ */
+function YourSchedule({ schedule }) {
+    const { labels } = schedule;
+    const capitalReturn = isCapitalReturn(schedule);
+
+    return (
+        <Card title={labels.title} description={schedule.note}>
+            <div className="space-y-5">
+                <DescriptionList
+                    columns={4}
+                    items={[
+                        ['You invested', <Money key="pledged" value={schedule.yourPledged} />],
+                        ['Your share', `${schedule.yourSharePercent.toFixed(1)}%`, true],
+                        [capitalReturn ? 'Your planned capital returns' : 'Your share in total', <Money key="share" value={schedule.yourShareTotal} />],
+                        [capitalReturn ? 'First planned date' : 'First due date', schedule.firstDateLabel, true],
+                    ]}
+                />
+                <Table
+                    caption={`${labels.title}, with your share of each`}
+                    stack="wide"
+                    columns={[
+                        { key: 'label', label: labels.row },
+                        { key: 'dateLabel', label: labels.date },
+                        { key: 'amount', label: labels.amount, align: 'right', mono: true, render: (row) => <Money value={row.amount} /> },
+                        { key: 'share', label: 'Your share', align: 'right', mono: true, render: (row) => <Money value={row.share} /> },
+                        {
+                            key: 'state',
+                            label: 'Status',
+                            render: (row) => (
+                                <Badge tone={SCHEDULE_STATES[row.state]?.tone} icon={SCHEDULE_STATES[row.state]?.icon} size="sm">
+                                    {row.stateLabel}
+                                </Badge>
+                            ),
+                        },
+                    ]}
+                    rows={schedule.rows}
+                />
+            </div>
+        </Card>
     );
 }
 

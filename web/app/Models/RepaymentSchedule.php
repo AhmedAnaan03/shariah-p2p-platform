@@ -9,7 +9,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * One instalment of a funded campaign.
+ * One row of a funded campaign's schedule, created when it is paid out (PB-34):
+ *
+ * - Conventional and Murabahah: an instalment the borrower owes (capital + interest or markup).
+ * - Mudarabah: a planned capital return, not a debt. Capital is returned according to the
+ *   business's results; in a genuine business loss investors bear the loss of capital in
+ *   proportion to their share, except negligence or misconduct (PB-29). Pages call it a
+ *   "Planned capital return" and never show it as late (SchedulePresenter).
  */
 #[Fillable(['instalment_no', 'due_date', 'capital_due', 'return_due'])]
 class RepaymentSchedule extends Model

@@ -7,9 +7,17 @@ use App\Models\Campaign;
 use App\Models\InvestorProfile;
 use App\Models\User;
 use App\Notifications\CampaignDecided;
+use App\Notifications\CampaignDisbursed;
 use App\Services\CampaignReviewService;
+use App\Support\CampaignPresenter;
+use App\Support\SchedulePresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\MakesWallets;
+use Tests\Concerns\ShariahWording;
 use Tests\TestCase;
 
 /**
@@ -17,12 +25,15 @@ use Tests\TestCase;
  * "guaranteed". This checks everything the server sends for a Shariah campaign: the borrower's
  * and the administrator's page props, the validation messages for the Shariah fields, and the
  * decision emails. (The form's own wording is checked by resources/js/lib/contracts.test.js.)
+ *
+ * PB-34: also the schedule pages and payout emails of a paid-out Shariah campaign, and a
+ * Mudarabah's planned capital return schedule, which must never read as a debt.
  */
 class ShariahWordingTest extends TestCase
 {
-    use RefreshDatabase;
+    use MakesWallets, RefreshDatabase;
 
-    private const FORBIDDEN = '/\b(interest|guaranteed)\b/i';
+    private const FORBIDDEN = ShariahWording::FORBIDDEN;
 
     /**
      * @return array<string, array{0: string}>
@@ -128,5 +139,96 @@ class ShariahWordingTest extends TestCase
             $this->assertSame('8.0% markup over 12 months', $projected['value']);
             $this->assertSame('8.0% in total', $campaign->rateForCard());
         }
+    }
+
+    // ----- The schedule and payout (PB-34, PB-28) -----
+
+    #[DataProvider('shariahContracts')]
+    public function test_the_schedule_pages_of_a_paid_out_shariah_campaign_never_say_interest_or_guaranteed(string $contract): void
+    {
+        Notification::fake();
+        [$campaign, [$investor]] = $this->paidOutCampaign($contract, 10_000, 3, [10_000]);
+        $investor->investorProfile->forceFill(['shariah_only' => true])->save();
+        Carbon::setTestNow(now()->addMonths(2)); // some rows past their date
+
+        foreach ([[$campaign->borrower, "/borrower/campaigns/{$campaign->id}"], [$investor, "/investor/campaigns/{$campaign->id}"]] as [$user, $url]) {
+            $props = $this->actingAs($user)->get($url)->assertOk()->viewData('page')['props'];
+            $this->assertNotNull($props['schedule'], $url);
+            $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, json_encode($props), $url);
+        }
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function payoutEmails(): array
+    {
+        $cases = [];
+        foreach (['murabahah', 'mudarabah'] as $contract) {
+            foreach ([CampaignDisbursed::BORROWER, CampaignDisbursed::INVESTOR] as $audience) {
+                $cases["{$contract} {$audience}"] = [$contract, $audience];
+            }
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('payoutEmails')]
+    public function test_the_payout_emails_never_say_interest_or_guaranteed(string $contract, string $audience): void
+    {
+        $campaign = Campaign::factory()->{$contract}()->live()->create();
+        $mail = (new CampaignDisbursed($campaign, $audience, '26 Dec 2026', 1_000_00, 5_000_00))->toMail($campaign->borrower);
+
+        $text = implode(' ', [$mail->subject, ...$mail->introLines, ...$mail->outroLines, $mail->actionText]);
+        $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, $text);
+
+        if ($contract === 'mudarabah') {
+            $this->assertDoesNotMatchRegularExpression(ShariahWording::DEBT, $text, 'A Mudarabah payout email never reads as a debt.');
+            $this->assertStringContainsString('planned capital return', $text);
+            $this->assertStringContainsString(SchedulePresenter::MUDARABAH_CAPITAL_NOTE, $text);
+        }
+    }
+
+    public function test_a_mudarabah_schedule_is_labelled_planned_capital_return_everywhere(): void
+    {
+        $labels = SchedulePresenter::labels(Campaign::factory()->mudarabah()->make());
+
+        $this->assertSame('Planned capital return schedule', $labels['title']);
+        $this->assertSame('Planned capital return', $labels['row']);
+        $this->assertSame('Planned capital returns', $labels['rows']);
+        $this->assertSame('Planned capital return', $labels['capital']);
+        $this->assertSame('Planned capital return', $labels['amount']);
+        $this->assertSame('Planned date', $labels['date']);
+        $this->assertNull($labels['return'], 'No return column: profit is reported later (PB-29).');
+        foreach (array_filter($labels) as $label) {
+            $this->assertDoesNotMatchRegularExpression(ShariahWording::DEBT, $label);
+        }
+    }
+
+    public function test_the_mudarabah_notes_status_and_capital_wording_never_read_as_a_debt(): void
+    {
+        $campaign = Campaign::factory()->mudarabah()->create(['status' => Campaign::STATUS_REPAYING]);
+        $standing = CampaignPresenter::standing($campaign);
+
+        foreach ([SchedulePresenter::borrowerNote($campaign), SchedulePresenter::investorNote($campaign), $standing['title'], $standing['body'], SchedulePresenter::AWAITING_LABEL] as $text) {
+            $this->assertDoesNotMatchRegularExpression(ShariahWording::DEBT, $text);
+            $this->assertDoesNotMatchRegularExpression(self::FORBIDDEN, $text);
+        }
+        $this->assertSame('returning', $standing['status'], 'Its badge says "Returning capital", not "Repaying".');
+        // The review's wording: results, proportional loss, and the negligence or misconduct exception.
+        $this->assertStringContainsString('Capital is returned according to the business’s results.', SchedulePresenter::MUDARABAH_CAPITAL_NOTE);
+        $this->assertStringContainsString('investors bear the loss of capital in proportion to their share, except in cases of negligence or misconduct', SchedulePresenter::MUDARABAH_CAPITAL_NOTE);
+    }
+
+    public function test_the_database_comments_describe_a_mudarabah_row_as_a_planned_capital_return(): void
+    {
+        $comments = DB::table('information_schema.COLUMNS')->whereRaw('TABLE_SCHEMA = database()')
+            ->where('TABLE_NAME', 'repayment_schedules')->pluck('COLUMN_COMMENT', 'COLUMN_NAME');
+        $table = DB::table('information_schema.TABLES')->whereRaw('TABLE_SCHEMA = database()')->where('TABLE_NAME', 'repayment_schedules')->value('TABLE_COMMENT');
+
+        $this->assertStringContainsString('planned capital returns (Mudarabah, not a debt)', $table);
+        $this->assertStringContainsString('planned capital return', $comments['capital_due']);
+        $this->assertStringContainsString('not a debt due date', $comments['due_date']);
+        $this->assertStringContainsString('always NULL for Mudarabah', $comments['return_due']);
     }
 }

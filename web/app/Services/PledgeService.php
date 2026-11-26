@@ -14,8 +14,8 @@ use App\Support\Money;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * Pledging from the wallet into a campaign's escrow (PB-19), and funding when the pledge reaches
- * the target (PB-20).
+ * Pledging from the wallet into a campaign's escrow (PB-19), funding when the pledge reaches
+ * the target (PB-20), and then paying it out to the borrower (PB-34, DisbursementService).
  *
  * Everything happens in one database transaction (READ COMMITTED, see WalletLedger::run) that
  * starts by locking the campaign's row.
@@ -31,7 +31,7 @@ class PledgeService
     /** The smallest pledge, unless less than this is left to raise. */
     public const MIN_CENTS = 100_00;
 
-    public function __construct(private readonly WalletLedger $ledger, private readonly FundingNotifier $notifier) {}
+    public function __construct(private readonly WalletLedger $ledger, private readonly DisbursementService $disbursement) {}
 
     /**
      * @throws PledgeRefused|InsufficientFunds
@@ -80,9 +80,11 @@ class PledgeService
             return [$pledge, $funded ? $campaign : null];
         });
 
-        // Emails only once the money has really moved (after commit).
+        // PB-34: the pledge that funds a campaign also pays it out, in its own transaction after
+        // this one has committed, so a payout problem can never undo the pledge (the deadline
+        // job retries it). The payout tells the borrower and the investors.
         if ($funded) {
-            $this->notifier->funded($funded);
+            $this->disbursement->disburseAfterFunding($funded);
         }
 
         return $pledge;

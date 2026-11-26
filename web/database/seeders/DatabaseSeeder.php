@@ -31,8 +31,11 @@ class DatabaseSeeder extends Seeder
      *   pending-borrower@example.com  individual borrower who has submitted and is waiting in the admin queue
      *   shariah-investor@example.com  verified investor with Shariah-only mode on (PB-31)
      *
-     * Wallets (PB-18): investor MVR 50,000 (less a MVR 1,000 pledge to "Coconut oil press"),
-     * shariah-investor MVR 40,000, sme MVR 5,000. Two campaigns close 5 and 10 minutes after seeding
+     * Wallets (PB-18): investor MVR 50,000 (less a MVR 1,000 pledge to "Coconut oil press" and
+     * MVR 15,000 pledged to the two paid-out campaigns), shariah-investor MVR 40,000 (less MVR 5,000),
+     * sme MVR 5,000 plus the MVR 20,000 paid out to it, borrower the MVR 30,000 paid out to it.
+     * Paid out (PB-34): sme's "Laundry machines for the guest house" (Murabahah) and borrower's
+     * "Food truck for Malé evenings" (Mudarabah) have schedules; move them with Admin → Demo controls. Two campaigns close 5 and 10 minutes after seeding
      * (see MarketplaceCampaigns::funding); the 10-minute one, "Solar water heaters for the guest
      * house", is sme@example.com's own, so its funding progress shows on that borrower's request page.
      *   new-investor@example.com      investor who has only registered (onboarding from the start)
@@ -100,5 +103,8 @@ class DatabaseSeeder extends Seeder
 
         // Pledges, and two campaigns closing within minutes to watch the deadline job (PB-19, PB-20).
         MarketplaceCampaigns::funding($investor, $sme);
+
+        // Two campaigns already funded and paid out, with schedules (PB-34).
+        MarketplaceCampaigns::paidOut($investor, $shariahInvestor, $sme, $borrower);
     }
 }

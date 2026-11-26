@@ -27,6 +27,8 @@ const STATUSES = {
     // they pledged to. "closed" is a live campaign past its deadline, waiting to be settled.
     closed: ['neutral', 'lock', 'Funding closed'],
     repaying: ['info', 'arrows-clockwise', 'Repaying'],
+    // PB-34: a paid-out Mudarabah. Its schedule is planned capital returns, not a debt.
+    returning: ['info', 'arrows-clockwise', 'Returning capital'],
     completed: ['success', 'seal-check', 'Fully repaid'],
     held: ['info', 'lock', 'Held in escrow'],
     refunded: ['neutral', 'arrows-clockwise', 'Refunded'],

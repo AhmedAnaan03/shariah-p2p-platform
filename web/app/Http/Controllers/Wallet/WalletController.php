@@ -42,6 +42,10 @@ class WalletController extends Controller
         $filters->applySearch($query, ['description']);
         $page = $query->with('pledge:id,campaign_id')->orderByDesc('id')->paginate(self::PER_PAGE)->withQueryString();
         $investor = $user->hasRole(Role::INVESTOR);
+        // PB-34: a disbursement has no pledge; its campaign is the escrow on the other leg.
+        $paidOutFrom = WalletTransaction::whereIn('transfer_ref', $page->getCollection()->where('type', WalletTransaction::DISBURSEMENT)->pluck('transfer_ref'))
+            ->where('direction', WalletTransaction::DEBIT)->join('wallet_accounts', 'wallet_accounts.id', '=', 'wallet_transactions.wallet_account_id')
+            ->pluck('wallet_accounts.campaign_id', 'wallet_transactions.transfer_ref');
 
         return Inertia::render('Wallet/Show', [
             'available' => Money::fromCents($ledger->balanceFor($user)),
@@ -54,7 +58,12 @@ class WalletController extends Controller
                     'description' => $entry->description,
                     // A pledge or its refund links to the campaign, which stays open to the
                     // investor who pledged to it whatever its status (CampaignPolicy::browse).
-                    'campaign_url' => $investor && $entry->pledge ? route('investor.campaigns.show', $entry->pledge->campaign_id) : null,
+                    // A disbursement links the borrower to the request it paid out.
+                    'campaign_url' => match (true) {
+                        $investor && $entry->pledge !== null => route('investor.campaigns.show', $entry->pledge->campaign_id),
+                        ! $investor && isset($paidOutFrom[$entry->transfer_ref]) => route('borrower.campaigns.show', $paidOutFrom[$entry->transfer_ref]),
+                        default => null,
+                    },
                     // Money into the wallet is positive, out of it negative.
                     'amount' => ($entry->direction === WalletTransaction::DEBIT ? '-' : '').$entry->amount,
                     'balance_after' => (string) $entry->balance_after,

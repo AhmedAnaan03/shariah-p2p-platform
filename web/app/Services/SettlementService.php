@@ -18,7 +18,8 @@ use Throwable;
  * For each live campaign whose deadline has passed, in its own transaction that locks the
  * campaign row first (the same lock pledges take, so a pledge can't land mid-settlement):
  *
- * - target reached → funded (normally the last pledge already did this);
+ * - target reached → funded (normally the last pledge already did this), then paid out to the
+ *   borrower by DisbursementService (PB-34);
  * - otherwise → failed, and every held pledge goes back from escrow to its investor's wallet as
  *   a pledge_refund transfer, and is marked refunded.
  *
@@ -31,16 +32,22 @@ class SettlementService
 
     public const FAILED = Campaign::STATUS_FAILED;
 
-    public function __construct(private readonly WalletLedger $ledger, private readonly FundingNotifier $notifier) {}
+    public function __construct(
+        private readonly WalletLedger $ledger,
+        private readonly FundingNotifier $notifier,
+        private readonly DisbursementService $disbursement,
+    ) {}
 
     /**
-     * Settle every live campaign past its deadline.
+     * Settle every live campaign past its deadline, then pay out every funded campaign still
+     * waiting for its payout (PB-34): one just funded at its deadline, or one whose payout after
+     * the funding pledge failed.
      *
-     * @return array{funded: int, failed: int, refunds: int}
+     * @return array{funded: int, failed: int, refunds: int, disbursed: int}
      */
     public function settleDue(): array
     {
-        $summary = ['funded' => 0, 'failed' => 0, 'refunds' => 0];
+        $summary = ['funded' => 0, 'failed' => 0, 'refunds' => 0, 'disbursed' => 0];
         $due = Campaign::where('status', Campaign::STATUS_LIVE)->where('funding_deadline', '<=', now())->orderBy('funding_deadline')->pluck('id');
 
         foreach ($due as $id) {
@@ -57,6 +64,8 @@ class SettlementService
                 $summary['refunds'] += $result['pledgesRefunded'];
             }
         }
+
+        $summary['disbursed'] = $this->disbursement->disburseWaiting();
 
         return $summary;
     }
@@ -102,17 +111,18 @@ class SettlementService
             return null;
         }
 
-        // After commit: only tell people once the money has really moved.
-        $result['outcome'] === self::FUNDED
-            ? $this->notifier->funded($result['campaign'])
-            : $this->notifier->notFunded($result['campaign'], $result['refunds']);
+        // After commit: only tell people once the money has really moved. A funded campaign is
+        // announced when it is paid out (PB-34), which settleDue() does straight after.
+        if ($result['outcome'] === self::FAILED) {
+            $this->notifier->notFunded($result['campaign'], $result['refunds']);
+        }
 
         return ['outcome' => $result['outcome'], 'refunds' => $result['refunds'], 'pledgesRefunded' => $result['pledgesRefunded']];
     }
 
     /**
-     * Mark a (locked) campaign funded. The money stays in escrow, with its pledges held, until it
-     * is paid out to the borrower (PB-34).
+     * Mark a (locked) campaign funded. The money stays in escrow, with its pledges held, until
+     * DisbursementService pays it out to the borrower moments later (PB-34).
      */
     public static function markFunded(Campaign $campaign): void
     {
