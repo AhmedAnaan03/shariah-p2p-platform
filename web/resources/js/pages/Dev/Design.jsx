@@ -24,6 +24,7 @@ import Money from '../../components/Money';
 import MoneyInput from '../../components/MoneyInput';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import CampaignCard from '../../components/CampaignCard';
+import BusinessReportTable from '../../components/BusinessReportTable';
 import ChartFrame from '../../components/ChartFrame';
 import RepaymentScheduleChart from '../../components/RepaymentScheduleChart';
 import RepaymentTimeline from '../../components/RepaymentTimeline';
@@ -93,6 +94,7 @@ export default function Design() {
                     <DataDisplay />
                     <Campaigns />
                     <Schedules />
+                    <BusinessReports />
                     <Overlays />
                     <Shell mode={mode} setMode={setMode} />
                 </main>
@@ -209,10 +211,11 @@ const MUDARABAH_SCHEDULE = {
     returnTotal: null,
     total: '20000.00',
     firstDateLabel: '26 Dec 2026',
+    // PB-29: a report approved, one waiting for review, one date passed with no report yet.
     rows: [
+        ['paid', 'Report approved'],
+        ['review', 'Report submitted, awaiting review'],
         ['awaiting', 'Planned date passed, awaiting business report'],
-        ['due', 'Planned for today'],
-        ['upcoming', 'Planned for 26 Feb 2027'],
         ['upcoming', 'Planned for 26 Mar 2027'],
     ].map(([state, stateLabel], i) => ({
         id: i + 1,
@@ -226,6 +229,29 @@ const MUDARABAH_SCHEDULE = {
         stateLabel,
     })),
 };
+
+// PB-29: business reports as MudarabahPresenter sends them: approved profit, approved genuine
+// loss, rejected, and waiting for review.
+const REPORT = { plannedDateLabel: '26 Dec 2026', causeLabel: null, reason: null, outcome: [], yours: null };
+const BUSINESS_REPORTS = [
+    { ...REPORT, id: 4, periodLabel: 'Period 3', plannedDateLabel: '26 Feb 2027', resultLabel: 'Profit', result: '2300.00', capitalReturned: '5000.00', status: 'submitted', statusLabel: 'Awaiting review' },
+    { ...REPORT, id: 3, periodLabel: 'Period 2', plannedDateLabel: '26 Jan 2027', resultLabel: 'Profit', result: '1500.00', capitalReturned: '5000.00', status: 'approved', statusLabel: 'Approved', outcome: [['Capital returned', '5000.00'], ['Earlier losses restored', '600.00'], ['Investors’ profit share', '540.00'], ['Business’s profit share', '360.00']], yours: { capital: '1666.67', restored: '200.00', profit: '180.00', loss: '0.00' } },
+    { ...REPORT, id: 2, periodLabel: 'Period 1', resultLabel: 'Loss', result: '600.00', capitalReturned: '5000.00', status: 'approved', statusLabel: 'Approved', causeLabel: 'Genuine business loss', reason: 'Two weeks of closures for road works.', outcome: [['Capital returned', '5000.00'], ['Loss borne by investors', '600.00']], yours: { capital: '1666.67', restored: '0.00', profit: '0.00', loss: '200.00' } },
+    { ...REPORT, id: 1, periodLabel: 'Period 1', resultLabel: 'Profit', result: '900.00', capitalReturned: '5000.00', status: 'rejected', statusLabel: 'Not accepted', reason: 'The costs do not match the attached accounts.' },
+];
+
+function BusinessReports() {
+    return (
+        <Section id="business-reports" title="Business reports" description="BusinessReportTable (PB-29): a Mudarabah's reports and what each decision did, or with `yours`, an investor's own part.">
+            <Card title="Business reports">
+                <BusinessReportTable reports={BUSINESS_REPORTS} />
+            </Card>
+            <Card title="Your part of each report">
+                <BusinessReportTable reports={BUSINESS_REPORTS.filter((report) => report.status === 'approved')} yours caption="Approved business reports, with your part of each" />
+            </Card>
+        </Section>
+    );
+}
 
 function Schedules() {
     return (
