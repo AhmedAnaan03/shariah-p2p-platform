@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Exceptions\ContractRuleViolation;
 use Database\Factories\CampaignFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -95,6 +96,16 @@ class Campaign extends Model
     public const STATUS_REPAYING = 'repaying';
 
     /**
+     * The terms that fix what a funded contract is worth (PB-28): the asset cost (or amount),
+     * the tenure, the contract type and its return term. Once a campaign is funded, investors
+     * have agreed to them, so none can change: a Murabahah's markup is disclosed and fixed.
+     */
+    public const LOCKED_AFTER_FUNDING = [
+        'amount_requested', 'tenure_months', 'contract_type', 'interest_rate_percent',
+        'markup_amount', 'asset_description', 'investor_profit_share_percent',
+    ];
+
+    /**
      * @var array<string, mixed>
      */
     protected $attributes = [
@@ -115,6 +126,40 @@ class Campaign extends Model
             'funded_at' => 'datetime',
             'disbursed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Model events: "updating" runs before every update made through Eloquent.
+     */
+    protected static function booted(): void
+    {
+        static::updating(function (Campaign $campaign) {
+            $campaign->ensureTermsUnchangedAfterFunding();
+        });
+    }
+
+    /**
+     * PB-28: once funded, the contract's terms are agreed and can't change. For a Murabahah that
+     * means the markup (and the asset cost it is added to) is fixed for good, so the sale price
+     * disclosed to investors and the borrower is always the one repaid. It reads funded_at as it
+     * was stored before this save (getOriginal), so the save that marks the campaign funded
+     * still goes through; every save after it can't touch the terms.
+     *
+     * @throws ContractRuleViolation
+     */
+    public function ensureTermsUnchangedAfterFunding(): void
+    {
+        if ($this->getOriginal('funded_at') === null) {
+            return;
+        }
+
+        $changed = array_values(array_filter(self::LOCKED_AFTER_FUNDING, fn (string $term) => $this->isDirty($term)));
+        if ($changed !== []) {
+            throw new ContractRuleViolation(
+                'A funded campaign\'s agreed terms cannot change ('.implode(', ', $changed).'). '
+                .'A Murabahah markup is fixed once the contract is agreed.'
+            );
+        }
     }
 
     public function isMudarabah(): bool
